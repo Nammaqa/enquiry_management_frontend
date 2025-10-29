@@ -1,0 +1,107 @@
+.enquiry-page {
+  display: flex;
+  flex-direction: column;
+  margin-left: var(--sidebar-width-open);
+  flex: 1;
+  transition: margin-left 0.3s ease;
+  text-align: left; /* Align text to the left */
+}
+
+.title-container {
+  text-align: center; /* Align text to the left */
+  margin-bottom: 20px;
+  padding: 10px;
+  font-size: 22px;
+  font-weight: bold;
+  color: #333;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 5px 2px 5px rgba(0, 0, 0, 0.2);
+  transition: background-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.enquiry-form-container {
+  padding: 20px;
+  flex: 1;
+  text-align: left; /* Align text to the left */
+}
+
+.enquiry-form {
+  animation: fadeIn 1s ease-in-out;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  transition: opacity 0.3s ease;
+  text-align: left; /* Align text to the left */
+}
+
+.form-container {
+  padding: 15px;
+  border-radius: 8px;
+  background: #f8f9fa;
+  border: 1px solid #ddd;
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+  text-align: left; /* Align text to the left */
+}
+
+.form-buttons {
+  display: flex;
+  justify-content: space-between;
+  transition: justify-content 0.3s ease;
+}
+
+input,
+.MuiFormControlLabel-root {
+  transition: border-color 0.3s ease, background-color 0.3s ease;
+}
+
+.forgot-password {
+  background-color: transparent;
+  border: none;
+  color: #0c0c3e;
+  cursor: pointer;
+  text-decoration: none;
+  text-align: left; /* Align text to the left */
+}
+
+.forgot-password:hover {
+  text-decoration: underline;
+}
+
+.enquiry-container {
+  max-width: 800px;
+  margin: auto;
+  padding: 30px;
+  background-color: #f9f9f9;
+  border-radius: 10px;
+  box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  text-align: left; /* Align text to the left */
+}
+
+.enquiry-container h2 {
+  text-align: left; /* Align text to the left */
+  margin-bottom: 20px;
+  color: #3f51b5;
+}
+
+.error {
+  color: red;
+  font-size: 12px;
+  margin-top: 5px;
+  text-align: left; /* Align text to the left */
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (max-width: 768px) {
+  .enquiry-page {
+    margin-left: 0;
+  }
+}
