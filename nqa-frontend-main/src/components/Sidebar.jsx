@@ -15,19 +15,19 @@ const Sidebar = () => {
   const navigate = useNavigate();
 
   const menuItems = [
-    { path: "/enquiry-form", name: "Enquiry Form", icon: <HiOutlineClipboardList /> },
-    { path: "/enquiry-list", name: "Enquiry List", icon: <MdOutlineListAlt /> },
-    { path: "/demo-list", name: "Demo List", icon: <MdOutlineTableChart /> },
-    { path: "/demo-list-1", name: "Demo_List", icon: <MdOutlineTableChart />, section: "separate" },
-    { path: "/class-list", name: "Class List", icon: <MdOutlineArticle />, section: "separate" },
-    { path: "/class_list", name: "class_List", icon: <MdOutlineArticle />, section: "separate" },
-    { path: "/placement-list", name: "Placement List", icon: <PiListMagnifyingGlass />, section: "separate" },
-    { path: "/interview-list", name: "Interview List", icon: <BiSolidSpreadsheet />, section: "separate" },
+    { path: "/enquiry-form", name: "Enquiry Form", icon: <HiOutlineClipboardList className="profile-icon-container" /> },
+    { path: "/enquiry-list", name: "Enquiry List", icon: <MdOutlineListAlt className="profile-icon-container" /> },
+    { path: "/demo-list", name: "Demo List", icon: <MdOutlineTableChart className="profile-icon-container" /> },
+    { path: "/demo-list-1", name: "Demo_List", icon: <MdOutlineTableChart className="profile-icon-container" />, section: "separate" },
+    { path: "/class-list", name: "Class List", icon: <MdOutlineArticle className="profile-icon-container" />, section: "separate" },
+    { path: "/class_list", name: "class_List", icon: <MdOutlineArticle className="profile-icon-container" />, section: "separate" },
+    { path: "/placement-list", name: "Placement List", icon: <PiListMagnifyingGlass className="profile-icon-container" />, section: "separate" },
+    { path: "/interview-list", name: "Interview List", icon: <BiSolidSpreadsheet className="profile-icon-container" />, section: "separate" },
   ];
 
   const role = localStorage.getItem('role');
+  const username = localStorage.getItem('username') || 'Profile';
 
-  // Define allowed paths for each role
   const roleAccess = {
     counsellor: ['/enquiry-form', '/enquiry-list', '/demo-list'],
     accounts: ['/demo-list-1', '/class-list'],
@@ -35,7 +35,6 @@ const Sidebar = () => {
     admin: 'all',
   };
 
-  // Filter menu items based on role
   const filteredMenuItems =
     role === 'admin'
       ? menuItems
@@ -48,7 +47,7 @@ const Sidebar = () => {
   return (
     <div className="flex h-screen">
       {/* Sidebar */}
-      <div className={`flex ${isOpen ? "w-64" : "w-10"} bg-[#002147] h-screen p-3 pt-6 duration-300 relative`}>
+      <div className="sidebar-wrapper">
         <div className={`sidebar ${isOpen ? "open" : "closed"}`}>
           <div className="sidebar-header">
             <img
@@ -68,6 +67,7 @@ const Sidebar = () => {
                   className={location.pathname === item.path ? "active" : ""}
                 >
                   <Link to={item.path}>
+                    {/* {React.cloneElement(item.icon, { className: "profile-icon" })} */}
                     {item.icon}
                     {isOpen && <span>{item.name}</span>}
                   </Link>
@@ -75,10 +75,20 @@ const Sidebar = () => {
               ))}
             </ul>
           </div>
-          <div className="sidebar-footer">
-            <h2>{isOpen && <CgProfile />}</h2>
+
+          {/* Footer with Username Display */}
+          <div className="sidebar-menu">
+            {/* Username Display Frame - Always Horizontal */}
+            <div className={`username-display ${isOpen ? "open" : "closed"}`}>
+              {/* <div className="profile-icon-container"> */}
+              <CgProfile className="profile-icon" />
+              {/* </div> */}
+              {isOpen && <span className="username-text">{username}</span>}
+            </div>
+
+            {/* Logout Button */}
             <button className="logout-btn" onClick={handleLogout}>
-              <FiLogOut /> {isOpen && "Logout"}
+              <FiLogOut className="profile-icon" style={{ paddingLeft: 4 }} /> {isOpen && <span>Logout</span>}
             </button>
           </div>
         </div>
@@ -86,7 +96,7 @@ const Sidebar = () => {
 
       {/* Main Content */}
       <div className={`main-content flex-1 ${isOpen ? '' : 'sidebar-closed'}`}>
-        <Outlet /> {/* Render the selected route's content here */}
+        <Outlet />
       </div>
     </div>
   );
