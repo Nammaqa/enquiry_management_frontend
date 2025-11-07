@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 import ForgotPassword from './components/ForgotPassword';
@@ -13,6 +13,8 @@ import ClassListPage from './pages/Class_List';
 import PlacementList from './pages/PlacementList';
 import './App.css';
 import AccountsDemoList from './pages/AccountsDemoList';
+// import StudentPlacementForm from './pages/Studentplacementform';
+// import PublicPlacementForm from "./components/PublicPlacementForm";
 
 const queryClient = new QueryClient();
 
@@ -43,9 +45,11 @@ const App = () => {
                     <Route path="/placement-list" element={<PlacementList />} />
                     <Route path="/interview-list" element={<ClassList />} />
                     <Route path="/accounts-demo-list" element={<AccountsDemoList />} />
-                    
+                    {/* <Route path="/student-placement-form" element={<StudentPlacementForm />} /> */}
+                    {/* <Route path="/student-placement-view" element={<StudentPlacementForm />} /> */}
+                    {/* <Route path="/form" element={<PublicPlacementForm />} /> */}
                     {/* Redirect unknown routes */}
-                    <Route path="*" element={<Navigate to="enquiry-form" replace />} />
+                    {/* <Route path="*" element={<Navigate to="enquiry-form" replace />} /> */}
                   </Routes>
                 </div>
               </div>

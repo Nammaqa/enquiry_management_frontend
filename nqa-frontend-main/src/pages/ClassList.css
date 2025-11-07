@@ -1,29 +1,109 @@
 @import url('https://fonts.googleapis.com/css2?family=Afacad&display=swap');
 
-.class-list-container {
-  background-color: #ffffff;
-  max-width: 1200px;
-  margin: 0 auto;
-  border-radius: 4px;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-  padding: 20px;
+body {
   font-family: 'Afacad', sans-serif;
-  margin-top: 20px;
 }
 
+/* === Container Layout === */
+.class-list-container {
+  width: 100%;
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 2rem;
+  padding-top: 0.5rem;
+  height: 93vh;
+  font-size: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  overflow: hidden;
+}
+
+/* === Demo-style containers (match acc_demolist.css) === */
+.demo-header-container {
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  flex-shrink: 0;
+}
+
+.demo-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.demo-header h2 {
+  font-size: 30px;
+  font-weight: 600;
+  color: #003366;
+}
+
+.demo-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-icon {
+  position: absolute;
+  right: 10px;
+  color: #777;
+}
+
+.demo-content-container {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.demo-table-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 12px;
+  border: 1px solid #e4e7ec;
+  background: #fff;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+  flex: 1;
+}
+
+.demo-table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+/* === Header === */
 .header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  background: #fff;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  margin-bottom: 20px;
 }
 
 .header h2 {
-  font-size: 20px;
+  font-size: 30px;
   font-weight: 600;
-  color: #333;
-  padding-left: 20px;
+  color: #003366;
 }
 
 .search-form {
@@ -32,45 +112,246 @@
 }
 
 .search-input-container {
+  position: relative;
   display: flex;
   align-items: center;
-  background: #fff;
-  border-radius: 4px;
-  padding: 0;
-  gap: 4px;
 }
 
 .search-input {
-  width: 291.44px;
-  height: 33.6px;
-  padding: 8px;
-  border-radius: 4px;
-  border: 1px solid #ccc;
-  font-size: 16px;
-  background: #fff;
+  width: 220px;
+  padding: 8px 35px 8px 12px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
   outline: none;
-  transition: border 0.2s;
+  font-size: 14px;
+  transition: all 0.2s ease;
 }
 
 .search-input:focus {
-  border: 2px solid #85AFFF;
-  outline: 2px solid #85AFFF;
+  border-color: #004aad;
+  box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.1);
 }
 
 .search-button {
-  background: none;
+  position: absolute;
+  right: 10px;
+  background: transparent;
   border: none;
-  padding: 0 8px;
-  margin: 0;
+  color: #777;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 33.6px;
 }
 
-.search-button:focus {
-  outline: 2px solid #85AFFF;
+/* === Table Container === */
+.table-container {
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
 }
 
-/* ...rest of your table styles... */
+.class-table {
+  width: 100%;
+  min-width: 1200px;
+  border-collapse: collapse;
+  text-align: left;
+  font-size: 14px;
+}
+
+/* === Table Header === */
+.class-table thead {
+  background-color: #85AFFF;
+  color: #fff;
+  border-radius: 12px 12px 0 0;
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.class-table thead th {
+  padding: 14px 16px;
+  font-weight: 500;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255, 255, 255, 0.15);
+  text-align: center;
+}
+
+.class-table thead th:last-child {
+  border-right: none;
+}
+
+/* === Table Body === */
+.class-table tbody tr {
+  border-bottom: 1px solid #f0f2f5;
+  transition: background 0.2s ease;
+}
+
+.class-table tbody tr:hover {
+  background-color: #f9fbff;
+}
+
+.class-table td {
+  padding: 12px 16px;
+  color: #031D4E;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.text-right {
+  text-align: right;
+}
+
+/* === Enhanced Form Controls === */
+.class-table input[type="text"],
+.class-table input[type="number"],
+.class-table select {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  min-width: 120px;
+  transition: all 0.2s ease;
+  background-color: #fff;
+  font-family: 'Afacad', sans-serif;
+}
+
+.class-table input:hover,
+.class-table select:hover {
+  border-color: #9ca3af;
+}
+
+.class-table input:focus,
+.class-table select:focus {
+  border-color: #004aad;
+  box-shadow: 0 0 0 3px rgba(0, 74, 173, 0.12);
+  background-color: #fafbff;
+}
+
+.class-table select {
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23666' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 10px center;
+  padding-right: 32px;
+}
+
+/* === Enhanced Action Buttons === */
+.class-table button {
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: none;
+  background-color: #85AFFF;
+  color: white;
+  margin-right: 6px;
+  font-size: 13px;
+  font-family: 'Afacad', sans-serif;
+  box-shadow: 0 2px 4px rgba(133, 175, 255, 0.2);
+  position: relative;
+  overflow: hidden;
+}
+
+.class-table button::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.2);
+  transform: translate(-50%, -50%);
+  transition: width 0.4s, height 0.4s;
+}
+
+.class-table button:hover::before {
+  width: 300px;
+  height: 300px;
+}
+
+.class-table button:hover {
+  background-color: #6b8fcc;
+  box-shadow: 0 4px 8px rgba(133, 175, 255, 0.3);
+  transform: translateY(-1px);
+}
+
+.class-table button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(133, 175, 255, 0.2);
+}
+
+.class-table button:disabled {
+  background-color: #d1d5db;
+  color: #9ca3af;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.6;
+  transform: none;
+}
+
+.class-table button:disabled:hover {
+  background-color: #d1d5db;
+  transform: none;
+  box-shadow: none;
+}
+
+.class-table button:last-child {
+  margin-right: 0;
+}
+
+/* === Scrollbars === */
+.table-container::-webkit-scrollbar,
+.demo-table-wrapper::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track,
+.demo-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb,
+.demo-table-wrapper::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover,
+.demo-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* === Responsive === */
+@media (max-width: 768px) {
+  .class-list-container {
+    padding: 1rem;
+  }
+
+  .header {
+    flex-direction: column;
+    gap: 15px;
+    align-items: flex-start;
+  }
+
+  .search-form {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+  }
+}

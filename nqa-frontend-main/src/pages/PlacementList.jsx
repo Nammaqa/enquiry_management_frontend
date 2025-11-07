@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './PlacementList.css';
 import { IoSearch } from 'react-icons/io5';
-import StudentViewDialog from '../pages/StudentViewDialog'; // adjust if dialog lives elsewhere
+import StudentViewDialog from '../pages/StudentViewDialog';
 
 const PlacementList = () => {
   const [data, setData] = useState([]);
@@ -40,95 +40,33 @@ const PlacementList = () => {
       (i.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  /* ------------ btn styling helper ------------ */
-  const buttonStyle = (variant) => {
-    switch (variant) {
-      case 'primary':
-        return {
-          padding: '10px 20px',
-          border: 'none',
-          borderRadius: '5px',
-          color: '#fff',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontSize: '1rem',
-          fontFamily: "'Afacad', sans-serif",
-          backgroundColor: '#031D4E',
-          width: '100px',
-          height: '44px',
-          marginLeft: '-20px',
-        };
-      case 'ghost':
-        return {
-          padding: '10px 20px',
-          border: 'none',
-          borderRadius: '5px',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontSize: '1rem',
-          backgroundColor: '#fff',
-          fontFamily: "'Afacad', sans-serif",
-          color: '#031D4E',
-          width: '100px',
-          height: '44px',
-        };
-      default: // outline
-        return {
-          padding: '10px 20px',
-          border: '1px solid rgb(3, 29, 78)',
-          borderRadius: '5px',
-          backgroundColor: 'rgb(226, 236, 255)',
-          color: 'rgb(3, 29, 78)',
-          fontWeight: 600,
-          cursor: 'pointer',
-          fontSize: '1rem',
-          fontFamily: "'Afacad', sans-serif",
-          width: '123px',
-          height: '44px',
-        };
-    }
-  };
-
   /* ------------ UI ------------ */
   return (
-    <div
-      style={{
-        width: "1140px",
-        padding: "3rem",
-        paddingTop: "1.5rem",
-        background: "#fff",
-        flex: 1,
-        fontFamily: "'Afacad', sans-serif",
-      }}
-    >
-      <div
-        className="placement-list-container"
-        style={{ margin: 0, boxShadow: "none", padding: 0 }}
-      >
-        {/* header */}
-        <div className="header">
+    <div className="placement-list-container">
+      <div className="placement-header-container">
+        <div className="placement-header">
           <h2>Placement List</h2>
-          <form onSubmit={(e) => e.preventDefault()} className="search-form">
-            <div className="search-input-container">
+          <div className="placement-controls">
+            <div className="search-box">
               <input
-                className="search-input"
+                type="text"
                 placeholder="Search"
+                className="search-input"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
               />
-              <button className="search-button">
-                <IoSearch />
-              </button>
+              <IoSearch className="search-icon" />
             </div>
-          </form>
+          </div>
         </div>
+      </div>
 
-        {/* table */}
-        <div className="table-container">
+      <div className="placement-content-container">
+        <div className="placement-table-wrapper">
           <table className="placement-table">
             <thead>
               <tr>
-                <th>Full Name</th>
+                <th>Full Name</th>
                 <th>Phone</th>
                 <th>Email</th>
                 <th>Package</th>
@@ -138,21 +76,15 @@ const PlacementList = () => {
             </thead>
             <tbody>
               {filteredData.map((item, idx) => (
-                <tr
-                  key={item.id ?? idx}
-                  className={idx % 2 ? "alternate-row" : ""}
-                >
+                <tr key={item.id ?? idx}>
                   <td>{item.fullName || item.name}</td>
                   <td>{item.phone}</td>
                   <td>{item.email}</td>
                   <td>{item.packageName || item.batch_subject || "N/A"}</td>
                   <td>{item.packageCode || item.batch_code || "N/A"}</td>
-                  <td className="text-right">
-                    {item.package || item.packageName}
-                  </td>
                   <td>
                     <button
-                      style={{ ...buttonStyle("primary"), marginLeft: '0' }}
+                      className="view-btn"
                       onClick={() => {
                         setViewStudent(item);
                         setViewOpen(true);
@@ -165,10 +97,7 @@ const PlacementList = () => {
               ))}
               {filteredData.length === 0 && (
                 <tr>
-                  <td
-                    colSpan="6"
-                    style={{ textAlign: "center", padding: "1rem" }}
-                  >
+                  <td colSpan="6" className="no-data">
                     No matching students found.
                   </td>
                 </tr>

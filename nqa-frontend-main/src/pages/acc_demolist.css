@@ -5,7 +5,7 @@ body {
 }
 
 /* === Container Layout === */
-.placement-list-container {
+.demo-page {
   width: 100%;
   max-width: 1140px;
   margin: 0 auto;
@@ -19,7 +19,7 @@ body {
   overflow: hidden;
 }
 
-.placement-header-container {
+.demo-header-container {
   background: #fff;
   border-radius: 16px;
   padding: 20px;
@@ -27,7 +27,7 @@ body {
   flex-shrink: 0;
 }
 
-.placement-content-container {
+.demo-content-container {
   background: #fff;
   border-radius: 16px;
   padding: 24px;
@@ -39,19 +39,23 @@ body {
 }
 
 /* === Header === */
-.placement-header {
+.demo-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
-.placement-header h2 {
+.demo-header h2 {
   font-size: 30px;
   font-weight: 600;
   color: #003366;
 }
 
-.placement-controls {
+.demo-title {
+  font-family: 'Afacad', sans-serif;
+}
+
+.demo-controls {
   display: flex;
   gap: 10px;
   align-items: center;
@@ -79,7 +83,7 @@ body {
 }
 
 /* === Table Wrapper === */
-.placement-table-wrapper {
+.table-wrapper {
   width: 100%;
   overflow-x: auto;
   overflow-y: auto;
@@ -90,27 +94,27 @@ body {
   flex: 1;
 }
 
-.placement-table-wrapper::-webkit-scrollbar {
+.table-wrapper::-webkit-scrollbar {
   height: 8px;
   width: 8px;
 }
 
-.placement-table-wrapper::-webkit-scrollbar-track {
+.table-wrapper::-webkit-scrollbar-track {
   background: #f1f1f1;
   border-radius: 4px;
 }
 
-.placement-table-wrapper::-webkit-scrollbar-thumb {
+.table-wrapper::-webkit-scrollbar-thumb {
   background: #888;
   border-radius: 4px;
 }
 
-.placement-table-wrapper::-webkit-scrollbar-thumb:hover {
+.table-wrapper::-webkit-scrollbar-thumb:hover {
   background: #555;
 }
 
 /* === Table === */
-.placement-table {
+.demo-table {
   width: 100%;
   min-width: 1200px;
   border-collapse: collapse;
@@ -119,58 +123,109 @@ body {
 }
 
 /* === Table Header === */
-.placement-table thead {
+.demo-table thead {
   background-color: #85AFFF;
   color: #fff;
   border-radius: 12px 12px 0 0;
 }
 
-.placement-table thead th {
+.demo-table thead th {
   padding: 14px 16px;
   font-weight: 500;
   white-space: nowrap;
   border-right: 1px solid rgba(255, 255, 255, 0.15);
-  text-align: center;
 }
 
-.placement-table thead th:last-child {
+.demo-table thead th:last-child {
   border-right: none;
 }
 
 /* === Table Body === */
-.placement-table tbody tr {
+.demo-table tbody tr {
   border-bottom: 1px solid #f0f2f5;
   transition: background 0.2s ease;
 }
 
-.placement-table tbody tr:hover {
+.demo-table tbody tr:hover {
   background-color: #f9fbff;
 }
 
-.placement-table td {
+.demo-table td {
   padding: 12px 16px;
-  color: #031D4E;
+  color: #333;
   vertical-align: middle;
   white-space: nowrap;
-  text-align: center;
+}
+
+/* === Editable Cell Styling (Improved UI) === */
+.editable-cell {
+  position: relative;
+  padding: 10px 16px;
+}
+
+.editable-cell input {
+  width: 100%;
+  padding: 8px 10px;
+  font-size: 14px;
+  color: #111827;
+  border: 1.5px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.editable-cell input:focus {
+  border-color: #004aad;
+  box-shadow: 0 0 0 2px rgba(0, 74, 173, 0.15);
+  background-color: #f9fbff;
+}
+
+/* === Display Cell === */
+.cell-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.cell-content:hover {
+  background-color: #f9fbff;
+  border-radius: 6px;
+}
+
+.cell-content span {
+  flex: 1;
+  color: #1f2937;
+}
+
+.cell-content .edit-icon {
+  opacity: 0;
+  margin-left: 6px;
+  transition: opacity 0.2s ease;
+}
+
+.cell-content:hover .edit-icon {
+  opacity: 1;
 }
 
 /* === Buttons === */
-.view-btn {
-  background-color: #031D4E;
-  color: #fff;
+.move-btn {
+  background-color: #fde047;
+  color: #85AFFF;
   border: none;
-  padding: 8px 16px;
+  padding: 6px 12px;
   border-radius: 8px;
   font-weight: 500;
   cursor: pointer;
   transition: background-color 0.2s ease;
-  font-size: 14px;
-  font-family: 'Afacad', sans-serif;
 }
 
-.view-btn:hover {
-  background-color: #02152e;
+.move-btn:hover {
+  background-color: #facc15;
 }
 
 /* === No Data === */
@@ -183,22 +238,22 @@ body {
 
 /* === Responsive === */
 @media (max-width: 768px) {
-  .placement-list-container {
+  .demo-page {
     padding: 1rem;
   }
 
-  .placement-header {
+  .demo-header {
     flex-direction: column;
     gap: 15px;
     align-items: flex-start;
   }
 
-  .placement-controls {
+  .demo-controls {
     width: 100%;
     flex-direction: column;
   }
 
-  .search-input {
+  .search-box input {
     width: 100%;
   }
 }

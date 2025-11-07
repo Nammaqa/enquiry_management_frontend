@@ -4,11 +4,11 @@
   margin-left: var(--sidebar-width-open);
   flex: 1;
   transition: margin-left 0.3s ease;
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 .title-container {
-  text-align: center; /* Align text to the left */
+  text-align: center;
   margin-bottom: 20px;
   padding: 10px;
   font-size: 22px;
@@ -23,7 +23,7 @@
 .enquiry-form-container {
   padding: 20px;
   flex: 1;
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 .enquiry-form {
@@ -32,7 +32,7 @@
   flex-direction: column;
   gap: 15px;
   transition: opacity 0.3s ease;
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 .form-container {
@@ -41,7 +41,55 @@
   background: #f8f9fa;
   border: 1px solid #ddd;
   transition: background-color 0.3s ease, border-color 0.3s ease;
-  text-align: left; /* Align text to the left */
+  text-align: left;
+}
+
+.form-field-container {
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  margin-top: 20px;
+  
+}
+
+.form-field-container label.field-label {
+  display: block;
+  font-weight: 600;
+  color: #003366;
+  margin-bottom: -14px;
+  font-size: 20px;
+}
+
+.form-field-container hr {
+  border: none;
+  border-top: 1px solid #003366;
+  margin: 12px 0 16px 0;
+}
+
+.radio-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 12px;
+}
+
+.radio-label,
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+  color: #374151;
+}
+
+.radio-label input[type="radio"],
+.checkbox-label input[type="checkbox"] {
+  margin-right: 8px;
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
 }
 
 .form-buttons {
@@ -61,7 +109,7 @@ input,
   color: #0c0c3e;
   cursor: pointer;
   text-decoration: none;
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 .forgot-password:hover {
@@ -75,11 +123,11 @@ input,
   background-color: #f9f9f9;
   border-radius: 10px;
   box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 .enquiry-container h2 {
-  text-align: left; /* Align text to the left */
+  text-align: left;
   margin-bottom: 20px;
   color: #3f51b5;
 }
@@ -88,7 +136,7 @@ input,
   color: red;
   font-size: 12px;
   margin-top: 5px;
-  text-align: left; /* Align text to the left */
+  text-align: left;
 }
 
 @keyframes fadeIn {
@@ -103,5 +151,9 @@ input,
 @media (max-width: 768px) {
   .enquiry-page {
     margin-left: 0;
+  }
+  
+  .radio-grid {
+    grid-template-columns: 1fr;
   }
 }

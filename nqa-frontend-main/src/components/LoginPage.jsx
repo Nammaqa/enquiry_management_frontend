@@ -185,10 +185,10 @@ const Login = () => {
           navigate('/enquiry-form');
           break;
         case 'accounts':
-          navigate('/demo-list');
+          navigate('/demo-list-1');
           break;
         case 'hr':
-          navigate('/class-list');
+          navigate('/class_list');
           break;
         case 'admin':
           navigate('/dashboard'); // Change to your admin landing page

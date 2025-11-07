@@ -159,6 +159,7 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
       console.error("Error moving to HR:", error.response?.data || error.message);
     }
   };
+  
   const handleMoveToAccounts = async (id) => {
     const token = localStorage.getItem('access');
     try {
@@ -184,19 +185,12 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
   );
 
   return (
-    <div style={{
-      width: '1140px',
-      padding: '3rem',
-      paddingTop: '1.5rem',
-      background: '#fff',
-      flex: 1,
-      fontFamily: "'Afacad', sans-serif"
-    }}>
-      <div className="class-list-container" style={{ margin: 0, boxShadow: 'none', padding: 0 }}>
-        <div className="header">
+    <div className="class-list-container">
+      <div className="demo-header-container">
+        <div className="demo-header">
           <h2>Class List</h2>
-          <form className="search-form" onSubmit={(e) => e.preventDefault()}>
-            <div className="search-input-container">
+          <div className="demo-controls">
+            <div className="search-box">
               <input
                 type="text"
                 placeholder="Search"
@@ -207,14 +201,14 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
                 onChange={handleSearchChange}
                 tabIndex={0}
               />
-              <button className="search-button" tabIndex={0} aria-label="Search">
-                <IoSearch />
-              </button>
+              <IoSearch className="search-icon" />
             </div>
-          </form>
+          </div>
         </div>
-        <div className="table-container">
-          <table className="class-table">
+      </div>
+      <div className="demo-content-container">
+        <div className="demo-table-wrapper">
+          <table className="demo-table">
             <thead>
               <tr>
                 <th>Full Name</th>
@@ -344,8 +338,14 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
                     ) : (
                       <>
                         <button onClick={() => handleEditClick(idx)} style={{ marginRight: '6px' }}>Edit</button>
-                        <button onClick={() => handleMoveToHR(item.id)}>Move to HR</button>
-                        </>
+                        <button 
+                          onClick={() => handleMoveToHR(item.id)}
+                          disabled={item.paymentStatus !== 'Complete'}
+                          title={item.paymentStatus !== 'Complete' ? 'Payment must be complete to move to HR' : 'Move to HR'}
+                        >
+                          Move to HR
+                        </button>
+                      </>
                     )}
                   </td>
 

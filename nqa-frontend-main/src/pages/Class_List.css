@@ -2,78 +2,287 @@
 
 body {
   font-family: 'Afacad', sans-serif;
+  background-color: #f3f6fb;
+  margin: 0;
+  padding: 0;
 }
-.class-list-container {
-    background-color: #ffffff;
-    max-width: 1200px;
-    margin: 0 auto;
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-    font-family: 'Afacad', sans-serif;
-    margin-top: 20px;
-  }
+/* === MAIN CONTAINER === */
+.header-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 95%;
+  min-height: 100vh;
+  padding: 1rem 0 2rem 0;
+  max-width: 1840px; /* Adjusted to match classlist-container width */
+  margin: 0 auto;
+  box-sizing: border-box;
+}
 
-  .header {
+/* === HEADER (TOP BAR) === */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #ffffff;
+  width: 100%;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  padding: 10px 20px;
+  margin-bottom: 1rem;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+.header-card {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 0;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-  }
+    background: #ffffff;
+    padding: 20px 30px;
+    border-radius: 14px;
+    box-shadow: 0 2px 10px rgba(3, 29, 78, 0.06);
+    margin-top: 10px;
+    margin-left:-20px;
+    margin-right: -20px;
+}
 
-  .header h2 {
-    font-size: 20px;
-    font-weight: 600;
-    color: #333;
-    padding-left: 20px;
-  }
+.header h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: #031d4e;
+}
+.header-title {
+  font-size: 22px;
+  font-weight: 700;
+  color: #031d4e;
+  margin: 0;
+}
+.search-form {
+  display: flex;
+  align-items: center;
+}
 
-  .search-form {
-    display: flex;
-    align-items: center;
-  }
+.search-input-container {
+  display: flex;
+  align-items: center;
+  background: #f9f9fb;
+  border: 2px solid #5c93f2;
+  border-radius: 40px;
+  height: 44px;
+  width: 350px;
+  overflow: hidden;
+}
 
-  .search-input-container {
-    display: flex;
-    align-items: center;
-    background: #fff;
-    border-radius: 4px;
-    padding: 0;
-    gap: 4px;
-  }
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  padding: 10px 16px;
+  font-size: 18px;
+  color: #5c93f2;
+  font-family: 'Afacad', sans-serif;
+}
+/* 
+.search-input::placeholder {
+  color: #e4b221;
+  font-weight: 600;
+  font-size: 18px;
+} */
 
+/* Search button */
+.search-button {
+  background: transparent;
+  border: none;
+  color: #e4b221;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 100%;
+  cursor: pointer;
+  font-size: 20px;
+  /* border-left: 2px solid #5c93f2; */
+  transition: background 0.2s ease;
+}
+.search-button:hover {
+  background: rgba(3, 29, 78, 0.05);
+}
+
+/* === TABLE CARD CONTAINER === */
+.demo-list-container {
+  width: 100%;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.08);
+  padding: 15px;
+  overflow: hidden;
+  height: 70vh; /* Matches .classlist-card height (~756px for 1080p) */
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  margin: -20px 20px 0px 20px;
+}
+
+/* === TABLE WRAPPER (scroll area) === */
+.demo-table-wrapper {
+  width: 100%;
+  flex: 1;
+  overflow-x: auto;
+  overflow-y: auto;
+  border-radius: 8px;
+  scrollbar-width: thin;
+  height: 100%;
+}
+
+/* Custom scrollbar for modern look */
+.demo-table-wrapper::-webkit-scrollbar {
+  height: 10px;
+  width: 10px;
+}
+.demo-table-wrapper::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 8px;
+}
+.demo-table-wrapper::-webkit-scrollbar-thumb {
+  background: #bdbdbd;
+  border-radius: 8px;
+}
+.demo-table-wrapper::-webkit-scrollbar-thumb:hover {
+  background: #999;
+}
+
+/* === TABLE === */
+.demo-table {
+  width: 100%;
+  min-width: 1900px; /* Matches .classlist-table min-width */
+  border-collapse: collapse;
+  text-align: center;
+  font-size: 14px;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* === TABLE HEADER === */
+.demo-table th {
+  background-color: #3b82f6;
+  color: #ffffff;
+  font-weight: 600;
+  padding: 12px 14px;
+  border-bottom: 2px solid #cfe0ff;
+  white-space: nowrap;
+}
+
+.demo-table td {
+  padding: 10px 14px;
+  border-bottom: 1px solid #e5e7eb;
+  color: #333;
+}
+
+.demo-table tr:hover {
+  background-color: #f8fbff;
+}
+
+/* === BUTTONS === */
+.icon-btn {
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.icon-btn:hover {
+  background: #2563eb;
+}
+
+.move-btn {
+  background-color: #fde047;
+  color: #000;
+  border: none;
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.move-btn:hover {
+  background-color: #facc15;
+}
+.modern-link-btn {
+  background: linear-gradient(135deg, #4f46e5, #3b82f6);
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+.modern-link-btn:hover {
+  background: linear-gradient(135deg, #4338ca, #2563eb);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+.modern-link-btn:active {
+  transform: scale(0.98);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+}
+
+.details-saved {
+  background-color: #22c55e !important;
+}
+
+/* === ROW HEIGHT === */
+.demo-table tr {
+  height: 42px;
+}
+
+/* === RESPONSIVE === */
+@media (max-width: 1024px) {
+  .demo-table {
+    min-width: 1300px; /* Reduce scroll for smaller screens */
+  }
+  .demo-list-container {
+    height: 65vh;
+  }
+}
+
+@media (max-width: 768px) {
+  .header {
+    flex-direction: column;
+    gap: 10px;
+  }
   .search-input {
-    width: 291.44px;
-    height: 33.6px;
-    padding: 8px;
-    border-radius: 4px;
-    border: 1px solid #ccc;
-    font-size: 16px;
-    background: #fff;
-    outline: none;
-    transition: border 0.2s;
+    width: 100%;
   }
-
-  .search-input:focus {
-    border: 2px solid #85AFFF;
-    outline: 2px solid #85AFFF;
+  .demo-table th,
+  .demo-table td {
+    padding: 8px 6px;
+    font-size: 13px;
   }
-
-  .search-button {
-    background: none;
-    border: none;
-    padding: 0 8px;
-    margin: 0;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    height: 33.6px;
+  .demo-list-container {
+    height: 60vh;
   }
+}
 
-  .search-button:focus {
-    outline: 2px solid #85AFFF;
-  }
+.edit-svg-icon {
+  width: 18px;
+  height: 18px;
+  margin-right: 10px;
+  cursor: pointer;
+  vertical-align: middle;
+  transition: transform 0.2s ease;
+}
 
-  /* ...rest of your table styles... */
+.edit-svg-icon:hover {
+  transform: scale(1.15);
+}
