@@ -3,12 +3,19 @@ import axios from 'axios';
 import './PlacementList.css';
 import { IoSearch } from 'react-icons/io5';
 import StudentViewDialog from '../pages/StudentViewDialog';
+import TablePagination from '@mui/material/TablePagination';
+
 
 const PlacementList = () => {
   const [data, setData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [viewOpen, setViewOpen] = useState(false);
   const [viewStudent, setViewStudent] = useState(null);
+  
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
 
   /* ------------ fetch once ------------ */
   useEffect(() => {
@@ -18,6 +25,7 @@ const PlacementList = () => {
         const res = await axios.get('http://localhost:8000/api/enquiries/', {
           headers: { Authorization: `Bearer ${token}` },
         });
+
 
         // keep entire object so dialog has every field
         const filtered = res.data.filter((i) => i.move_to_placements);
@@ -31,6 +39,7 @@ const PlacementList = () => {
     })();
   }, []);
 
+
   /* ------------ search filter ------------ */
   const filteredData = data.filter(
     (i) =>
@@ -39,6 +48,23 @@ const PlacementList = () => {
         .includes(searchTerm.toLowerCase()) ||
       (i.email || '').toLowerCase().includes(searchTerm.toLowerCase())
   );
+
+  /* ------------ Pagination handlers ------------ */
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  /* ------------ Slice data for current page ------------ */
+  const paginatedData = filteredData.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
 
   /* ------------ UI ------------ */
   return (
@@ -61,6 +87,7 @@ const PlacementList = () => {
         </div>
       </div>
 
+
       <div className="placement-content-container">
         <div className="placement-table-wrapper">
           <table className="placement-table">
@@ -75,7 +102,7 @@ const PlacementList = () => {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item, idx) => (
+              {paginatedData.map((item, idx) => (
                 <tr key={item.id ?? idx}>
                   <td>{item.fullName || item.name}</td>
                   <td>{item.phone}</td>
@@ -105,7 +132,19 @@ const PlacementList = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Material-UI Table Pagination */}
+        <TablePagination
+          component="div"
+          count={filteredData.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
       </div>
+
 
       {/* dialog */}
       <StudentViewDialog
@@ -116,5 +155,6 @@ const PlacementList = () => {
     </div>
   );
 };
+
 
 export default PlacementList;

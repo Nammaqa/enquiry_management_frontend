@@ -13,6 +13,7 @@ import ClassListPage from './pages/Class_List';
 import PlacementList from './pages/PlacementList';
 import './App.css';
 import AccountsDemoList from './pages/AccountsDemoList';
+import InterviewList from './pages/InterviewList';
 // import StudentPlacementForm from './pages/Studentplacementform';
 // import PublicPlacementForm from "./components/PublicPlacementForm";
 
@@ -43,7 +44,7 @@ const App = () => {
                     <Route path="/class-list" element={<ClassList />} />
                     <Route path="/class_list" element={<ClassListPage />} /> {/* Fixed PascalCase */}
                     <Route path="/placement-list" element={<PlacementList />} />
-                    <Route path="/interview-list" element={<ClassList />} />
+                    <Route path="/interview-list" element={<InterviewList />} />
                     <Route path="/accounts-demo-list" element={<AccountsDemoList />} />
                     {/* <Route path="/student-placement-form" element={<StudentPlacementForm />} /> */}
                     {/* <Route path="/student-placement-view" element={<StudentPlacementForm />} /> */}

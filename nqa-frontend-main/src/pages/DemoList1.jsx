@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import './acc_demolist.css';
 import { Search } from 'lucide-react';
+import TablePagination from '@mui/material/TablePagination';
 
 const DemoList1 = () => {
   const [backendData, setBackendData] = useState([]);
@@ -9,6 +10,8 @@ const DemoList1 = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [editableField, setEditableField] = useState(null);
   const [editValue, setEditValue] = useState('');
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     fetchBackendData();
@@ -36,6 +39,7 @@ const DemoList1 = () => {
       );
       setBackendData(mapped);
       setFiltered(mapped);
+      setPage(0); // Reset to first page when data is fetched
     } catch (error) {
       console.error('Error fetching backend data:', error.response?.data || error.message);
     }
@@ -43,22 +47,22 @@ const DemoList1 = () => {
 
   // Search Filter
   useEffect(() => {
-    setFiltered(
-      backendData.filter((item) => {
-        if (!searchTerm) return true;
+    const filtered_data = backendData.filter((item) => {
+      if (!searchTerm) return true;
 
-        const searchLower = searchTerm.toLowerCase();
-        const fullName = (item.fullName || item.full_name || item.name || '').toLowerCase();
-        const phone = (item.phone || item.phone_number || '').toString();
-        const email = (item.email || '').toLowerCase();
-        const packageCode = (item.batch_code || '').toLowerCase();
+      const searchLower = searchTerm.toLowerCase();
+      const fullName = (item.fullName || item.full_name || item.name || '').toLowerCase();
+      const phone = (item.phone || item.phone_number || '').toString();
+      const email = (item.email || '').toLowerCase();
+      const packageCode = (item.batch_code || '').toLowerCase();
 
-        return fullName.includes(searchLower) || 
-               phone.includes(searchTerm) || 
-               email.includes(searchLower) || 
-               packageCode.includes(searchLower);
-      })
-    );
+      return fullName.includes(searchLower) || 
+             phone.includes(searchTerm) || 
+             email.includes(searchLower) || 
+             packageCode.includes(searchLower);
+    });
+    setFiltered(filtered_data);
+    setPage(0); // Reset to first page when search term changes
   }, [searchTerm, backendData]);
 
   const handleMoveToClassList = async (id) => {
@@ -194,6 +198,22 @@ const DemoList1 = () => {
     );
   };
 
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Calculate paginated data
+  const paginatedData = filtered.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
   return (
     <div className="demo-page">
       {/* Header Container */}
@@ -235,8 +255,8 @@ const DemoList1 = () => {
             </thead>
 
             <tbody>
-              {filtered.length > 0 ? (
-                filtered.map((item) => (
+              {paginatedData.length > 0 ? (
+                paginatedData.map((item) => (
                   <tr key={item.id}>
                     <td>{item.fullName || item.full_name || item.name || ''}</td>
                     <td>{item.phone || item.phone_number || ''}</td>
@@ -269,6 +289,17 @@ const DemoList1 = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Component */}
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={filtered.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </div>
     </div>
   );

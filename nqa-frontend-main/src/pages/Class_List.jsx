@@ -3,11 +3,18 @@ import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import "./Class_List.css";
 import { IoSearch } from "react-icons/io5";
+import TablePagination from "@mui/material/TablePagination";
+
 
 const Class_List = () => {
   const navigate = useNavigate();
   const [backendData, setBackendData] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  
+  // Pagination states
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+
 
   // Fetch data
   useEffect(() => {
@@ -17,6 +24,7 @@ const Class_List = () => {
         const res = await axios.get("http://localhost:8000/api/enquiries/", {
           headers: { Authorization: `Bearer ${token}` },
         });
+
 
         const filtered = res.data
           .filter((i) => i.move_to_hr && !i.move_to_placements)
@@ -31,14 +39,17 @@ const Class_List = () => {
             moveToPlacements: Boolean(i.move_to_placements),
           }));
 
+
         setBackendData(filtered);
       } catch (err) {
         console.error(err);
       }
     };
 
+
     fetchClassList();
   }, []);
+
 
   // Move to placement
   const handleMoveToPlacement = async (item) => {
@@ -60,9 +71,11 @@ const Class_List = () => {
     }
   };
 
+
   // Dropdown change handler (auto-save)
   const handleDropdownChange = async (id, field, value, otherValue = "") => {
     const token = localStorage.getItem("access");
+
 
     const updatedData = backendData.map((row) =>
       row.id === id
@@ -73,7 +86,9 @@ const Class_List = () => {
         : row
     );
 
+
     setBackendData(updatedData);
+
 
     try {
       await axios.patch(
@@ -88,15 +103,19 @@ const Class_List = () => {
     }
   };
 
+
   // Handle link input change
   const handleLinkChange = async (id, value) => {
     const token = localStorage.getItem("access");
+
 
     const updatedData = backendData.map((row) =>
       row.id === id ? { ...row, dataLink: value } : row
     );
 
+
     setBackendData(updatedData);
+
 
     try {
       await axios.patch(
@@ -109,6 +128,7 @@ const Class_List = () => {
     }
   };
 
+
   const filteredData = backendData.filter(
     (item) =>
       (item.name &&
@@ -116,6 +136,23 @@ const Class_List = () => {
       (item.email &&
         item.email.toLowerCase().includes(searchTerm.toLowerCase()))
   );
+
+  /* ------------ Pagination handlers ------------ */
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  /* ------------ Slice data for current page ------------ */
+  const paginatedData = filteredData.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
+  );
+
 
   return (
     <div className="class-list-container">
@@ -141,6 +178,7 @@ const Class_List = () => {
         </div>
       </div>
 
+
       <div className="demo-content-container">
         <div className="demo-table-wrapper">
           <table className="demo-table">
@@ -158,8 +196,9 @@ const Class_List = () => {
               </tr>
             </thead>
 
+
             <tbody>
-              {filteredData.map((item) => {
+              {paginatedData.map((item) => {
                 return (
                   <tr key={item.id}>
                     <td>{item.name}</td>
@@ -167,6 +206,7 @@ const Class_List = () => {
                     <td>{item.email}</td>
                     <td>{item.packageCode}</td>
                     <td>{item.package}</td>
+
 
                     {/* Placement Dropdown */}
                     <td>
@@ -204,6 +244,7 @@ const Class_List = () => {
                         )}
                     </td>
 
+
                     {/* Link Input Field */}
                     <td>
                       <input
@@ -235,6 +276,7 @@ const Class_List = () => {
                         </a>
                       )}
                     </td>
+
 
                     {/* Data Updated Dropdown */}
                     <td>
@@ -272,6 +314,7 @@ const Class_List = () => {
                         )}
                     </td>
 
+
                     <td>
                       <button
                         className="move-btn"
@@ -286,9 +329,21 @@ const Class_List = () => {
             </tbody>
           </table>
         </div>
+
+        {/* Material-UI Table Pagination */}
+        <TablePagination
+          component="div"
+          count={filteredData.length}
+          page={page}
+          onPageChange={handleChangePage}
+          rowsPerPage={rowsPerPage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+          rowsPerPageOptions={[5, 10, 25, 50]}
+        />
       </div>
     </div>
   );
 };
+
 
 export default Class_List;

@@ -2,19 +2,22 @@ import React, { useState, useEffect } from 'react';
 import { IoSearch } from "react-icons/io5";
 import './ClassList.css';
 import axios from 'axios';
+import TablePagination from '@mui/material/TablePagination';
 
 const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
   const [data, setData] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [editIndex, setEditIndex] = useState(null);
   const [editData, setEditData] = useState({});
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
 
   useEffect(() => {
     const fetchClassList = async () => {
       const token = localStorage.getItem('access');
       if (!token) {
         console.warn('No token found');
-        setData([]); // Clear state if unauthenticated
+        setData([]);
         return;
       }
 
@@ -26,9 +29,9 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
         const mapped = response.data
           .filter(item => {
             const movedToClass = Boolean(item.move_to_class);
-            const paymentStatus = Boolean(item.payment_status); // true = paid
+            const paymentStatus = Boolean(item.payment_status);
 
-            return movedToClass && !paymentStatus; // only show unpaid & moved-to-class students
+            return movedToClass && !paymentStatus;
           })
           .map(item => {
             const packageCost = parseFloat(item.packageCost) || 0;
@@ -48,21 +51,20 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
             };
           });
 
-  
         setData(mapped);
+        setPage(0); // Reset to first page when data is fetched
       } catch (error) {
         console.error('Error fetching class list:', error.response?.data || error.message);
-        setData([]); // Clear state on error
+        setData([]);
       }
     };
-  
+
     fetchClassList();
-  }, [role]); // Add role here
-  
-    
+  }, [role]);
 
   const handleSearchChange = (event) => {
     setSearchTerm(event.target.value);
+    setPage(0); // Reset to first page when search term changes
   };
 
   const handleEditClick = (index) => {
@@ -72,42 +74,40 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
 
   const handleInputChange = (field, value) => {
     const updated = { ...editData, [field]: value };
-  
+
     const cost = parseFloat(updated.packageCost) || 0;
     const paid = parseFloat(updated.amountPaid) || 0;
     const disc = parseFloat(updated.discount) || 0;
-  
+
     updated.balanceAmount = cost - paid - disc;
-  
+
     setEditData(updated);
   };
-  
 
   const handleSaveClick = async () => {
     const token = localStorage.getItem('access');
-  
+
     const cost = parseFloat(editData.packageCost) || 0;
     const paid = parseFloat(editData.amountPaid) || 0;
     const disc = parseFloat(editData.discount) || 0;
-  
+
     const balance = cost - paid - disc;
-  
+
     if (cost < 0 || paid < 0 || disc < 0) {
       alert("All values must be non-negative.");
       return;
     }
-  
+
     if (paid + disc > cost) {
       alert("Amount Paid + Discount cannot exceed Package Cost.");
       return;
     }
-  
-    //  Prevent marking as complete when balance > 0
+
     if (editData.paymentStatus === 'Complete' && balance > 0) {
       alert("Cannot mark payment as Complete while balance is not 0.");
       return;
     }
-  
+
     try {
       await axios.patch(`http://localhost:8000/api/enquiries/${editData.id}/`, {
         pay_calling1: editData.paymentCalling1,
@@ -119,11 +119,11 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
         amountPaid: paid,
         discount: disc,
         balanceAmount: balance,
-        payment_status: editData.paymentStatus === 'Complete' && balance === 0,  // ✅ Only update when balance is 0
+        payment_status: editData.paymentStatus === 'Complete' && balance === 0,
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-  
+
       const updatedData = [...data];
       updatedData[editIndex] = {
         ...editData,
@@ -133,7 +133,7 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
         balanceAmount: balance,
         paymentStatus: (editData.paymentStatus === 'Complete' && balance === 0) ? 'Complete' : 'Pending',
       };
-  
+
       setData(updatedData);
       setEditIndex(null);
     } catch (error) {
@@ -142,7 +142,6 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
     }
   };
 
-  
   const handleMoveToHR = async (id) => {
     const token = localStorage.getItem('access');
     try {
@@ -151,25 +150,23 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
-      // Update UI (optional: remove student from view)
+
       setData(prev => prev.filter(item => item.id !== id));
       alert("Moved to HR!");
     } catch (error) {
       console.error("Error moving to HR:", error.response?.data || error.message);
     }
   };
-  
+
   const handleMoveToAccounts = async (id) => {
     const token = localStorage.getItem('access');
     try {
       await axios.patch(`http://localhost:8000/api/enquiries/${id}/`, {
-        move_to_accounts: true, // Update this field based on your backend
+        move_to_accounts: true,
       }, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
-      // Optional: remove row from list
+
       setData(prev => prev.filter(item => item.id !== id));
       alert('Moved to Accounts successfully!');
     } catch (error) {
@@ -177,11 +174,27 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
       alert('Failed to move to accounts.');
     }
   };
-  
 
+  // Filter data based on search term
   const filteredData = data.filter(item =>
     (item.fullName?.toLowerCase().includes(searchTerm.toLowerCase()) || '') ||
     (item.email?.toLowerCase().includes(searchTerm.toLowerCase()) || '')
+  );
+
+  // Pagination handlers
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+
+  // Calculate paginated data
+  const paginatedData = filteredData.slice(
+    page * rowsPerPage,
+    page * rowsPerPage + rowsPerPage
   );
 
   return (
@@ -231,8 +244,8 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
               </tr>
             </thead>
             <tbody>
-              {filteredData.map((item, idx) => (
-                <tr key={idx} className={idx % 2 === 1 ? "alternate-row" : ""}>
+              {paginatedData.map((item, idx) => (
+                <tr key={item.id} className={idx % 2 === 1 ? "alternate-row" : ""}>
                   <td>{item.fullName || item.name || 'N/A'}</td>
                   <td>{item.phone || 'N/A'}</td>
                   <td>{item.email || 'N/A'}</td>
@@ -300,7 +313,6 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
                     )}
                   </td>
 
-
                   {[1,2,3,4,5].map(i => (
                     <td key={`calling${i}`}>
                       {editIndex === idx ? (
@@ -348,12 +360,22 @@ const ClassList = ({ isSidebarOpen, role = 'accounts' }) => {
                       </>
                     )}
                   </td>
-
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
+
+        {/* Pagination Component */}
+        <TablePagination
+          rowsPerPageOptions={[5, 10, 25, 50]}
+          component="div"
+          count={filteredData.length}
+          rowsPerPage={rowsPerPage}
+          page={page}
+          onPageChange={handleChangePage}
+          onRowsPerPageChange={handleChangeRowsPerPage}
+        />
       </div>
     </div>
   );
