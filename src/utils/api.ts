@@ -32,7 +32,9 @@ export const apiRequest = async <T = any>(
     // Handle FormData (for file uploads)
     if (options.isFormData && options.body instanceof FormData) {
         // Remove Content-Type header to let browser set it automatically with boundary
-        delete config.headers['Content-Type'];
+        if (config.headers && typeof config.headers === 'object' && 'Content-Type' in config.headers) {
+            delete (config.headers as Record<string, string>)['Content-Type'];
+        }
         config.body = options.body;
     } else if (options.body) {
         config.body = JSON.stringify(options.body);

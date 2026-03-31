@@ -92,7 +92,7 @@ export default function Batches() {
     const [batchForm, setBatchForm] = useState({
         name: '',
         code: '',
-        status: 'yet to start' as const,
+        status: 'yet to start' as 'yet to start' | 'In progress' | 'completed',
         sessionLink: '',
         sessionDate: '',
         sessionEndDate: '',
