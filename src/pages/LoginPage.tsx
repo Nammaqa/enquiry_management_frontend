@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import nammaqa from '../assets/nammaqa.jpg';
@@ -15,6 +15,12 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (localStorage.getItem('authToken')) {
+            navigate('/dashboard', { replace: true });
+        }
+    }, [navigate]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -42,9 +48,10 @@ const LoginPage = () => {
                 localStorage.setItem('userRole', response.role);
             }
 
-            // Redirect to user-roles page
-            navigate('/user-roles', { replace: true });
-        } catch (err: any) {
+            // Redirect to dashboard first after successful login
+            navigate('/dashboard', { replace: true });
+        } catch (error) {
+            const err = error as { status?: number; message?: string };
             // Handle 401 or other errors
             if (err.status === 401) {
                 setError('Invalid credentials. Please try again.');

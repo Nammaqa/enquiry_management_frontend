@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from 'react';
-import { apiRequest } from '../utils/api';
+import { apiRequest, type ApiRequestOptions } from '../utils/api';
 
 // Types
 interface Subject {
@@ -109,7 +109,14 @@ export default function PackageSubject() {
             const data = await apiRequest<Package[]>('/api/packages', {
                 method: 'GET',
             });
-            setPackages(data);
+
+            // Normalize package subjects: backend may return `subjects` or `Subjects`
+            const normalized = data.map(p => ({
+                ...p,
+                Subjects: p.Subjects || p.subjects || []
+            }));
+
+            setPackages(normalized as Package[]);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch packages');
             console.error('Error fetching packages:', err);
@@ -237,48 +244,47 @@ if (subjectForm.prerequisites) {
         setError(null);
 
         try {
-            // Create FormData for package details
-            const formData = new FormData();
-            formData.append('name', packageForm.name);
-            formData.append('code', packageForm.code);
-
-            // Append image file if selected (backend will handle Cloudinary upload)
             const imageInput = document.querySelector('input[type="file"]#packageImageFile') as HTMLInputElement;
-            if (imageInput && imageInput.files && imageInput.files.length > 0) {
-                formData.append('image', imageInput.files[0]);
+            const hasImageFile = imageInput?.files?.length > 0;
+
+            const payload: Record<string, string | number | boolean | string[] | undefined> = {
+                name: packageForm.name,
+                code: packageForm.code,
+                overview: packageForm.overview || '',
+                syllabus: packageForm.syllabus || '',
+                prerequisites: packageForm.prerequisites || '',
+                subjectIds: packageForm.subjectIds || [],
+            };
+
+            if (!hasImageFile && typeof packageForm.image === 'string' && packageForm.image.startsWith('http')) {
+                payload.image = packageForm.image;
             }
 
-            // Send these fields as JSON so the backend can store them as JSON columns
-            if (packageForm.overview) {
-                formData.append('overview', JSON.stringify(packageForm.overview));
-            }
-            if (packageForm.syllabus) {
-                formData.append('syllabus', JSON.stringify(packageForm.syllabus));
-            }
-            if (packageForm.prerequisites) {
-                formData.append('prerequisites', JSON.stringify(packageForm.prerequisites));
-            }
+            const requestOptions: ApiRequestOptions = {
+                method: editingPackage ? 'PUT' : 'POST',
+            };
 
-            // Append subject IDs as JSON array string
-            if (packageForm.subjectIds && packageForm.subjectIds.length > 0) {
-                formData.append('subjectIds', JSON.stringify(packageForm.subjectIds));
+            if (hasImageFile) {
+                const formData = new FormData();
+                formData.append('name', packageForm.name);
+                formData.append('code', packageForm.code);
+                formData.append('overview', packageForm.overview || '');
+                formData.append('syllabus', packageForm.syllabus || '');
+                formData.append('prerequisites', packageForm.prerequisites || '');
+                formData.append('subjectIds', JSON.stringify(packageForm.subjectIds || []));
+                formData.append('image', imageInput.files![0]);
+                requestOptions.body = formData;
+                requestOptions.isFormData = true;
+            } else {
+                requestOptions.body = payload;
             }
 
             if (editingPackage) {
-                // Update package
-                await apiRequest(`/api/packages/${editingPackage.id}`, {
-                    method: 'PUT',
-                    body: formData,
-                    isFormData: true,
-                });
+                await apiRequest(`/api/packages/${editingPackage.id}`, requestOptions);
             } else {
-                // Create package
-                await apiRequest('/api/packages', {
-                    method: 'POST',
-                    body: formData,
-                    isFormData: true,
-                });
+                await apiRequest('/api/packages', requestOptions);
             }
+
             await fetchPackages();
             setIsPackageModalOpen(false);
             setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
@@ -304,7 +310,14 @@ if (subjectForm.prerequisites) {
             });
             await fetchPackages();
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete package');
+            const errorMessage = err instanceof Error ? err.message : 'Failed to delete package';
+            
+            // Check for foreign key constraint errors
+            if (errorMessage.includes('foreign key constraint') || errorMessage.includes('enquiries_packageId_fkey')) {
+                setError('Cannot delete this package because it is being used by existing enquiries. Please remove or reassign all enquiries using this package before deleting it.');
+            } else {
+                setError(errorMessage);
+            }
             console.error('Error deleting package:', err);
         } finally {
             setLoading(false);
@@ -933,4 +946,3 @@ if (subjectForm.prerequisites) {
         </div>
     );
 }
-

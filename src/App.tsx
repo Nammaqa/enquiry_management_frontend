@@ -1,5 +1,6 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router";
 import ProtectedRoute from "./components/ProtectedRoute";
+import RootRedirect from "./components/RootRedirect";
 import Dashboard from "./pages/Dashboard";
 import PackageSubject from "./pages/PackageSubject";
 import MainContent from "./components/MainContent";
@@ -12,21 +13,10 @@ import Batches from "./pages/batches";
 import Jobs from "./pages/Jobs";
 import StudentPlacementList from "./pages/StudentPlacementList";
 
-const isAuthenticated = true; // or false
-
-function PublicPage() {
-
-  if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
-  }
-  return <h1>Public Route - Anyone can access</h1>;
-}
-
-
 const router = createBrowserRouter([
   {
     path: "/",
-    element: <PublicPage />,
+    element: <RootRedirect />,
   },
   {
     path: "/login",
@@ -34,7 +24,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/dashboard",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <Dashboard />
       </MainContent>
@@ -42,7 +32,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/create-enquiry",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <Enquiry />
       </MainContent>
@@ -50,7 +40,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/package-subject",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <PackageSubject />
       </MainContent>
@@ -58,7 +48,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/enquiries",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <Contact />
       </MainContent>
@@ -66,7 +56,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/contact-details/:id",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <CandidateDetails />
       </MainContent>
@@ -74,7 +64,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/user-roles",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <UserRoles />
       </MainContent>
@@ -82,15 +72,15 @@ const router = createBrowserRouter([
   },
   {
     path: "/batches",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <Batches />
       </MainContent>
     </ProtectedRoute>,
   },
-    {
+  {
     path: "/jobs",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <Jobs />
       </MainContent>
@@ -98,7 +88,7 @@ const router = createBrowserRouter([
   },
   {
     path: "/student-placements",
-    element: <ProtectedRoute isAuthenticated={isAuthenticated}>
+    element: <ProtectedRoute>
       <MainContent>
         <StudentPlacementList />
       </MainContent>
