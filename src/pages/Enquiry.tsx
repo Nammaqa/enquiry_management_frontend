@@ -14,7 +14,7 @@ interface Package {
     id: number;
     name: string;
     code: string;
-    Subjects?: Subject[]; // detailed view might have this
+    subjects?: Subject[];
 }
 
 interface EnquiryFormData {
@@ -130,9 +130,11 @@ const LocationIcon = () => (
 export default function Enquiry() {
     const [packages, setPackages] = useState<Package[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [currentPackageSubjects, setCurrentPackageSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
     const [formData, setFormData] = useState<EnquiryFormData>(INITIAL_FORM_STATE);
     const navigate = useNavigate();
 
@@ -159,25 +161,20 @@ export default function Enquiry() {
         setFormData(prev => ({ ...prev, packageId: pkgId }));
 
         if (pkgId === PACKAGE_ID_OTHERS) {
-            // If "Others" is selected, we don't fetch any package details.
-            // We can optionally clear subjects or keep previous selection.
-            // Requirements say "i can select any subjects i want".
-            // Let's clear to avoid confusion from previous package auto-select.
+            setCurrentPackageSubjects([]);
             setFormData(prev => ({ ...prev, subjectIds: [] }));
             return;
         }
 
-        try {
-            // Fetch specific package details to get included subjects
-            const detailedPkg = await apiRequest<Package>(`/api/packages/${pkgId}`, { method: 'GET' });
-
-            if (detailedPkg.Subjects) {
-                const includedSubjectIds = detailedPkg.Subjects.map(s => s.id);
-                setFormData(prev => ({ ...prev, subjectIds: includedSubjectIds }));
-            }
-        } catch (err) {
-            console.error('Error fetching package details:', err);
-            // Don't block the user, but maybe show a toast or small error
+        // Find the selected package from the already loaded packages
+        const selectedPackage = packages.find(pkg => pkg.id === pkgId);
+        if (selectedPackage && selectedPackage.subjects) {
+            const includedSubjectIds = selectedPackage.subjects.map(s => s.id);
+            setFormData(prev => ({ ...prev, subjectIds: includedSubjectIds }));
+            setCurrentPackageSubjects(selectedPackage.subjects);
+        } else {
+            setFormData(prev => ({ ...prev, subjectIds: [] }));
+            setCurrentPackageSubjects([]);
         }
     };
 
@@ -202,12 +199,13 @@ export default function Enquiry() {
             return;
         }
 
-        if (formData.subjectIds.length === 0) {
+        if (formData.packageId === PACKAGE_ID_OTHERS && formData.subjectIds.length === 0) {
             alert('Please select at least one subject.');
             return;
         }
 
         setSubmitting(true);
+        setFieldErrors({});
         try {
             const payload = {
                 name: formData.candidateName,
@@ -233,9 +231,25 @@ export default function Enquiry() {
             });
             alert('Enquiry submitted successfully!');
             setFormData(INITIAL_FORM_STATE);
-        } catch (err) {
-            alert('Failed to submit enquiry. Please try again.');
+            setFieldErrors({});
+        } catch (err: any) {
             console.error(err);
+            const errorMessage = err.message || 'Failed to submit enquiry. Please try again.';
+            
+            // Set field-specific errors
+            const errors: { [key: string]: string } = {};
+            if (errorMessage.toLowerCase().includes('email')) {
+                errors.email = 'Email address already exists. Please use a different email.';
+            }
+            if (errorMessage.toLowerCase().includes('phone')) {
+                errors.phone = 'Phone number already exists. Please use a different phone number.';
+            }
+            if (Object.keys(errors).length === 0) {
+                setError(errorMessage);
+            } else {
+                setError(null);
+            }
+            setFieldErrors(errors);
         } finally {
             setSubmitting(false);
         }
@@ -244,6 +258,7 @@ export default function Enquiry() {
     const handleClear = () => {
         if (window.confirm('Are you sure you want to clear the form?')) {
             setFormData(INITIAL_FORM_STATE);
+            setFieldErrors({});
         }
     };
 
@@ -302,6 +317,9 @@ export default function Enquiry() {
                                     placeholder="Enter phone number"
                                 />
                             </div>
+                            {fieldErrors.phone && (
+                                <p className="text-sm text-red-600 mt-1">{fieldErrors.phone}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-700">Email Address</label>
@@ -318,6 +336,9 @@ export default function Enquiry() {
                                     placeholder="Enter email address"
                                 />
                             </div>
+                            {fieldErrors.email && (
+                                <p className="text-sm text-red-600 mt-1">{fieldErrors.email}</p>
+                            )}
                         </div>
                         <div className="space-y-2">
                             <label className="text-sm font-medium text-slate-700">Current Location</label>
@@ -405,7 +426,13 @@ export default function Enquiry() {
                                 </label>
                             ))}
                         </div>
-                        {formData.subjectIds.length === 0 && (
+                        {formData.subjectIds.length === 0 && formData.packageId === PACKAGE_ID_OTHERS && (
+                            <p className="text-xs text-red-500 mt-2">Please select at least one subject.</p>
+                        )}
+                        {formData.subjectIds.length === 0 && formData.packageId !== PACKAGE_ID_OTHERS && formData.packageId !== null && (
+                            <p className="text-xs text-amber-500 mt-2">Subjects will be auto-selected based on the package.</p>
+                        )}
+                        {formData.subjectIds.length === 0 && formData.packageId === null && (
                             <p className="text-xs text-amber-500 mt-2">No subjects selected. Please select a package or manually check subjects.</p>
                         )}
                     </div>

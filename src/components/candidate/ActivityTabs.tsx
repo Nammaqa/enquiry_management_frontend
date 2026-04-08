@@ -130,15 +130,17 @@ export default function ActivityTabs({ enquiryId, billingDetails, onUpdateBillin
                 >
                     Call and Notes
                 </button>
-                <button
-                    onClick={() => setActiveTab('billing')}
-                    className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'billing'
-                        ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
-                        }`}
-                >
-                    Accounts/Billing
-                </button>
+                {isBillingAuthorized && (
+                    <button
+                        onClick={() => setActiveTab('billing')}
+                        className={`flex-1 py-3 text-sm font-medium text-center border-b-2 transition-colors ${activeTab === 'billing'
+                            ? 'border-indigo-600 text-indigo-600 bg-indigo-50/50'
+                            : 'border-transparent text-slate-500 hover:text-slate-700 hover:bg-slate-50'
+                            }`}
+                    >
+                        Accounts/Billing
+                    </button>
+                )}
             </div>
 
             {/* Tab Content */}

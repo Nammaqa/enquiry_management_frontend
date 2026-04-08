@@ -1,5 +1,6 @@
 import { createBrowserRouter } from "react-router";
 import ProtectedRoute from "./components/ProtectedRoute";
+import LoginGuard from "./components/LoginGuard";
 import RootRedirect from "./components/RootRedirect";
 import Dashboard from "./pages/Dashboard";
 import PackageSubject from "./pages/PackageSubject";
@@ -20,7 +21,9 @@ const router = createBrowserRouter([
   },
   {
     path: "/login",
-    element: <LoginPage />,
+    element: <LoginGuard>
+      <LoginPage />
+    </LoginGuard>,
   },
   {
     path: "/dashboard",

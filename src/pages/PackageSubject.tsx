@@ -113,10 +113,10 @@ export default function PackageSubject() {
             // Normalize package subjects: backend may return `subjects` or `Subjects`
             const normalized = data.map(p => ({
                 ...p,
-                Subjects: p.Subjects || p.subjects || []
-            }));
+                Subjects: (p as any).Subjects || (p as any).subjects || []
+            }) as Package);
 
-            setPackages(normalized as Package[]);
+            setPackages(normalized);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch packages');
             console.error('Error fetching packages:', err);
@@ -245,9 +245,9 @@ if (subjectForm.prerequisites) {
 
         try {
             const imageInput = document.querySelector('input[type="file"]#packageImageFile') as HTMLInputElement;
-            const hasImageFile = imageInput?.files?.length > 0;
+            const hasImageFile = imageInput?.files?.length ? imageInput.files.length > 0 : false;
 
-            const payload: Record<string, string | number | boolean | string[] | undefined> = {
+            const payload: Record<string, any> = {
                 name: packageForm.name,
                 code: packageForm.code,
                 overview: packageForm.overview || '',

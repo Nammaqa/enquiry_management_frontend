@@ -9,6 +9,7 @@ export default function Contact() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const navigate = useNavigate();
 
     // Filter and Pagination State
     const [searchTerm, setSearchTerm] = useState('');
@@ -16,7 +17,9 @@ export default function Contact() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const navigate = useNavigate();
+    const role = localStorage.getItem('userRole');
+    const isCounsellor = role === 'COUNSELLOR';
+    const allowedStatuses = isCounsellor ? ['enquiry stage', 'demo'] : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
 
     useEffect(() => {
         fetchAllData();
@@ -48,19 +51,29 @@ export default function Contact() {
     };
 
     // Get unique statuses in specific order
+    const displayedEnquiries = useMemo(() => {
+        if (!isCounsellor) return enquiries;
+        return enquiries.filter(enquiry => allowedStatuses.includes(enquiry.candidateStatus));
+    }, [enquiries, isCounsellor]);
+
     const uniqueStatuses = useMemo(() => {
-        const statuses = enquiries.map(e => e.candidateStatus).filter(Boolean);
+        const statuses = displayedEnquiries.map(e => e.candidateStatus).filter(Boolean);
         const uniqueSet = Array.from(new Set(statuses));
-        const statusOrder = ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
-        const ordered = statusOrder.filter(s => uniqueSet.includes(s));
-        const remaining = uniqueSet.filter(s => !statusOrder.includes(s)).sort();
+        const ordered = allowedStatuses.filter(s => uniqueSet.includes(s));
+        const remaining = uniqueSet.filter(s => !allowedStatuses.includes(s)).sort();
         return [...ordered, ...remaining];
-    }, [enquiries]);
+    }, [displayedEnquiries, allowedStatuses]);
 
     // Set initial status filter to first status
     useEffect(() => {
         if (statusFilter === null && uniqueStatuses.length > 0) {
             setStatusFilter(uniqueStatuses[0]);
+        }
+    }, [uniqueStatuses, statusFilter]);
+
+    useEffect(() => {
+        if (statusFilter && !uniqueStatuses.includes(statusFilter)) {
+            setStatusFilter(uniqueStatuses[0] || null);
         }
     }, [uniqueStatuses, statusFilter]);
 
@@ -73,7 +86,7 @@ export default function Contact() {
 
     // Apply filters
     const filteredEnquiries = useMemo(() => {
-        let filtered = enquiries;
+        let filtered = displayedEnquiries;
 
         // Search filter
         if (searchTerm.trim()) {
@@ -91,7 +104,7 @@ export default function Contact() {
         }
 
         return filtered;
-    }, [enquiries, searchTerm, statusFilter]);
+    }, [displayedEnquiries, searchTerm, statusFilter]);
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filteredEnquiries.length / itemsPerPage));
@@ -123,29 +136,7 @@ export default function Contact() {
         navigate(`/contact-details/${enquiry.id}`, { state: { enquiry } });
     };
 
-    const getBillingBackgroundColor = (enquiry: Enquiry): string => {
-        if (!enquiry.billing) return '';
-
-        const packageCost = parseFloat(enquiry.billing.packageCost);
-        const balance = parseFloat(enquiry.billing.balance);
-
-        // Case 1: If package cost is 0 → orange background
-        if (packageCost === 0) {
-            return 'bg-orange-200';
-        }
-
-        // Case 3: If package cost > 0 and balance is 0 → green background (fully paid)
-        if (packageCost > 0 && balance === 0) {
-            return 'bg-green-200';
-        }
-
-        // Case 2: If package cost > 0 and balance > 0 → yellow background (partial/no payment)
-        if (packageCost > 0 && balance > 0) {
-            return 'bg-yellow-200';
-        }
-
-        return '';
-    };
+    const rowClickEnabled = (enquiry: Enquiry) => !(isCounsellor && enquiry.candidateStatus === 'demo');
 
     if (loading) {
         return (
@@ -199,29 +190,12 @@ export default function Contact() {
                     {/* Results Count */}
                     <div className="flex items-center">
                         <div className="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap">
-                            {filteredEnquiries.length} of {enquiries.length}
+                            {filteredEnquiries.length} of {displayedEnquiries.length}
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* Billing Legend */}
-            <div className="bg-white px-6 py-4 rounded-xl border border-slate-200 shadow-sm">
-                <div className="flex flex-wrap gap-6">
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-orange-200 rounded"></div>
-                        <span className="text-sm text-slate-700">Package amount 0</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-yellow-300 rounded"></div>
-                        <span className="text-sm text-slate-700">Pending Payment</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 bg-emerald-300 rounded"></div>
-                        <span className="text-sm text-slate-700">Fully Paid</span>
-                    </div>
-                </div>
-            </div>
 
             {/* Status Tabs */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
@@ -265,8 +239,8 @@ export default function Contact() {
                                 paginatedEnquiries.map((enquiry) => (
                                     <tr
                                         key={enquiry.id}
-                                        className={`hover:opacity-80 transition-all cursor-pointer ${getBillingBackgroundColor(enquiry)}`}
-                                        onClick={() => handleCandidateClick(enquiry)}
+                                        className={`transition-all ${rowClickEnabled(enquiry) ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
+                                        onClick={rowClickEnabled(enquiry) ? () => handleCandidateClick(enquiry) : undefined}
                                     >
                                         <td className="px-3 py-4">
                                             <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{enquiry.name}</div>
@@ -325,7 +299,6 @@ export default function Contact() {
                     </table>
                 </div>
 
-                {/* Pagination */}
                 {filteredEnquiries.length > 0 && (
                     <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
                         <div className="flex items-center justify-between">
