@@ -130,7 +130,6 @@ const LocationIcon = () => (
 export default function Enquiry() {
     const [packages, setPackages] = useState<Package[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [currentPackageSubjects, setCurrentPackageSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -161,7 +160,6 @@ export default function Enquiry() {
         setFormData(prev => ({ ...prev, packageId: pkgId }));
 
         if (pkgId === PACKAGE_ID_OTHERS) {
-            setCurrentPackageSubjects([]);
             setFormData(prev => ({ ...prev, subjectIds: [] }));
             return;
         }
@@ -171,10 +169,8 @@ export default function Enquiry() {
         if (selectedPackage && selectedPackage.subjects) {
             const includedSubjectIds = selectedPackage.subjects.map(s => s.id);
             setFormData(prev => ({ ...prev, subjectIds: includedSubjectIds }));
-            setCurrentPackageSubjects(selectedPackage.subjects);
         } else {
             setFormData(prev => ({ ...prev, subjectIds: [] }));
-            setCurrentPackageSubjects([]);
         }
     };
 
