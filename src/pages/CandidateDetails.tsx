@@ -24,7 +24,12 @@ export default function CandidateDetails() {
     const [newLog, setNewLog] = useState({ title: '', description: '' });
     const [savingStatus, setSavingStatus] = useState(false);
     const [savingLog, setSavingLog] = useState(false);
-    const [expandedSection, setExpandedSection] = useState<'details' | 'logs' | 'status' | null>('details');
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [expandedSections, setExpandedSections] = useState({
+        details: true,
+        logs: false,
+        status: false,
+    });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [detailsForm, setDetailsForm] = useState<Partial<Enquiry>>({});
 
@@ -33,6 +38,13 @@ export default function CandidateDetails() {
     const statusOptions = isCounsellor
         ? ['enquiry stage', 'demo']
         : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+    const isDemoCandidate = enquiry?.candidateStatus === 'demo';
+
+    useEffect(() => {
+        if (isDemoCandidate && isEditingDetails) {
+            setIsEditingDetails(false);
+        }
+    }, [isDemoCandidate, isEditingDetails]);
 
     useEffect(() => {
         if (enquiry) {
@@ -147,6 +159,11 @@ export default function CandidateDetails() {
             if (response?.enquiry) {
                 setEnquiry(response.enquiry);
                 setSelectedStatus(response.enquiry.candidateStatus || selectedStatus);
+                if (response.enquiry.candidateStatus === 'demo' && isCounsellor) {
+                    setSuccessMessage('Moved to demo successfully');
+                } else {
+                    setSuccessMessage('Status updated successfully');
+                }
             }
         } catch (err) {
             console.error('Failed to update status:', err);
@@ -230,32 +247,52 @@ export default function CandidateDetails() {
                 </div>
             </div>
 
+            {successMessage && (
+                <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
+                    <div className="flex items-center justify-between gap-3">
+                        <span>{successMessage}</span>
+                        <button
+                            onClick={() => setSuccessMessage(null)}
+                            className="text-green-700 font-semibold hover:text-green-900"
+                        >
+                            Close
+                        </button>
+                    </div>
+                </div>
+            )}
+
             <div className="space-y-4">
                 <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                     <button
                         type="button"
-                        onClick={() => setExpandedSection(prev => prev === 'details' ? null : 'details')}
+                        onClick={() => setExpandedSections(prev => ({ ...prev, details: !prev.details }))}
                         className="w-full flex items-center justify-between px-6 py-5 text-left"
                     >
                         <div>
                             <h2 className="text-lg font-semibold text-slate-900">Candidate Details</h2>
-                            <p className="text-sm text-slate-500 mt-1">Review and edit core enquiry details.</p>
+                            <p className="text-sm text-slate-500 mt-1">
+                                {isDemoCandidate ? 'Review candidate details (read-only).' : 'Review and edit core enquiry details.'}
+                            </p>
                         </div>
-                        <span className={`text-2xl font-bold text-slate-400 transition-transform ${expandedSection === 'details' ? 'rotate-180' : ''}`}>
-                            &minus;
+                        <span className="text-2xl font-bold text-slate-400">
+                            {expandedSections.details ? '-' : '+'}
                         </span>
                     </button>
-                    {expandedSection === 'details' && (
+                    {expandedSections.details && (
                         <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
                             <div className="flex items-center justify-between gap-3">
-                                <div className="text-sm text-slate-500">Fields marked with * are editable.</div>
-                                <button
-                                    type="button"
-                                    onClick={() => setIsEditingDetails(prev => !prev)}
-                                    className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
-                                >
-                                    {isEditingDetails ? 'Cancel edit' : 'Edit details'}
-                                </button>
+                                <div className="text-sm text-slate-500">
+                                    {isDemoCandidate ? 'Read-only details for demo candidates.' : 'Fields marked with * are editable.'}
+                                </div>
+                                {!isDemoCandidate && (
+                                    <button
+                                        type="button"
+                                        onClick={() => setIsEditingDetails(prev => !prev)}
+                                        className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
+                                    >
+                                        {isEditingDetails ? 'Cancel edit' : 'Edit details'}
+                                    </button>
+                                )}
                             </div>
 
                             <div className="grid gap-6 md:grid-cols-2">
@@ -420,21 +457,22 @@ export default function CandidateDetails() {
                     )}
                 </section>
 
-                <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                    <button
-                        type="button"
-                        onClick={() => setExpandedSection(prev => prev === 'logs' ? null : 'logs')}
-                        className="w-full flex items-center justify-between px-6 py-5 text-left"
-                    >
-                        <div>
-                            <h2 className="text-lg font-semibold text-slate-900">Call Logs</h2>
-                            <p className="text-sm text-slate-500 mt-1">View and add notes for this enquiry.</p>
-                        </div>
-                        <span className={`text-2xl font-bold text-slate-400 transition-transform ${expandedSection === 'logs' ? 'rotate-180' : ''}`}>
-                            &minus;
-                        </span>
-                    </button>
-                    {expandedSection === 'logs' && (
+                {!isDemoCandidate && (
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, logs: !prev.logs }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Call Logs</h2>
+                                <p className="text-sm text-slate-500 mt-1">View and add notes for this enquiry.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.logs ? '-' : '+'}
+                            </span>
+                        </button>
+                    {expandedSections.logs && (
                         <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
                             {logs.length === 0 ? (
                                 <div className="text-sm text-slate-500">No call logs available yet.</div>
@@ -479,66 +517,64 @@ export default function CandidateDetails() {
                         </div>
                     )}
                 </section>
+                )}
 
-                <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                    <button
-                        type="button"
-                        onClick={() => setExpandedSection(prev => prev === 'status' ? null : 'status')}
-                        className="w-full flex items-center justify-between px-6 py-5 text-left"
+                {!isDemoCandidate && (
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, status: !prev.status }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
                     >
                         <div>
                             <h2 className="text-lg font-semibold text-slate-900">Status</h2>
                             <p className="text-sm text-slate-500 mt-1">Manage the candidate's stage and demo status.</p>
                         </div>
-                        <span className={`text-2xl font-bold text-slate-400 transition-transform ${expandedSection === 'status' ? 'rotate-180' : ''}`}>
-                            &minus;
+                        <span className="text-2xl font-bold text-slate-400">
+                            {expandedSections.status ? '-' : '+'}
                         </span>
                     </button>
-                    {expandedSection === 'status' && (
-                        <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
-                            <div className="grid gap-4 md:grid-cols-[1fr_auto] items-end">
+                    {expandedSections.status && (
+                        <div className="px-6 pb-6 border-t border-slate-200">
+                            <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
                                 <div className="grid gap-4">
-                                    {isCounsellor ? (
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-[0.16em] mb-2">Select Status</label>
-                                            <select
-                                                value={selectedStatus}
-                                                onChange={(e) => setSelectedStatus(e.target.value)}
-                                                className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                            >
-                                                {statusOptions.map(status => (
-                                                    <option key={status} value={status}>{status}</option>
-                                                ))}
-                                            </select>
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                            <p className="text-sm text-slate-700">Current status</p>
-                                            <p className="mt-2 text-base font-semibold text-slate-900">{enquiry.candidateStatus}</p>
-                                        </div>
-                                    )}
-
                                     <div>
-                                        <h3 className="text-xs uppercase tracking-[0.16em] text-slate-500">Demo status</h3>
-                                        <p className="mt-1 text-sm text-slate-900">
-                                            {enquiry.demoStatus || (enquiry.candidateStatus === 'demo' ? 'Demo' : 'Not set')}
-                                        </p>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-[0.16em] mb-2">Select Status</label>
+                                        <select
+                                            value={selectedStatus}
+                                            onChange={(e) => setSelectedStatus(e.target.value)}
+                                            className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                        >
+                                            {statusOptions.map(status => (
+                                                <option key={status} value={status}>{status}</option>
+                                            ))}
+                                        </select>
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
+                                            <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry.candidateStatus || 'Not set'}</p>
+                                        </div>
                                     </div>
                                 </div>
 
                                 {isCounsellor && (
-                                    <button
-                                        onClick={handleStageUpdate}
-                                        disabled={savingStatus || selectedStatus === enquiry.candidateStatus}
-                                        className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                                    >
-                                        {savingStatus ? 'Saving...' : 'Save Status'}
-                                    </button>
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={handleStageUpdate}
+                                            disabled={savingStatus || selectedStatus === enquiry.candidateStatus}
+                                            className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {savingStatus ? 'Saving...' : 'Save Status'}
+                                        </button>
+                                    </div>
                                 )}
                             </div>
                         </div>
                     )}
-                </section>
+                    </section>
+                )}
             </div>
         </div>
     );

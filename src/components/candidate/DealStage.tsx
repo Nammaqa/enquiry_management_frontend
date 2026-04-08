@@ -83,7 +83,7 @@ export default function DealStageCard({ enquiry, onUpdateStatus }: DealStageCard
                         value={enquiry.candidateStatus || 'enquiry stage'}
                         onChange={(e) => onUpdateStatus(e.target.value, enquiry.demoStatus)}
                         disabled={!isStageEditable}
-                        className={`w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 py-1.5 ${!isStageEditable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
+                        className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${!isStageEditable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900'}`}
                     >
                         {visibleStages.map(stage => (
                             <option key={stage} value={stage}>{stage}</option>
@@ -97,10 +97,7 @@ export default function DealStageCard({ enquiry, onUpdateStatus }: DealStageCard
                         value={enquiry.demoStatus || 'Not yet started'}
                         onChange={(e) => onUpdateStatus(enquiry.candidateStatus, e.target.value)}
                         disabled={!isDemoStatusEditable}
-                        className={`w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 py-1.5 ${!isDemoStatusEditable
-                            ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
-                            : ''
-                            }`}
+                        className={`w-full px-3 py-2 text-sm border border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${!isDemoStatusEditable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : 'bg-white text-slate-900'}`}
                     >
                         {DEMO_STATUSES.map(status => (
                             <option key={status} value={status}>{status}</option>

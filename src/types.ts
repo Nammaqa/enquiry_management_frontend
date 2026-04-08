@@ -11,6 +11,13 @@ export interface Package {
     Subjects?: Subject[];
 }
 
+export interface CallLogEntry {
+    id: string;
+    title: string;
+    description: string;
+    createdAt: string;
+}
+
 export interface Enquiry {
     id: number;
     name: string;
@@ -30,6 +37,7 @@ export interface Enquiry {
     candidateStatus: string; // The "Deal Stage"
     demoStatus?: string; // New field requested
     billing?: Billing;
+    callLogs?: CallLogEntry[];
     createdAt: string;
     updatedAt: string;
 }

@@ -218,7 +218,7 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName }:
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Phone</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Interested Package</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Interested Subjects</th>
-                                    <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Currently Enrolled</th>
+                                    <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Enrolled Batches</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100">
@@ -257,10 +257,10 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName }:
                                                         : '-'
                                                     }
                                                 </td>
-                                                <td className="px-6 py-3 text-sm text-slate-600">
+                                                <td className="px-6 py-3 text-sm text-slate-600" title={student.enrolledBatches?.map(b => b.name.trim()).filter(Boolean).join(', ') || 'None'}>
                                                     {student.enrolledBatches && student.enrolledBatches.length > 0
-                                                        ? student.enrolledBatches.map(b => b.name).join(', ')
-                                                        : '-'
+                                                        ? student.enrolledBatches.map(b => b.name.trim()).filter(Boolean).join(', ')
+                                                        : 'None'
                                                     }
                                                 </td>
                                             </tr>
