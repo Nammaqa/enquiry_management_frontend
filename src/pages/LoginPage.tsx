@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import nammaqa from '../assets/nammaqa.jpg';
@@ -15,12 +15,6 @@ const LoginPage = () => {
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
-
-    useEffect(() => {
-        if (localStorage.getItem('authToken')) {
-            navigate('/dashboard', { replace: true });
-        }
-    }, [navigate]);
 
     const handleSubmit = async (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();

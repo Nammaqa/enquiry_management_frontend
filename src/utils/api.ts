@@ -1,6 +1,6 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
-interface ApiRequestOptions {
+export interface ApiRequestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     body?: any;
     headers?: Record<string, string>;
@@ -41,6 +41,12 @@ export const apiRequest = async <T = any>(
     }
 
     const response = await fetch(`${API_URL}${endpoint}`, config);
+
+    if (response.status === 304) {
+        localStorage.clear();
+        window.location.href = '/login';
+        throw new Error('Token not modified or invalid');
+    }
 
     if (!response.ok) {
         if (response.status === 401) {

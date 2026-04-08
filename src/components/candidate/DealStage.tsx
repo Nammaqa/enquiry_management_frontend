@@ -26,7 +26,7 @@ export default function DealStageCard({ enquiry, onUpdateStatus }: DealStageCard
 
     let visibleStages = STAGES;
     if (role === 'COUNSELLOR') {
-        visibleStages = ['enquiry stage', 'demo', 'qualified demo'];
+        visibleStages = ['enquiry stage', 'demo'];
     } else if (role === 'ACCOUNTS') {
         visibleStages = ['qualified demo', 'class', 'class qualified'];
     } else if (role === 'HR') {
@@ -39,9 +39,10 @@ export default function DealStageCard({ enquiry, onUpdateStatus }: DealStageCard
 
     // Global index for the visual pipeline (showing ALL stages)
     const globalStageIndex = STAGES.indexOf(enquiry.candidateStatus || 'enquiry stage');
+    const isStageEditable = !(role === 'COUNSELLOR' && enquiry.candidateStatus === 'demo');
 
-    // Demo status is only available if stage is demo/qualified demo AND user is Admin or Counsellor
-    const isDemoStatusEditable = ['ADMIN', 'COUNSELLOR'].includes(role || '') && ['demo', 'qualified demo'].includes(enquiry.candidateStatus || '');
+    // Demo status is only editable by Admins; counsellors can view demo records only
+    const isDemoStatusEditable = role === 'ADMIN' && ['demo', 'qualified demo'].includes(enquiry.candidateStatus || '');
 
     return (
         <div className="bg-white rounded-lg border border-slate-200 shadow-sm p-4 mb-6">
@@ -81,7 +82,8 @@ export default function DealStageCard({ enquiry, onUpdateStatus }: DealStageCard
                     <select
                         value={enquiry.candidateStatus || 'enquiry stage'}
                         onChange={(e) => onUpdateStatus(e.target.value, enquiry.demoStatus)}
-                        className="w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 py-1.5"
+                        disabled={!isStageEditable}
+                        className={`w-full text-sm border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 py-1.5 ${!isStageEditable ? 'bg-slate-100 text-slate-400 cursor-not-allowed' : ''}`}
                     >
                         {visibleStages.map(stage => (
                             <option key={stage} value={stage}>{stage}</option>
