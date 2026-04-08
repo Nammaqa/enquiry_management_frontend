@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
-import type { Enquiry, Package, Subject } from '../types';
+import type { CallLogEntry, Enquiry, Package, Subject } from '../types';
 
 export default function Contact() {
     const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -9,13 +9,20 @@ export default function Contact() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [isLogModalOpen, setIsLogModalOpen] = useState(false);
+    const [activeEnquiryForLogs, setActiveEnquiryForLogs] = useState<Enquiry | null>(null);
+    const [newCallLogTitle, setNewCallLogTitle] = useState('');
+    const [newCallLogDescription, setNewCallLogDescription] = useState('');
+    const [logError, setLogError] = useState<string | null>(null);
+    const [logLoading, setLogLoading] = useState(false);
+    const [savingLog, setSavingLog] = useState(false);
     const navigate = useNavigate();
 
     // Filter and Pagination State
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 10;
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -39,7 +46,10 @@ export default function Contact() {
                 apiRequest<Subject[]>('/api/subjects', { method: 'GET' })
             ]);
 
-            setEnquiries(enquiriesData);
+            setEnquiries(enquiriesData.map(enquiry => ({
+                ...enquiry,
+                callLogs: enquiry.callLogs ?? []
+            })));
             setPackages(packagesData);
             setSubjects(subjectsData);
         } catch (err) {
@@ -50,6 +60,87 @@ export default function Contact() {
         }
     };
 
+    const openLogModal = async (enquiry: Enquiry) => {
+        setActiveEnquiryForLogs({ ...enquiry, callLogs: enquiry.callLogs ?? [] });
+        setNewCallLogTitle('');
+        setNewCallLogDescription('');
+        setLogError(null);
+        setIsLogModalOpen(true);
+        setLogLoading(true);
+
+        try {
+            const response = await apiRequest<CallLogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
+            setActiveEnquiryForLogs(prev => prev ? { ...prev, callLogs: response } : prev);
+            setEnquiries(prevEnquiries => prevEnquiries.map(e => e.id === enquiry.id ? { ...e, callLogs: response } : e));
+        } catch (err) {
+            console.error('Failed to load call logs:', err);
+        } finally {
+            setLogLoading(false);
+        }
+    };
+
+    const closeLogModal = () => {
+        setIsLogModalOpen(false);
+        setActiveEnquiryForLogs(null);
+        setNewCallLogTitle('');
+        setNewCallLogDescription('');
+        setLogError(null);
+    };
+
+    const handleSaveCallLog = async () => {
+        if (!activeEnquiryForLogs) return;
+        if (!newCallLogTitle.trim()) {
+            setLogError('Enter a call title before saving.');
+            return;
+        }
+        if (!newCallLogDescription.trim()) {
+            setLogError('Enter a call note before saving.');
+            return;
+        }
+
+        setSavingLog(true);
+        setLogError(null);
+
+        try {
+            const response = await apiRequest<{ message: string; log: CallLogEntry }>('/api/logs', {
+                method: 'POST',
+                body: {
+                    enquiryId: activeEnquiryForLogs.id,
+                    title: newCallLogTitle.trim(),
+                    description: newCallLogDescription.trim(),
+                },
+            });
+
+            const savedLog = response?.log ?? {
+                id: `${activeEnquiryForLogs.id}-${Date.now()}`,
+                title: newCallLogTitle.trim(),
+                description: newCallLogDescription.trim(),
+                createdAt: new Date().toISOString(),
+            };
+
+            setEnquiries(prevEnquiries => prevEnquiries.map(enquiry => {
+                if (enquiry.id !== activeEnquiryForLogs.id) return enquiry;
+                return {
+                    ...enquiry,
+                    callLogs: [...(enquiry.callLogs ?? []), savedLog],
+                };
+            }));
+
+            setActiveEnquiryForLogs(prev => prev ? {
+                ...prev,
+                callLogs: [...(prev.callLogs ?? []), savedLog],
+            } : null);
+
+            setNewCallLogTitle('');
+            setNewCallLogDescription('');
+        } catch (err) {
+            console.error('Failed to save call log:', err);
+            setLogError('Unable to save call log. Please try again.');
+        } finally {
+            setSavingLog(false);
+        }
+    };
+
     // Get unique statuses in specific order
     const displayedEnquiries = useMemo(() => {
         if (!isCounsellor) return enquiries;
@@ -57,12 +148,9 @@ export default function Contact() {
     }, [enquiries, isCounsellor]);
 
     const uniqueStatuses = useMemo(() => {
-        const statuses = displayedEnquiries.map(e => e.candidateStatus).filter(Boolean);
-        const uniqueSet = Array.from(new Set(statuses));
-        const ordered = allowedStatuses.filter(s => uniqueSet.includes(s));
-        const remaining = uniqueSet.filter(s => !allowedStatuses.includes(s)).sort();
-        return [...ordered, ...remaining];
-    }, [displayedEnquiries, allowedStatuses]);
+        // Always include allowed statuses, even if they have no records
+        return allowedStatuses;
+    }, [allowedStatuses]);
 
     // Set initial status filter to first status
     useEffect(() => {
@@ -111,12 +199,18 @@ export default function Contact() {
     const paginatedEnquiries = useMemo(() => {
         const start = (currentPage - 1) * itemsPerPage;
         return filteredEnquiries.slice(start, start + itemsPerPage);
-    }, [filteredEnquiries, currentPage]);
+    }, [filteredEnquiries, currentPage, itemsPerPage]);
 
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
     }, [searchTerm, statusFilter]);
+
+    // Reset to page 1 when rows per page changes
+    const handleRowsPerPageChange = (newValue: number) => {
+        setItemsPerPage(newValue);
+        setCurrentPage(1);
+    };
 
     const getPackageName = (id: number | null) => {
         if (id === null) return 'Others';
@@ -136,7 +230,7 @@ export default function Contact() {
         navigate(`/contact-details/${enquiry.id}`, { state: { enquiry } });
     };
 
-    const rowClickEnabled = (enquiry: Enquiry) => !(isCounsellor && enquiry.candidateStatus === 'demo');
+    const rowClickEnabled = (_enquiry?: Enquiry) => true;
 
     if (loading) {
         return (
@@ -171,7 +265,7 @@ export default function Contact() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={`Search ${statusFilter} list by name, phone, or email...`}
+                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'demo' ? 'Demo List' : statusFilter} by name, phone, or email...`}
                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
                             />
                             {searchTerm && (
@@ -199,20 +293,40 @@ export default function Contact() {
 
             {/* Status Tabs */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex gap-0 border-b border-slate-200 overflow-x-auto">
-                    {uniqueStatuses.map(status => (
-                        <button
-                            key={status}
-                            onClick={() => setStatusFilter(status)}
-                            className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
-                                statusFilter === status
-                                    ? 'border-indigo-600 text-indigo-600 bg-white'
-                                    : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
-                            }`}
+                <div className="flex gap-0 border-b border-slate-200 overflow-x-auto justify-between items-center">
+                    <div className="flex gap-0 overflow-x-auto">
+                        {uniqueStatuses.map(status => (
+                            <button
+                                key={status}
+                                onClick={() => setStatusFilter(status)}
+                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
+                                    statusFilter === status
+                                        ? 'border-indigo-600 text-indigo-600 bg-white'
+                                        : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
+                                }`}
+                            >
+                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'demo' ? 'Demo List' : status}
+                            </button>
+                        ))}
+                    </div>
+
+                    {/* Rows Per Page Selector */}
+                    <div className="px-6 py-3.5 flex items-center gap-2 border-l border-slate-200">
+                        <label htmlFor="rows-per-page" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                            Rows per page:
+                        </label>
+                        <select
+                            id="rows-per-page"
+                            value={itemsPerPage}
+                            onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                            className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
                         >
-                            {status}
-                        </button>
-                    ))}
+                            <option value={5}>5</option>
+                            <option value={10}>10</option>
+                            <option value={15}>15</option>
+                            <option value={20}>20</option>
+                        </select>
+                    </div>
                 </div>
 
                 <div className="overflow-x-auto">
@@ -224,15 +338,16 @@ export default function Contact() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Training Prefs</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Profession</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-black text-sm">
-                                        No enquiries found matching your filters.
+                                    <td colSpan={8} className="px-6 py-12 text-center text-black text-sm">
+                                        No records
                                     </td>
                                 </tr>
                             ) : (
@@ -281,6 +396,21 @@ export default function Contact() {
                                             <div className="text-xs text-black mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
                                         <td className="px-3 py-4">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openLogModal(enquiry);
+                                                }}
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
+                                                title="Add call log"
+                                            >
+                                                +
+                                            </button>
+                                            <div className="text-xs text-slate-500 mt-1">
+                                                {enquiry.callLogs?.length ?? 0} log{(enquiry.callLogs?.length ?? 0) === 1 ? '' : 's'}
+                                            </div>
+                                        </td>
+                                        <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 wrap-break-word">{enquiry.profession}</div>
                                             <div className="text-xs text-black wrap-break-word">{enquiry.qualification}</div>
                                             <div className="text-xs text-slate-400 mt-0.5">{enquiry.experience}</div>
@@ -298,6 +428,94 @@ export default function Contact() {
                         </tbody>
                     </table>
                 </div>
+
+                {isLogModalOpen && activeEnquiryForLogs && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                        <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl overflow-hidden">
+                            <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-900">Call Logs for {activeEnquiryForLogs.name}</h2>
+                                    <p className="text-sm text-slate-500">Add a new log or review previously added notes.</p>
+                                </div>
+                                <button
+                                    onClick={closeLogModal}
+                                    className="text-slate-400 hover:text-slate-600"
+                                    aria-label="Close call log modal"
+                                >
+                                    ×
+                                </button>
+                            </div>
+                            <div className="space-y-4 px-6 py-4">
+                                <div className="space-y-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Call title</label>
+                                        <input
+                                            value={newCallLogTitle}
+                                            onChange={(e) => setNewCallLogTitle(e.target.value)}
+                                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                            placeholder="Call title"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700">Add a note about the call</label>
+                                        <textarea
+                                            value={newCallLogDescription}
+                                            onChange={(e) => setNewCallLogDescription(e.target.value)}
+                                            rows={4}
+                                            className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                            placeholder="Add a note about the call"
+                                        />
+                                    </div>
+                                    {logError && <p className="text-sm text-rose-600">{logError}</p>}
+                                </div>
+                                <div className="space-y-3">
+                                    <div className="flex items-center justify-between gap-4">
+                                        <h3 className="text-sm font-semibold text-slate-900">Existing Logs</h3>
+                                        <span className="text-xs text-slate-500">{activeEnquiryForLogs.callLogs?.length ?? 0} total</span>
+                                    </div>
+                                    {logLoading ? (
+                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                            Loading call logs...
+                                        </div>
+                                    ) : activeEnquiryForLogs.callLogs && activeEnquiryForLogs.callLogs.length > 0 ? (
+                                        <div className="space-y-3">
+                                            {activeEnquiryForLogs.callLogs.map(log => (
+                                                <div key={log.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="flex flex-col gap-1">
+                                                        <div className="flex items-start justify-between gap-3">
+                                                            <p className="text-sm font-semibold text-slate-900">{log.title}</p>
+                                                            <span className="text-[11px] uppercase tracking-wide text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                                                        </div>
+                                                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                            No logs yet for this enquiry.
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 bg-slate-50">
+                                <button
+                                    onClick={closeLogModal}
+                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleSaveCallLog}
+                                    disabled={savingLog}
+                                    className="rounded-lg bg-indigo-600 px-4 py-2 text-sm font-medium text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                    {savingLog ? 'Saving...' : 'Save Log'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {filteredEnquiries.length > 0 && (
                     <div className="bg-slate-50 px-4 py-3 border-t border-slate-200">
