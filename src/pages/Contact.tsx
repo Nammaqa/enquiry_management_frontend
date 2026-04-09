@@ -14,7 +14,6 @@ export default function Contact() {
     const [newCallLogTitle, setNewCallLogTitle] = useState('');
     const [newCallLogDescription, setNewCallLogDescription] = useState('');
     const [logError, setLogError] = useState<string | null>(null);
-    const [logLoading, setLogLoading] = useState(false);
     const [savingLog, setSavingLog] = useState(false);
     const navigate = useNavigate();
 
@@ -88,7 +87,6 @@ export default function Contact() {
         setNewCallLogDescription('');
         setLogError(null);
         setIsLogModalOpen(true);
-        setLogLoading(true);
 
         try {
             const response = await apiRequest<CallLogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
@@ -96,8 +94,6 @@ export default function Contact() {
             setEnquiries(prevEnquiries => prevEnquiries.map(e => e.id === enquiry.id ? { ...e, callLogs: response } : e));
         } catch (err) {
             console.error('Failed to load call logs:', err);
-        } finally {
-            setLogLoading(false);
         }
     };
 
