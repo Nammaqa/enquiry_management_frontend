@@ -46,18 +46,40 @@ export default function Contact() {
                 apiRequest<Subject[]>('/api/subjects', { method: 'GET' })
             ]);
 
-            setEnquiries(enquiriesData.map(enquiry => ({
+            const enquiriesWithPendingLogs = enquiriesData.map(enquiry => ({
                 ...enquiry,
-                callLogs: enquiry.callLogs ?? []
-            })));
+                callLogs: undefined
+            }));
+
+            setEnquiries(enquiriesWithPendingLogs);
             setPackages(packagesData);
             setSubjects(subjectsData);
+            fetchCallLogsForEnquiries(enquiriesWithPendingLogs).catch(err => {
+                console.error('Failed to prefetch call logs:', err);
+            });
         } catch (err) {
             console.error('Error fetching data:', err);
             setError('Failed to load enquiries data.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchCallLogsForEnquiries = async (enquiriesList: Enquiry[]) => {
+        const callLogsResults = await Promise.all(enquiriesList.map(async (enquiry) => {
+            try {
+                const response = await apiRequest<CallLogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
+                return { id: enquiry.id, callLogs: response };
+            } catch (err) {
+                console.error(`Failed to load call logs for enquiry ${enquiry.id}:`, err);
+                return { id: enquiry.id, callLogs: [] };
+            }
+        }));
+
+        setEnquiries(prevEnquiries => prevEnquiries.map(enquiry => {
+            const logResult = callLogsResults.find(result => result.id === enquiry.id);
+            return logResult ? { ...enquiry, callLogs: logResult.callLogs } : enquiry;
+        }));
     };
 
     const openLogModal = async (enquiry: Enquiry) => {
@@ -118,17 +140,21 @@ export default function Contact() {
                 createdAt: new Date().toISOString(),
             };
 
+            // Refresh the enquiry's call logs from the backend so the badge count stays accurate immediately.
+            const latestCallLogs = await apiRequest<CallLogEntry[]>(`/api/logs/${activeEnquiryForLogs.id}`, { method: 'GET' });
+            const updatedLogs = Array.isArray(latestCallLogs) ? latestCallLogs : [...(activeEnquiryForLogs.callLogs ?? []), savedLog];
+
             setEnquiries(prevEnquiries => prevEnquiries.map(enquiry => {
                 if (enquiry.id !== activeEnquiryForLogs.id) return enquiry;
                 return {
                     ...enquiry,
-                    callLogs: [...(enquiry.callLogs ?? []), savedLog],
+                    callLogs: updatedLogs,
                 };
             }));
 
             setActiveEnquiryForLogs(prev => prev ? {
                 ...prev,
-                callLogs: [...(prev.callLogs ?? []), savedLog],
+                callLogs: updatedLogs,
             } : null);
 
             setNewCallLogTitle('');
@@ -408,7 +434,7 @@ export default function Contact() {
                                                     +
                                                 </button>
                                                 <div className="text-xs text-slate-500 mt-1">
-                                                    {enquiry.callLogs?.length ?? 0} log{(enquiry.callLogs?.length ?? 0) === 1 ? '' : 's'}
+                                                    {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
                                                 </div>
                                             </td>
                                         )}
@@ -433,11 +459,11 @@ export default function Contact() {
 
                 {isLogModalOpen && activeEnquiryForLogs && (
                     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-                        <div className="w-full max-w-2xl rounded-2xl bg-white shadow-xl overflow-hidden">
+                        <div className="w-full max-w-6xl rounded-3xl bg-white shadow-2xl overflow-hidden">
                             <div className="flex items-start justify-between border-b border-slate-200 px-6 py-4">
                                 <div>
                                     <h2 className="text-lg font-semibold text-slate-900">Call Logs for {activeEnquiryForLogs.name}</h2>
-                                    <p className="text-sm text-slate-500">Add a new log or review previously added notes.</p>
+                                    <p className="text-sm text-slate-500">Review recent notes and add a new call update.</p>
                                 </div>
                                 <button
                                     onClick={closeLogModal}
@@ -447,59 +473,71 @@ export default function Contact() {
                                     ×
                                 </button>
                             </div>
-                            <div className="space-y-4 px-6 py-4">
-                                <div className="space-y-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700">Call title</label>
-                                        <input
-                                            value={newCallLogTitle}
-                                            onChange={(e) => setNewCallLogTitle(e.target.value)}
-                                            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                                            placeholder="Call title"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-700">Add a note about the call</label>
-                                        <textarea
-                                            value={newCallLogDescription}
-                                            onChange={(e) => setNewCallLogDescription(e.target.value)}
-                                            rows={4}
-                                            className="w-full rounded-lg border border-slate-300 p-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-                                            placeholder="Add a note about the call"
-                                        />
-                                    </div>
-                                    {logError && <p className="text-sm text-rose-600">{logError}</p>}
-                                </div>
-                                <div className="space-y-3">
-                                    <div className="flex items-center justify-between gap-4">
-                                        <h3 className="text-sm font-semibold text-slate-900">Existing Logs</h3>
-                                        <span className="text-xs text-slate-500">{activeEnquiryForLogs.callLogs?.length ?? 0} total</span>
-                                    </div>
-                                    {logLoading ? (
-                                        <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                                            Loading call logs...
+
+                            <div className="space-y-6 px-6 py-6">
+                                <main className="space-y-6 max-h-[72vh] overflow-y-auto pr-1">
+                                    <div className="rounded-3xl border border-slate-200 p-6 space-y-4">
+                                        <div className="grid gap-4 md:grid-cols-2">
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700">Call title</label>
+                                                <input
+                                                    value={newCallLogTitle}
+                                                    onChange={(e) => setNewCallLogTitle(e.target.value)}
+                                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                                    placeholder="Call title"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-700">Add a note about the call</label>
+                                                <textarea
+                                                    value={newCallLogDescription}
+                                                    onChange={(e) => setNewCallLogDescription(e.target.value)}
+                                                    rows={4}
+                                                    className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
+                                                    placeholder="Add a note about the call"
+                                                />
+                                            </div>
                                         </div>
-                                    ) : activeEnquiryForLogs.callLogs && activeEnquiryForLogs.callLogs.length > 0 ? (
-                                        <div className="space-y-3">
-                                            {activeEnquiryForLogs.callLogs.map(log => (
-                                                <div key={log.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
-                                                    <div className="flex flex-col gap-1">
+
+                                        {logError && <p className="text-sm text-rose-600">{logError}</p>}
+                                    </div>
+
+                                    <div className="rounded-3xl border border-slate-200 p-6 space-y-4">
+                                        <div className="flex items-center justify-between gap-4">
+                                            <div>
+                                                <h3 className="text-sm font-semibold text-slate-900">Existing Logs</h3>
+                                                <p className="text-xs text-slate-500">Review previous notes for this enquiry.</p>
+                                            </div>
+                                            <span className="text-xs text-slate-500">
+                                                {activeEnquiryForLogs.callLogs === undefined ? 'Loading...' : `${activeEnquiryForLogs.callLogs.length} total`}
+                                            </span>
+                                        </div>
+
+                                        {activeEnquiryForLogs.callLogs === undefined ? (
+                                            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                                Loading call logs...
+                                            </div>
+                                        ) : activeEnquiryForLogs.callLogs.length > 0 ? (
+                                            <div className="space-y-3">
+                                                {activeEnquiryForLogs.callLogs.map(log => (
+                                                    <div key={log.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                         <div className="flex items-start justify-between gap-3">
                                                             <p className="text-sm font-semibold text-slate-900">{log.title}</p>
                                                             <span className="text-[11px] uppercase tracking-wide text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
                                                         </div>
-                                                        <p className="text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
+                                                        <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
                                                     </div>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
-                                            No logs yet for this enquiry.
-                                        </div>
-                                    )}
-                                </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 p-4 text-sm text-slate-500">
+                                                No logs yet for this enquiry.
+                                            </div>
+                                        )}
+                                    </div>
+                                </main>
                             </div>
+
                             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 bg-slate-50">
                                 <button
                                     onClick={closeLogModal}
