@@ -26,7 +26,7 @@ export default function Contact() {
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
-    const allowedStatuses = isCounsellor ? ['enquiry stage', 'demo'] : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+    const allowedStatuses = isCounsellor ? ['enquiry stage', 'demo', 'class'] : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
 
     useEffect(() => {
         fetchAllData();
@@ -265,7 +265,7 @@ export default function Contact() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'demo' ? 'Demo List' : statusFilter} by name, phone, or email...`}
+                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'demo' ? 'Demo List' : statusFilter === 'class' ? 'Class List' : statusFilter} by name, phone, or email...`}
                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
                             />
                             {searchTerm && (
@@ -305,7 +305,7 @@ export default function Contact() {
                                         : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
                                 }`}
                             >
-                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'demo' ? 'Demo List' : status}
+                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'demo' ? 'Demo List' : status === 'class' ? 'Class List' : status}
                             </button>
                         ))}
                     </div>
@@ -338,7 +338,7 @@ export default function Contact() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Training Prefs</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>
+                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>}
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Profession</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Date</th>
                             </tr>
@@ -346,7 +346,7 @@ export default function Contact() {
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={7 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -395,21 +395,23 @@ export default function Contact() {
                                             <div className="text-xs text-black">{enquiry.trainingTime}</div>
                                             <div className="text-xs text-black mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
-                                        <td className="px-3 py-4">
-                                            <button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openLogModal(enquiry);
-                                                }}
-                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
-                                                title="Add call log"
-                                            >
-                                                +
-                                            </button>
-                                            <div className="text-xs text-slate-500 mt-1">
-                                                {enquiry.callLogs?.length ?? 0} log{(enquiry.callLogs?.length ?? 0) === 1 ? '' : 's'}
-                                            </div>
-                                        </td>
+                                        {statusFilter !== 'demo' && (
+                                            <td className="px-3 py-4">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        openLogModal(enquiry);
+                                                    }}
+                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
+                                                    title="Add call log"
+                                                >
+                                                    +
+                                                </button>
+                                                <div className="text-xs text-slate-500 mt-1">
+                                                    {enquiry.callLogs?.length ?? 0} log{(enquiry.callLogs?.length ?? 0) === 1 ? '' : 's'}
+                                                </div>
+                                            </td>
+                                        )}
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 wrap-break-word">{enquiry.profession}</div>
                                             <div className="text-xs text-black wrap-break-word">{enquiry.qualification}</div>

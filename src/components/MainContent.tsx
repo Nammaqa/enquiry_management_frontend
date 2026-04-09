@@ -129,13 +129,19 @@ export default function MainContent({ children }: { children: React.ReactNode })
         }
     }, []);
 
-    const jobsAllowedRoles = ['HR', 'COUNSELLOR'];
+    const jobsAllowedRoles = ['ADMIN','HR', 'COUNSELLOR'];
+    const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
+    const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
     const navItems = [
         { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
         { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
         { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
-        { icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' },
-        { icon: <CalendarIcon />, label: 'Batches', path: '/batches' },
+        ...(userRolesAllowedRoles.includes(fullRoleName)
+            ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
+            : []),
+        ...(batchesAllowedRoles.includes(fullRoleName)
+            ? [{ icon: <CalendarIcon />, label: 'Batches', path: '/batches' }]
+            : []),
         ...(jobsAllowedRoles.includes(fullRoleName)
             ? [
                 { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
