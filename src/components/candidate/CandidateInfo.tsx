@@ -226,6 +226,7 @@ export default function CandidateInfo({ enquiry, onUpdate }: CandidateInfoProps)
                                     </label>
                                 ))}
                             </div>
+                            
                             {formData.profession && formData.profession.trim() === 'Other' && (
                                 <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
                                     <label className="block text-xs font-semibold text-slate-700 mb-2">Please Specify Professional Situation</label>
