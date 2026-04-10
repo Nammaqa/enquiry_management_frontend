@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { apiRequest } from '../utils/api';
 
+// ─── Enum Constants ───────────────────────────────────────────────────────────
+const VALID_WORK_MODES = ['Remote', 'On-site', 'Hybrid'] as const;
+const VALID_JOB_TYPES = ['Full-time', 'Part-time', 'Internship', 'Contract'] as const;
+
 // Types
-type WorkMode = 'Onsite' | 'Remote' | 'Hybrid';
-type JobType = 'Full-Time' | 'Part-Time' | 'Contract' | 'Internship';
+type WorkMode = typeof VALID_WORK_MODES[number];
+type JobType = typeof VALID_JOB_TYPES[number];
 
 interface JobPost {
     id: number;
@@ -74,19 +78,19 @@ const ALLOWED_ROLES = ['HR', 'COUNSELLOR', 'ADMIN'];
 
 function workModeBadge(mode: WorkMode) {
     const map: Record<WorkMode, string> = {
-        Onsite: 'bg-blue-100 text-blue-700',
-        Remote: 'bg-green-100 text-green-700',
-        Hybrid: 'bg-purple-100 text-purple-700',
+        'On-site': 'bg-blue-100 text-blue-700',
+        'Remote': 'bg-green-100 text-green-700',
+        'Hybrid': 'bg-purple-100 text-purple-700',
     };
     return map[mode];
 }
 
 function jobTypeBadge(type: JobType) {
     const map: Record<JobType, string> = {
-        'Full-Time': 'bg-indigo-100 text-indigo-700',
-        'Part-Time': 'bg-amber-100 text-amber-700',
-        Contract: 'bg-orange-100 text-orange-700',
-        Internship: 'bg-teal-100 text-teal-700',
+        'Full-time': 'bg-indigo-100 text-indigo-700',
+        'Part-time': 'bg-amber-100 text-amber-700',
+        'Internship': 'bg-teal-100 text-teal-700',
+        'Contract': 'bg-orange-100 text-orange-700',
     };
     return map[type];
 }
@@ -115,6 +119,7 @@ export default function Jobs() {
 
     const [jobs, setJobs] = useState<JobPost[]>([]);
     const [success, setSuccess] = useState(false);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof JobPost, string>>>({});
@@ -129,8 +134,8 @@ export default function Jobs() {
         companyLogo: '',
         jobTitle: '',
         location: '',
-        workMode: 'Onsite' as WorkMode,
-        jobType: 'Full-Time' as JobType,
+        workMode: 'Remote' as WorkMode,
+        jobType: 'Full-time' as JobType,
         about: '',
         jobDescription: '',
         preferredExperience: '',
@@ -140,12 +145,21 @@ export default function Jobs() {
     const [skillInput, setSkillInput] = useState('');
     const [skillDropdownOpen, setSkillDropdownOpen] = useState(false);
     const [skillActiveIdx, setSkillActiveIdx] = useState(-1);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const filteredSkills = skillInput.trim().length > 0
         ? SKILL_SUGGESTIONS.filter(
             s => s.toLowerCase().includes(skillInput.toLowerCase()) && !form.technicalSkills.includes(s)
         ).slice(0, 8)
         : [];
+
+    // Filter jobs by company name, job title, and location
+    const filteredJobs = jobs.filter(job =>
+        searchQuery.trim() === '' ||
+        job.companyName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.jobTitle.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        job.location.toLowerCase().includes(searchQuery.toLowerCase())
+    );
 
     const addSkill = (raw: string) => {
         const skill = raw.trim();
@@ -276,8 +290,8 @@ export default function Jobs() {
             companyLogo: '',
             jobTitle: '',
             location: '',
-            workMode: 'Onsite',
-            jobType: 'Full-Time',
+            workMode: 'Remote',
+            jobType: 'Full-time',
             about: '',
             jobDescription: '',
             preferredExperience: '',
@@ -310,8 +324,7 @@ export default function Jobs() {
                 if (response.status === 'success') {
                     setJobs(prev => prev.map(j => j.id === editingId ? response.data : j));
                     cancelEdit();
-                    setSuccess(true);
-                    setTimeout(() => setSuccess(false), 3000);
+                    setSuccessMessage('Job updated successfully');
                 }
             } else {
                 // Create implementation
@@ -327,8 +340,8 @@ export default function Jobs() {
                         companyLogo: '',
                         jobTitle: '',
                         location: '',
-                        workMode: 'Onsite',
-                        jobType: 'Full-Time',
+                        workMode: 'Remote',
+                        jobType: 'Full-time',
                         about: '',
                         jobDescription: '',
                         preferredExperience: '',
@@ -337,8 +350,7 @@ export default function Jobs() {
                     setSkillInput('');
                     setLogoPreview('');
                     if (fileInputRef.current) fileInputRef.current.value = '';
-                    setSuccess(true);
-                    setTimeout(() => setSuccess(false), 3000);
+                    setSuccessMessage('Job posted successfully');
                 }
             }
         } catch (err) {
@@ -358,6 +370,7 @@ export default function Jobs() {
                 method: 'DELETE',
             });
             setJobs(prev => prev.filter(j => j.id !== id));
+            setSuccessMessage('Job deleted successfully');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred while deleting the job');
             console.error('Error deleting job:', err);
@@ -411,15 +424,7 @@ export default function Jobs() {
                         </div>
                     )}
 
-                    {/* Success Banner */}
-                    {success && (
-                        <div className="flex items-center gap-2 bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg text-sm">
-                            <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                            Job posted successfully!
-                        </div>
-                    )}
+
 
                     {/* Company Logo Upload */}
                     <div>
@@ -515,10 +520,10 @@ export default function Jobs() {
                             <label className="block text-sm font-medium text-slate-700 mb-1">Work Mode</label>
                             <select
                                 value={form.workMode}
-                                onChange={e => set('workMode', e.target.value)}
+                                onChange={e => set('workMode', e.target.value as WorkMode)}
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
-                                {(['Onsite', 'Remote', 'Hybrid'] as WorkMode[]).map(m => (
+                                {VALID_WORK_MODES.map(m => (
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
@@ -527,10 +532,10 @@ export default function Jobs() {
                             <label className="block text-sm font-medium text-slate-700 mb-1">Job Type</label>
                             <select
                                 value={form.jobType}
-                                onChange={e => set('jobType', e.target.value)}
+                                onChange={e => set('jobType', e.target.value as JobType)}
                                 className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                             >
-                                {(['Full-Time', 'Part-Time', 'Contract', 'Internship'] as JobType[]).map(t => (
+                                {VALID_JOB_TYPES.map(t => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>
@@ -626,7 +631,7 @@ export default function Jobs() {
                         </div>
 
                         {/* Autocomplete Dropdown */}
-                        {skillDropdownOpen && filteredSkills.length > 0 && (
+                        {skillDropdownOpen && (filteredSkills.length > 0 || skillInput.trim().length > 0) && (
                             <ul className="absolute z-50 left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg overflow-hidden">
                                 {filteredSkills.map((skill, idx) => (
                                     <li
@@ -647,10 +652,21 @@ export default function Jobs() {
                                         )}
                                     </li>
                                 ))}
+                                {/* Show custom skill option if input doesn't match suggestions */}
+                                {skillInput.trim().length > 0 && filteredSkills.length === 0 && (
+                                    <li
+                                        onMouseDown={e => { e.preventDefault(); addSkill(skillInput); }}
+                                        className="flex items-center gap-2 px-4 py-2.5 text-sm cursor-pointer transition-colors bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border-t border-slate-100"
+                                    >
+                                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 flex-shrink-0" />
+                                        <span>
+                                            <strong>Add custom skill:</strong> "{skillInput.trim()}"
+                                        </span>
+                                    </li>
+                                )}
                             </ul>
                         )}
-                        <p className="text-xs text-slate-400 mt-1">Type to search skills — press Enter or comma to add a custom one</p>
-                    </div>
+                       </div>
 
                     {/* Submit */}
                     <div className="flex justify-end items-center gap-3 pt-2">
@@ -684,12 +700,30 @@ export default function Jobs() {
             {/* ── Posted Jobs List ── */}
             {jobs.length > 0 && (
                 <div className="space-y-4">
-                    <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
-                        Posted Jobs ({jobs.length})
-                    </h3>
+                    <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                        <h3 className="text-base font-semibold text-slate-700 flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-indigo-500 inline-block" />
+                            Posted Jobs ({filteredJobs.length} of {jobs.length})
+                        </h3>
 
-                    {jobs.map(job => (
+                        {/* Search Bar */}
+                        <div className="w-full sm:w-96 relative">
+                            <input
+                                type="text"
+                                value={searchQuery}
+                                onChange={e => setSearchQuery(e.target.value)}
+                                placeholder="Search by title, company, or location…"
+                                className="w-full pl-4 pr-10 py-2.5 rounded-lg border border-slate-300 text-sm placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                            />
+                            <svg className="w-5 h-5 absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                        </div>
+                    </div>
+
+                    {filteredJobs.length > 0 ? (
+                    <div className="space-y-4">
+                    {filteredJobs.map(job => (
                         <div
                             key={job.id}
                             className="bg-white rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden"
@@ -794,6 +828,41 @@ export default function Jobs() {
                             </div>
                         </div>
                     ))}
+                    </div>
+                    ) : (
+                        <div className="text-center py-12">
+                            <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            <p className="text-slate-500 text-sm">No jobs found matching "{searchQuery}"</p>
+                            <p className="text-slate-400 text-xs mt-1">Try searching with a different company name or location</p>
+                        </div>
+                    )}
+                </div>
+            )}
+
+            {/* Success Modal */}
+            {successMessage && (
+                <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl max-w-sm w-full p-6 flex flex-col gap-4">
+                        <div className="flex items-start gap-3">
+                            <div className="flex-shrink-0">
+                                <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <div>
+                                <h3 className="text-lg font-semibold text-slate-800">Success</h3>
+                                <p className="text-slate-600 text-sm mt-1">{successMessage}</p>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSuccessMessage(null)}
+                            className="w-full bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Close
+                        </button>
+                    </div>
                 </div>
             )}
 

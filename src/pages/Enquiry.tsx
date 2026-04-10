@@ -28,7 +28,9 @@ interface EnquiryFormData {
     trainingTiming: string;
     startDate: string;
     professionalSituation: string;
+    situationOther: string;
     qualification: string;
+    qualificationOther: string;
     experience: string;
     source: string;
     sourceOther: string;
@@ -46,7 +48,9 @@ const INITIAL_FORM_STATE: EnquiryFormData = {
     trainingTiming: '',
     startDate: '',
     professionalSituation: '',
+    situationOther: '',
     qualification: '',
+    qualificationOther: '',
     experience: '',
     source: '',
     sourceOther: '',
@@ -58,8 +62,8 @@ const INITIAL_FORM_STATE: EnquiryFormData = {
 const TRAINING_MODES = ['Offline', 'Hybrid', 'Online'];
 
 const TRAINING_TIMINGS = [
-    'Morning (7AM Batch)',
-    'Evening (5PM Batch)',
+    'Morning',
+    'Evening',
     'Anytime in Weekdays',
     'Weekends'
 ];
@@ -134,6 +138,8 @@ export default function Enquiry() {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
+    const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
+    const [phoneExists, setPhoneExists] = useState(false);
     const [formData, setFormData] = useState<EnquiryFormData>(INITIAL_FORM_STATE);
     const navigate = useNavigate();
 
@@ -184,8 +190,96 @@ export default function Enquiry() {
         });
     };
 
+    // Validate phone number format
+    const validatePhoneNumber = (phone: string): string => {
+        if (!phone) return '';
+        
+        // Check if it contains only digits
+        if (!/^\d+$/.test(phone)) {
+            return 'Phone number must contain only digits';
+        }
+        
+        // Check if it's exactly 10 digits
+        if (phone.length !== 10) {
+            return 'Phone number must be exactly 10 digits';
+        }
+        
+        // Check if it starts with 9, 8, 7, or 6
+        const firstDigit = phone.charAt(0);
+        if (!['9', '8', '7', '6'].includes(firstDigit)) {
+            return 'Phone number must start with 9, 8, 7, or 6';
+        }
+        
+        return '';
+    };
+
+    // Check if phone number already exists
+    const checkPhoneExists = async (phone: string) => {
+        if (!phone || phone.length !== 10) {
+            setPhoneExists(false);
+            return;
+        }
+
+        setPhoneCheckLoading(true);
+        try {
+            const response = await apiRequest<any>('/api/enquiries/check-phone', {
+                method: 'POST',
+                body: { phone }
+            });
+            setPhoneExists(response?.exists || false);
+        } catch (err) {
+            console.error('Error checking phone:', err);
+            setPhoneExists(false);
+        } finally {
+            setPhoneCheckLoading(false);
+        }
+    };
+
+    // Handle full name input - allow only alphabets and spaces, max 25 characters
+    const handleFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25); // Allow only letters and spaces, max 25 chars
+        setFormData({ ...formData, candidateName: value });
+    };
+
+    // Handle phone input - allow only digits, max 10
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '').slice(0, 10); // Allow only digits, max 10
+        setFormData({ ...formData, candidatePhone: value });
+        
+        // Clear previous error
+        if (fieldErrors.phone) {
+            setFieldErrors(prev => ({ ...prev, phone: '' }));
+        }
+        
+        // Validate format
+        const phoneError = validatePhoneNumber(value);
+        if (phoneError) {
+            setFieldErrors(prev => ({ ...prev, phone: phoneError }));
+            setPhoneExists(false);
+        }
+        
+        // Check for duplicates if valid format
+        if (!phoneError && value.length === 10) {
+            checkPhoneExists(value);
+        }
+    };
+
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        // Validate phone number
+        const phoneError = validatePhoneNumber(formData.candidatePhone);
+        if (phoneError) {
+            setFieldErrors({ ...fieldErrors, phone: phoneError });
+            return;
+        }
+        
+        // Check if phone already exists
+        if (phoneExists) {
+            setFieldErrors({ ...fieldErrors, phone: 'Phone number already exists' });
+            return;
+        }
+        
         if (!formData.agreed) {
             alert('Please agree to the terms to proceed.');
             return;
@@ -213,8 +307,8 @@ export default function Enquiry() {
                 trainingMode: formData.trainingMode,
                 trainingTime: formData.trainingTiming,
                 startTime: formData.startDate,
-                profession: formData.professionalSituation,
-                qualification: formData.qualification,
+                profession: formData.professionalSituation === 'Other' ? formData.situationOther : formData.professionalSituation,
+                qualification: formData.qualification === 'Other' ? formData.qualificationOther : formData.qualification,
                 experience: formData.experience,
                 referral: formData.source === 'Other' ? formData.sourceOther : formData.source,
                 consent: formData.agreed,
@@ -288,37 +382,51 @@ export default function Enquiry() {
                     </h2>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Full Name</label>
+                            <label className="text-sm font-medium text-slate-700">Full Name <span className="text-rose-500 font-semibold">*</span></label>
                             <input
                                 required
                                 type="text"
                                 value={formData.candidateName}
-                                onChange={e => setFormData({ ...formData, candidateName: e.target.value })}
+                                onChange={handleFullNameChange}
+                                maxLength="25"
                                 className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 placeholder="Enter full name"
                             />
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700 mt-0.5">Phone Number</label>
+                            <label className="text-sm font-medium text-slate-700 mt-0.5">Phone Number <span className="text-rose-500 font-semibold">*</span></label>
                             <div className="relative">
                                 <span className="absolute left-3 top-2.5 text-slate-400">
                                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
                                 </span>
                                 <input
                                     required
-                                    type="tel"
+                                    type="text"
+                                    inputMode="numeric"
+                                    maxLength="10"
                                     value={formData.candidatePhone}
-                                    onChange={e => setFormData({ ...formData, candidatePhone: e.target.value })}
-                                    className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
-                                    placeholder="Enter phone number"
+                                    onChange={handlePhoneChange}
+                                    className={`w-full pl-10 pr-12 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${
+                                        fieldErrors.phone || phoneExists ? 'border-rose-500 bg-rose-50' : 'border-slate-300'
+                                    }`}
+                                    placeholder="Enter 10-digit phone"
                                 />
+                                <span className="absolute right-3 top-2.5 text-xs text-slate-400">
+                                    {formData.candidatePhone.length}/10
+                                </span>
                             </div>
                             {fieldErrors.phone && (
-                                <p className="text-sm text-red-600 mt-1">{fieldErrors.phone}</p>
+                                <p className="text-sm text-rose-600 mt-1">{fieldErrors.phone}</p>
+                            )}
+                            {phoneCheckLoading && (
+                                <p className="text-sm text-blue-600 mt-1">Checking phone availability...</p>
+                            )}
+                            {phoneExists && !fieldErrors.phone && (
+                                <p className="text-sm text-rose-600 mt-1 font-semibold">⚠️ Phone number already exists</p>
                             )}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Email Address</label>
+                            <label className="text-sm font-medium text-slate-700">Email Address <span className="text-rose-500 font-semibold">*</span></label>
                             <div className="relative">
                                 <span className="absolute left-3 top-2.5 text-slate-400">
                                     <ContactIcon />
@@ -337,7 +445,7 @@ export default function Enquiry() {
                             )}
                         </div>
                         <div className="space-y-2">
-                            <label className="text-sm font-medium text-slate-700">Current Location</label>
+                            <label className="text-sm font-medium text-slate-700">Current Location <span className="text-rose-500 font-semibold">*</span></label>
                             <div className="relative">
                                 <span className="absolute left-3 top-2.5 text-slate-400">
                                     <LocationIcon />
@@ -360,7 +468,7 @@ export default function Enquiry() {
                     <h2 className="text-lg font-semibold text-slate-800 mb-4">Course Packaging</h2>
 
                     <div className="mb-6">
-                        <label className="block text-sm font-medium text-slate-700 mb-3">Select Package</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-3">Select Package <span className="text-rose-500 font-semibold">*</span></label>
                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {packages.map(pkg => (
                                 <label
@@ -520,6 +628,18 @@ export default function Enquiry() {
                                     </label>
                                 ))}
                             </div>
+                            {formData.professionalSituation === 'Other' && (
+                                <div className="mt-3">
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Please Specify</label>
+                                    <input
+                                        type="text"
+                                        value={formData.situationOther}
+                                        onChange={e => setFormData({ ...formData, situationOther: e.target.value })}
+                                        placeholder="Enter your current situation"
+                                        className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div>
@@ -539,6 +659,18 @@ export default function Enquiry() {
                                     </label>
                                 ))}
                             </div>
+                            {formData.qualification === 'Other' && (
+                                <div className="mt-3">
+                                    <label className="block text-sm font-medium text-slate-700 mb-2">Please Specify</label>
+                                    <input
+                                        type="text"
+                                        value={formData.qualificationOther}
+                                        onChange={e => setFormData({ ...formData, qualificationOther: e.target.value })}
+                                        placeholder="Enter your qualification"
+                                        className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
+                                    />
+                                </div>
+                            )}
                         </div>
 
                         <div>

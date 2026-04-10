@@ -21,6 +21,9 @@ export default function StudentPlacementList() {
     }, []);
 
     const fetchApplications = async () => {
+        // TODO: Integrate API endpoint when ready
+        // Temporarily disabled - showing "No records found" message
+        /*
         setLoading(true);
         try {
             const response = await apiRequest<ApiResponse>('/api/user-placement/all-applications', { method: 'GET' });
@@ -35,6 +38,9 @@ export default function StudentPlacementList() {
         } finally {
             setLoading(false);
         }
+        */
+        setLoading(false);
+        setApplications([]);
     };
 
     const handleUpdateStatus = async (applicationId: number, newStatus: string) => {
@@ -83,6 +89,22 @@ export default function StudentPlacementList() {
         );
     }
 
+    if (applications.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center">
+                <svg className="w-16 h-16 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                </svg>
+                <div>
+                    <h2 className="text-2xl font-bold text-slate-800">No Records Found</h2>
+                    <p className="text-slate-500 mt-2 max-w-sm">
+                        There are no job placement applications at the moment. Placement records will appear here once students apply for jobs.
+                    </p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6">
             <div className="bg-white px-6 py-4 rounded-xl border border-slate-200 shadow-sm">
@@ -112,28 +134,29 @@ export default function StudentPlacementList() {
                 </div>
             )}
 
-            <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse">
-                        <thead className="bg-slate-50 border-b border-slate-200">
-                            <tr>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Student Details</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Job Applied</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Current Status</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Applied Date</th>
-                                <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-slate-200 text-left">
-                            {filteredApplications.length === 0 ? (
+            {filteredApplications.length === 0 ? (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-8 text-center">
+                    <svg className="w-12 h-12 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                    </svg>
+                    <p className="text-slate-500 text-sm">No matching applications found.</p>
+                </div>
+            ) : (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-left border-collapse">
+                            <thead className="bg-slate-50 border-b border-slate-200">
                                 <tr>
-                                    <td colSpan={6} className="px-6 py-12 text-center text-slate-500 text-sm">
-                                        No applications found.
-                                    </td>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Student Details</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Job Applied</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Location</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider text-center">Current Status</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Applied Date</th>
+                                    <th className="px-6 py-4 text-xs font-semibold text-slate-500 uppercase tracking-wider">Actions</th>
                                 </tr>
-                            ) : (
-                                filteredApplications.map((app) => {
+                            </thead>
+                            <tbody className="divide-y divide-slate-200 text-left">
+                                {filteredApplications.map((app) => {
                                     const isUpdating = updatingId === app.id;
                                     return (
                                         <tr key={app.id} className="hover:bg-slate-50 transition-colors">
@@ -202,12 +225,12 @@ export default function StudentPlacementList() {
                                             </td>
                                         </tr>
                                     );
-                                })
-                            )}
-                        </tbody>
-                    </table>
+                                })}
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 }

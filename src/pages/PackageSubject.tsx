@@ -66,6 +66,7 @@ export default function PackageSubject() {
     const [loading, setLoading] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Modal states
     const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
@@ -77,6 +78,9 @@ export default function PackageSubject() {
     const [subjectForm, setSubjectForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: ''});
     const [packageForm, setPackageForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+    const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
+    const [currentPackagePage, setCurrentPackagePage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Fetch data on mount and tab change
     useEffect(() => {
@@ -135,6 +139,7 @@ export default function PackageSubject() {
             setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
         }
         setError(null);
+        setSuccessMessage(null);
         setIsSubjectModalOpen(true);
     };
 
@@ -143,6 +148,8 @@ export default function PackageSubject() {
             setError('name and code are required');
             return;
         }
+
+        if (formLoading) return; // Prevent multiple simultaneous saves
 
         setFormLoading(true);
         setError(null);
@@ -177,6 +184,14 @@ if (subjectForm.prerequisites) {
                     body: formData,
                     isFormData: true,
                 });
+                setSuccessMessage(`Subject "${subjectForm.name}" updated successfully`);
+                setIsSubjectModalOpen(false);
+                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+                await fetchSubjects();
+                // Only fetch packages if subject name changed (might be displayed in package lists)
+                if (editingSubject.name !== subjectForm.name) {
+                    await fetchPackages();
+                }
             } else {
                 // Create subject
                 await apiRequest('/api/subjects', {
@@ -184,10 +199,11 @@ if (subjectForm.prerequisites) {
                     body: formData,
                     isFormData: true,
                 });
+                setSuccessMessage(`Subject "${subjectForm.name}" created successfully`);
+                setIsSubjectModalOpen(false);
+                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+                await fetchSubjects();
             }
-            await fetchSubjects();
-            setIsSubjectModalOpen(false);
-            setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
         } catch (err) {
             setError(err instanceof Error ? err.message : 'An error occurred');
             console.error('Error saving subject:', err);
@@ -197,6 +213,9 @@ if (subjectForm.prerequisites) {
     };
 
     const deleteSubject = async (id: number) => {
+        const subjectToDelete = subjects.find(s => s.id === id);
+        if (!subjectToDelete) return;
+
         if (!confirm('Are you sure you want to delete this subject?')) {
             return;
         }
@@ -208,6 +227,19 @@ if (subjectForm.prerequisites) {
             await apiRequest(`/api/subjects/${id}`, {
                 method: 'DELETE',
             });
+
+            // Find associated packages
+            const associatedPackages = packages.filter(pkg =>
+                pkg.Subjects.some(subject => subject.id === id)
+            );
+
+            let message = `Subject "${subjectToDelete.name}" deleted successfully`;
+            if (associatedPackages.length > 0) {
+                const packageNames = associatedPackages.map(pkg => pkg.name).join(', ');
+                message += ` (was associated with package${associatedPackages.length > 1 ? 's' : ''}: ${packageNames})`;
+            }
+
+            setSuccessMessage(message);
             await fetchSubjects();
             await fetchPackages(); // Refresh packages as they might be affected
         } catch (err) {
@@ -231,14 +263,22 @@ if (subjectForm.prerequisites) {
         }
         setSubjectSearchQuery(''); // Reset search when opening modal
         setError(null);
+        setSuccessMessage(null);
         setIsPackageModalOpen(true);
     };
 
     const savePackage = async () => {
         if (!packageForm.name || !packageForm.code) {
-            setError('name, code and subjectIds (array) are required');
+            setError('Package name and code are required');
             return;
         }
+
+        if (!packageForm.subjectIds || packageForm.subjectIds.length === 0) {
+            setError('Please select subject it is mandatory');
+            return;
+        }
+
+        if (formLoading) return; // Prevent multiple simultaneous saves
 
         setFormLoading(true);
         setError(null);
@@ -247,49 +287,49 @@ if (subjectForm.prerequisites) {
             const imageInput = document.querySelector('input[type="file"]#packageImageFile') as HTMLInputElement;
             const hasImageFile = imageInput?.files?.length ? imageInput.files.length > 0 : false;
 
-            const payload: Record<string, any> = {
-                name: packageForm.name,
-                code: packageForm.code,
-                overview: packageForm.overview || '',
-                syllabus: packageForm.syllabus || '',
-                prerequisites: packageForm.prerequisites || '',
-                subjectIds: packageForm.subjectIds || [],
-            };
+            // Always use FormData for consistency
+            const formData = new FormData();
+            formData.append('name', packageForm.name);
+            formData.append('code', packageForm.code);
+            formData.append('overview', packageForm.overview || '');
+            formData.append('syllabus', packageForm.syllabus || '');
+            formData.append('prerequisites', packageForm.prerequisites || '');
+            formData.append('subjectIds', JSON.stringify(packageForm.subjectIds || []));
 
-            if (!hasImageFile && typeof packageForm.image === 'string' && packageForm.image.startsWith('http')) {
-                payload.image = packageForm.image;
+            // Only append image if there's a new file
+            if (hasImageFile) {
+                formData.append('image', imageInput.files![0]);
+            } else if (typeof packageForm.image === 'string' && packageForm.image.startsWith('http')) {
+                // Keep existing image URL if no new file uploaded
+                formData.append('image', packageForm.image);
             }
 
             const requestOptions: ApiRequestOptions = {
                 method: editingPackage ? 'PUT' : 'POST',
+                body: formData,
+                isFormData: true,
             };
-
-            if (hasImageFile) {
-                const formData = new FormData();
-                formData.append('name', packageForm.name);
-                formData.append('code', packageForm.code);
-                formData.append('overview', packageForm.overview || '');
-                formData.append('syllabus', packageForm.syllabus || '');
-                formData.append('prerequisites', packageForm.prerequisites || '');
-                formData.append('subjectIds', JSON.stringify(packageForm.subjectIds || []));
-                formData.append('image', imageInput.files![0]);
-                requestOptions.body = formData;
-                requestOptions.isFormData = true;
-            } else {
-                requestOptions.body = payload;
-            }
 
             if (editingPackage) {
                 await apiRequest(`/api/packages/${editingPackage.id}`, requestOptions);
+                setSuccessMessage(`Package "${packageForm.name}" updated successfully`);
             } else {
                 await apiRequest('/api/packages', requestOptions);
+                setSuccessMessage(`Package "${packageForm.name}" created successfully`);
             }
 
             await fetchPackages();
             setIsPackageModalOpen(false);
             setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            const errorMessage = err instanceof Error ? err.message : 'An error occurred';
+            
+            // Check for subjectIds validation error
+            if (errorMessage.includes('subjectIds must be a non-empty array')) {
+                setError('Please select subject it is mandatory');
+            } else {
+                setError(errorMessage);
+            }
             console.error('Error saving package:', err);
         } finally {
             setFormLoading(false);
@@ -297,6 +337,9 @@ if (subjectForm.prerequisites) {
     };
 
     const deletePackage = async (id: number) => {
+        const packageToDelete = packages.find(p => p.id === id);
+        if (!packageToDelete) return;
+
         if (!confirm('Are you sure you want to delete this package?')) {
             return;
         }
@@ -308,6 +351,7 @@ if (subjectForm.prerequisites) {
             await apiRequest(`/api/packages/${id}`, {
                 method: 'DELETE',
             });
+            setSuccessMessage(`Package "${packageToDelete.name}" deleted successfully`);
             await fetchPackages();
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'Failed to delete package';
@@ -371,7 +415,11 @@ if (subjectForm.prerequisites) {
             <div className="flex items-center justify-between">
                 <div className="flex gap-2 bg-white rounded-lg p-1 border border-slate-200">
                     <button
-                        onClick={() => setActiveTab('subjects')}
+                        onClick={() => {
+                            setActiveTab('subjects');
+                            setError(null);
+                            setSuccessMessage(null);
+                        }}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'subjects'
                             ? 'bg-indigo-600 text-white'
                             : 'text-slate-600 hover:text-indigo-600'
@@ -380,7 +428,11 @@ if (subjectForm.prerequisites) {
                         Subjects
                     </button>
                     <button
-                        onClick={() => setActiveTab('packages')}
+                        onClick={() => {
+                            setActiveTab('packages');
+                            setError(null);
+                            setSuccessMessage(null);
+                        }}
                         className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'packages'
                             ? 'bg-indigo-600 text-white'
                             : 'text-slate-600 hover:text-indigo-600'
@@ -399,10 +451,190 @@ if (subjectForm.prerequisites) {
                 </button>
             </div>
 
-            {/* Error Message */}
-            {error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
+            {/* Error Message Popup - Only show when no modal is open */}
+            {error && !isSubjectModalOpen && !isPackageModalOpen && (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                            <h3 className="text-lg font-semibold text-slate-800">Error</h3>
+                            <button
+                                onClick={() => setError(null)}
+                                className="text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0 w-8 h-8 bg-rose-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                                <p className="text-sm text-slate-700">{error}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end px-6 py-4 border-t border-slate-200">
+                            <button
+                                onClick={() => setError(null)}
+                                className="px-4 py-2 text-sm font-medium text-white bg-rose-600 hover:bg-rose-700 rounded-lg transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Success Message Popup */}
+            {successMessage && (
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-md">
+                        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-200">
+                            <h3 className="text-lg font-semibold text-slate-800">Success</h3>
+                            <button
+                                onClick={() => setSuccessMessage(null)}
+                                className="text-slate-400 hover:text-slate-600 transition-colors"
+                            >
+                                <CloseIcon />
+                            </button>
+                        </div>
+                        <div className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                                <div className="flex-shrink-0 w-8 h-8 bg-green-100 rounded-full flex items-center justify-center">
+                                    <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                </div>
+                                <p className="text-sm text-slate-700">{successMessage}</p>
+                            </div>
+                        </div>
+                        <div className="flex justify-end px-6 py-4 border-t border-slate-200">
+                            <button
+                                onClick={() => setSuccessMessage(null)}
+                                className="px-4 py-2 text-sm font-medium text-white bg-green-600 hover:bg-green-700 rounded-lg transition-colors"
+                            >
+                                Close
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Pagination Controls - Top */}
+            {activeTab === 'subjects' && subjects.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-slate-600">
+                            Showing {Math.min((currentSubjectPage - 1) * itemsPerPage + 1, subjects.length)} to {Math.min(currentSubjectPage * itemsPerPage, subjects.length)} of {subjects.length} subjects
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm text-slate-600">Rows per page:</label>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentSubjectPage(1);
+                                }}
+                                className="px-2 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentSubjectPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentSubjectPage === 1}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.ceil(subjects.length / itemsPerPage) }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    onClick={() => setCurrentSubjectPage(i + 1)}
+                                    className={`px-2 py-1 rounded text-sm font-medium ${
+                                        currentSubjectPage === i + 1
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setCurrentSubjectPage(prev => Math.min(prev + 1, Math.ceil(subjects.length / itemsPerPage)))}
+                            disabled={currentSubjectPage === Math.ceil(subjects.length / itemsPerPage)}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
+                </div>
+            )}
+
+            {activeTab === 'packages' && packages.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-slate-600">
+                            Showing {Math.min((currentPackagePage - 1) * itemsPerPage + 1, packages.length)} to {Math.min(currentPackagePage * itemsPerPage, packages.length)} of {packages.length} packages
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm text-slate-600">Rows per page:</label>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPackagePage(1);
+                                }}
+                                className="px-2 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPackagePage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPackagePage === 1}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.ceil(packages.length / itemsPerPage) }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    onClick={() => setCurrentPackagePage(i + 1)}
+                                    className={`px-2 py-1 rounded text-sm font-medium ${
+                                        currentPackagePage === i + 1
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setCurrentPackagePage(prev => Math.min(prev + 1, Math.ceil(packages.length / itemsPerPage)))}
+                            disabled={currentPackagePage === Math.ceil(packages.length / itemsPerPage)}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -436,7 +668,7 @@ if (subjectForm.prerequisites) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    subjects.map((subject) => (
+                                    subjects.slice((currentSubjectPage - 1) * itemsPerPage, currentSubjectPage * itemsPerPage).map((subject) => (
                                         <tr key={subject.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-slate-800">{subject.name}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600">{subject.code}</td>
@@ -506,7 +738,7 @@ if (subjectForm.prerequisites) {
                                         </td>
                                     </tr>
                                 ) : (
-                                    packages.map((pkg) => (
+                                    packages.slice((currentPackagePage - 1) * itemsPerPage, currentPackagePage * itemsPerPage).map((pkg) => (
                                         <tr key={pkg.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-slate-800">{pkg.name}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600">{pkg.code}</td>
@@ -559,7 +791,11 @@ if (subjectForm.prerequisites) {
                                 {editingSubject ? 'Edit Subject' : 'Add Subject'}
                             </h3>
                             <button
-                                onClick={() => setIsSubjectModalOpen(false)}
+                                onClick={() => {
+                                    setIsSubjectModalOpen(false);
+                                    setError(null);
+                                    setSuccessMessage(null);
+                                }}
                                 className="text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <CloseIcon />
@@ -577,7 +813,7 @@ if (subjectForm.prerequisites) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Subject Name
+                                        Subject Name <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -589,7 +825,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Subject Code
+                                        Subject Code <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -700,7 +936,11 @@ if (subjectForm.prerequisites) {
                         </div>
                         <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
                             <button
-                                onClick={() => setIsSubjectModalOpen(false)}
+                                onClick={() => {
+                                    setIsSubjectModalOpen(false);
+                                    setError(null);
+                                    setSuccessMessage(null);
+                                }}
                                 className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                             >
                                 Cancel
@@ -726,7 +966,11 @@ if (subjectForm.prerequisites) {
                                 {editingPackage ? 'Edit Package' : 'Add Package'}
                             </h3>
                             <button
-                                onClick={() => setIsPackageModalOpen(false)}
+                                onClick={() => {
+                                    setIsPackageModalOpen(false);
+                                    setError(null);
+                                    setSuccessMessage(null);
+                                }}
                                 className="text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <CloseIcon />
@@ -744,7 +988,7 @@ if (subjectForm.prerequisites) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Package Name
+                                        Package Name <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -756,7 +1000,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Package Code
+                                        Package Code <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -769,7 +1013,7 @@ if (subjectForm.prerequisites) {
                                 <div>
                                     <div className="flex items-center justify-between mb-2">
                                         <label className="block text-sm font-medium text-slate-700">
-                                            Select Subjects
+                                            Select Subjects <span className="text-rose-500">*</span>
                                         </label>
                                         {subjects.length > 0 && (
                                             <button
@@ -927,7 +1171,11 @@ if (subjectForm.prerequisites) {
                         </div>
                         <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
                             <button
-                                onClick={() => setIsPackageModalOpen(false)}
+                                onClick={() => {
+                                    setIsPackageModalOpen(false);
+                                    setError(null);
+                                    setSuccessMessage(null);
+                                }}
                                 className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
                             >
                                 Cancel
