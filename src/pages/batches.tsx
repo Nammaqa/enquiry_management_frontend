@@ -74,6 +74,7 @@ export default function Batches() {
     const [loading, setLoading] = useState(false);
     const [formLoading, setFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -92,7 +93,9 @@ export default function Batches() {
     const [qrPreviewSrc, setQrPreviewSrc] = useState<string | null>(null);
     const [qrPreviewTitle, setQrPreviewTitle] = useState('');
 
-
+    // Pagination state
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(10);
 
     // Form state
     const [batchForm, setBatchForm] = useState({
@@ -108,6 +111,9 @@ export default function Batches() {
         instructorId: null as number | null,
         image: '',
     });
+
+    // Validation state
+    const [studentCountError, setStudentCountError] = useState<string | null>(null);
 
     // Fetch batches and subjects on mount
     useEffect(() => {
@@ -211,6 +217,8 @@ export default function Batches() {
 
     // Open modal for create
     const openModal = (batch?: Batch) => {
+        setSuccessMessage(null);
+        setStudentCountError(null);
         if (batch) {
             setEditingBatch(batch);
             setBatchForm({
@@ -264,7 +272,7 @@ export default function Batches() {
             formData.append('status', batchForm.status);
             formData.append('sessionLink', batchForm.sessionLink);
             formData.append('sessionDate', batchForm.sessionDate);
-            formData.append('sessionEndDate', batchForm.sessionEndDate);
+            if (batchForm.sessionEndDate) formData.append('sessionEndDate', batchForm.sessionEndDate);
             formData.append('sessionTime', batchForm.sessionTime);
             formData.append('numberOfStudents', batchForm.numberOfStudents.toString());
             if (batchForm.subjectId != null) formData.append('subjectId', batchForm.subjectId.toString());
@@ -290,6 +298,7 @@ export default function Batches() {
                     body: formData,
                     isFormData: true,
                 });
+                setSuccessMessage('Batch updated successfully');
             } else {
                 // Create batch
                 console.log('Creating new batch');
@@ -301,6 +310,7 @@ export default function Batches() {
             }
             await fetchBatches();
             setIsModalOpen(false);
+            setStudentCountError(null);
             setBatchForm({
                 name: '',
                 code: '',
@@ -336,6 +346,7 @@ export default function Batches() {
                 method: 'DELETE',
             });
             await fetchBatches();
+            setSuccessMessage('Batch deleted successfully');
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to delete batch');
             console.error('Error deleting batch:', err);
@@ -374,10 +385,82 @@ export default function Batches() {
                 </button>
             </div>
 
+            {/* Success Message */}
+            {successMessage && (
+                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg text-sm flex items-start justify-between gap-4">
+                    <span>{successMessage}</span>
+                    <button
+                        onClick={() => setSuccessMessage(null)}
+                        className="text-emerald-700 hover:text-emerald-900"
+                        aria-label="Close success message"
+                    >
+                        <CloseIcon />
+                    </button>
+                </div>
+            )}
             {/* Error Message */}
             {error && (
                 <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm">
                     {error}
+                </div>
+            )}
+
+            {/* Pagination Controls - Top */}
+            {batches.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
+                    <div className="flex items-center gap-4">
+                        <div className="text-sm text-slate-600">
+                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, batches.length)} to {Math.min(currentPage * itemsPerPage, batches.length)} of {batches.length} batches
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <label className="text-sm text-slate-600">Rows per page:</label>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(Number(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="px-2 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={25}>25</option>
+                                <option value={50}>50</option>
+                                <option value={100}>100</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                            disabled={currentPage === 1}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Previous
+                        </button>
+                        <div className="flex items-center gap-1">
+                            {Array.from({ length: Math.ceil(batches.length / itemsPerPage) }, (_, i) => (
+                                <button
+                                    key={i + 1}
+                                    onClick={() => setCurrentPage(i + 1)}
+                                    className={`px-2 py-1 rounded text-sm font-medium ${
+                                        currentPage === i + 1
+                                            ? 'bg-indigo-600 text-white'
+                                            : 'border border-slate-300 text-slate-700 hover:bg-slate-50'
+                                    }`}
+                                >
+                                    {i + 1}
+                                </button>
+                            ))}
+                        </div>
+                        <button
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(batches.length / itemsPerPage)))}
+                            disabled={currentPage === Math.ceil(batches.length / itemsPerPage)}
+                            className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            Next
+                        </button>
+                    </div>
                 </div>
             )}
 
@@ -411,7 +494,7 @@ export default function Batches() {
                                     </td>
                                 </tr>
                             ) : (
-                                batches.map((batch) => (
+                                batches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((batch) => (
                                     <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 text-sm text-slate-800">{batch.name}</td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{batch.code}</td>
@@ -471,8 +554,6 @@ export default function Batches() {
                 </div>
             </div>
 
-
-
             {isQrPreviewOpen && qrPreviewSrc && (
                 <div
                     className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4"
@@ -525,7 +606,10 @@ export default function Batches() {
                                 {editingBatch ? 'Edit Batch' : 'Create Batch'}
                             </h3>
                             <button
-                                onClick={() => setIsModalOpen(false)}
+                                onClick={() => {
+                                    setIsModalOpen(false);
+                                    setStudentCountError(null);
+                                }}
                                 className="text-slate-400 hover:text-slate-600 transition-colors"
                             >
                                 <CloseIcon />
@@ -621,11 +705,38 @@ export default function Batches() {
                                     <input
                                         type="number"
                                         min="0"
+                                        max="9999"
                                         value={batchForm.numberOfStudents}
-                                        onChange={(e) => setBatchForm({ ...batchForm, numberOfStudents: parseInt(e.target.value) || 0 })}
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        onChange={(e) => {
+                                            let value = parseInt(e.target.value) || 0;
+                                            // Ensure value doesn't exceed 9999 (4 digits max)
+                                            if (value > 9999) {
+                                                setStudentCountError('Allow only 4 digit (max 9999)');
+                                                value = 9999;
+                                            } else {
+                                                setStudentCountError(null);
+                                            }
+                                            setBatchForm({ ...batchForm, numberOfStudents: value });
+                                        }}
+                                        onBlur={(e) => {
+                                            // Validate on blur to catch any invalid input
+                                            let value = parseInt(e.target.value) || 0;
+                                            if (value > 9999) {
+                                                setStudentCountError('Allow only 4 digit (max 9999)');
+                                                value = 9999;
+                                            } else {
+                                                setStudentCountError(null);
+                                            }
+                                            setBatchForm({ ...batchForm, numberOfStudents: value });
+                                        }}
+                                        className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${
+                                            studentCountError ? 'border-rose-500' : 'border-slate-300'
+                                        }`}
                                         placeholder="0"
                                     />
+                                    {studentCountError && (
+                                        <p className="mt-1 text-xs text-rose-600 font-medium">{studentCountError}</p>
+                                    )}
                                 </div>
 
                                 <div>

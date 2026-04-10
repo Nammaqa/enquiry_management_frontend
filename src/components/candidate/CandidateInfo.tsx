@@ -7,9 +7,14 @@ interface CandidateInfoProps {
     onUpdate: (updatedData: Partial<Enquiry>) => void;
 }
 
+const PROF_SITUATIONS = ['Fresher', 'Currently Working', 'Switching from Another Domain', 'Other'];
+const QUALIFICATIONS = ['Diploma', "Bachelor's Degree", "Master's Degree", 'Other'];
+
 export default function CandidateInfo({ enquiry, onUpdate }: CandidateInfoProps) {
     const [isEditing, setIsEditing] = useState(false);
     const [formData, setFormData] = useState<Partial<Enquiry>>({});
+    const [situationOther, setSituationOther] = useState<string>('');
+    const [qualificationOther, setQualificationOther] = useState<string>('');
     const [packages, setPackages] = useState<Package[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const role = localStorage.getItem('userRole');
@@ -35,13 +40,24 @@ export default function CandidateInfo({ enquiry, onUpdate }: CandidateInfoProps)
     };
 
     const handleSave = () => {
-        onUpdate(formData);
+        const updatedData = { ...formData };
+        if (formData.profession && formData.profession.trim() === 'Other') {
+            updatedData.profession = situationOther || 'Other';
+        }
+        if (formData.qualification && formData.qualification.trim() === 'Other') {
+            updatedData.qualification = qualificationOther || 'Other';
+        }
+        onUpdate(updatedData);
         setIsEditing(false);
+        setSituationOther('');
+        setQualificationOther('');
     };
 
     const handleCancel = () => {
         setFormData(enquiry);
         setIsEditing(false);
+        setSituationOther('');
+        setQualificationOther('');
     };
 
     const handleChange = (field: keyof Enquiry, value: any) => {
@@ -192,18 +208,80 @@ export default function CandidateInfo({ enquiry, onUpdate }: CandidateInfoProps)
 
                 {/* Professional */}
                 <Section title="Professional Background">
-                    <Field
-                        label="Profession"
-                        value={formData.profession}
-                        isEditing={isEditing}
-                        onChange={v => handleChange('profession', v)}
-                    />
-                    <Field
-                        label="Qualification"
-                        value={formData.qualification}
-                        isEditing={isEditing}
-                        onChange={v => handleChange('qualification', v)}
-                    />
+                    {isEditing ? (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Profession</label>
+                            <div className="flex flex-col gap-2">
+                                {PROF_SITUATIONS.map(sit => (
+                                    <label key={sit} className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="profession"
+                                            value={sit}
+                                            checked={formData.profession === sit}
+                                            onChange={e => handleChange('profession', e.target.value)}
+                                            className="w-4 h-4 text-indigo-600 border-slate-300"
+                                        />
+                                        <span className="text-sm text-slate-700">{sit}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {formData.profession && formData.profession.trim() === 'Other' && (
+                                <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                                    <label className="block text-xs font-semibold text-slate-700 mb-2">Please Specify Professional Situation</label>
+                                    <input
+                                        type="text"
+                                        value={situationOther}
+                                        onChange={e => setSituationOther(e.target.value)}
+                                        placeholder="Enter your professional situation"
+                                        className="w-full text-sm px-3 py-2 border-2 border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Profession</label>
+                            <ReadOnlyField label="" value={formData.profession} />
+                        </div>
+                    )}
+                    {isEditing ? (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-2">Qualification</label>
+                            <div className="flex flex-col gap-2">
+                                {QUALIFICATIONS.map(qual => (
+                                    <label key={qual} className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="radio"
+                                            name="qualification"
+                                            value={qual}
+                                            checked={formData.qualification === qual}
+                                            onChange={e => handleChange('qualification', e.target.value)}
+                                            className="w-4 h-4 text-indigo-600 border-slate-300"
+                                        />
+                                        <span className="text-sm text-slate-700">{qual}</span>
+                                    </label>
+                                ))}
+                            </div>
+                            {formData.qualification && formData.qualification.trim() === 'Other' && (
+                                <div className="mt-3 p-3 bg-blue-50 rounded-md border border-blue-200">
+                                    <label className="block text-xs font-semibold text-slate-700 mb-2">Please Specify Qualification</label>
+                                    <input
+                                        type="text"
+                                        value={qualificationOther}
+                                        onChange={e => setQualificationOther(e.target.value)}
+                                        placeholder="Enter your qualification details"
+                                        className="w-full text-sm px-3 py-2 border-2 border-slate-300 rounded-md shadow-sm focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 outline-none"
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>
+                            <label className="block text-xs font-semibold text-slate-500 mb-1">Qualification</label>
+                            <ReadOnlyField label="" value={formData.qualification} />
+                        </div>
+                    )}
                     <Field
                         label="Experience"
                         value={formData.experience}
@@ -225,7 +303,7 @@ export default function CandidateInfo({ enquiry, onUpdate }: CandidateInfoProps)
                             <SelectField
                                 label="Training Time"
                                 value={formData.trainingTime}
-                                options={['Morning (7AM Batch)', 'Evening (5PM Batch)', 'Anytime in Weekdays', 'Weekends']}
+                                options={['Morning', 'Evening', 'Anytime in Weekdays', 'Weekends']}
                                 onChange={v => handleChange('trainingTime', v)}
                             />
                             <SelectField

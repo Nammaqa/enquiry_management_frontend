@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
-import type { Enquiry } from '../types';
+import type { Enquiry, Package, Subject } from '../types';
 
 interface LogEntry {
     id: number;
@@ -10,6 +10,23 @@ interface LogEntry {
     author: string;
     createdAt: string;
 }
+
+interface DetailsFormData extends Partial<Enquiry> {
+    sourceOther?: string;
+}
+
+const TRAINING_MODES = ['Offline', 'Hybrid', 'Online'];
+const TRAINING_TIMINGS = [
+    'Morning',
+    'Evening',
+    'Anytime in Weekdays',
+    'Weekends'
+];
+const START_DATES = ['Immediate', 'After 10 days', 'After 15 days', 'After 1 Month'];
+const PROF_SITUATIONS = ['Fresher', 'Currently Working', 'Switching from Another Domain', 'Other'];
+const QUALIFICATIONS = ['Diploma', "Bachelor's Degree", "Master's Degree", 'Other'];
+const EXPERIENCES = ['Less than 1 Year or Fresher', '1-3 Years', '3-5 Years', '5+ Years'];
+const SOURCES = ['Instagram', 'Youtube', 'Whatsapp Channel', 'Friend Reference', 'Facebook', 'College Reference', 'Linkedin', 'Other Social Network', 'Other'];
 
 export default function CandidateDetails() {
     const { id } = useParams<{ id: string }>();
@@ -24,14 +41,17 @@ export default function CandidateDetails() {
     const [newLog, setNewLog] = useState({ title: '', description: '' });
     const [savingStatus, setSavingStatus] = useState(false);
     const [savingLog, setSavingLog] = useState(false);
+    const [updateError, setUpdateError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [packages, setPackages] = useState<Package[]>([]);
+    const [subjects, setSubjects] = useState<Subject[]>([]);
     const [expandedSections, setExpandedSections] = useState({
         details: true,
         logs: false,
         status: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
-    const [detailsForm, setDetailsForm] = useState<Partial<Enquiry>>({});
+    const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -46,8 +66,38 @@ export default function CandidateDetails() {
         }
     }, [isDemoCandidate, isEditingDetails]);
 
+    const loadPackageSubjectOptions = async () => {
+        if (packages.length > 0 && subjects.length > 0) return;
+
+        try {
+            const [pkgResponse, subjectResponse] = await Promise.all([
+                apiRequest<Package[]>('/api/packages', { method: 'GET' }),
+                apiRequest<Subject[]>('/api/subjects', { method: 'GET' }),
+            ]);
+            setPackages(pkgResponse);
+            setSubjects(subjectResponse);
+        } catch (err) {
+            console.error('Failed to load package/subject options:', err);
+        }
+    };
+
+    const getPackageName = (packageId: number | null | undefined) => {
+        if (packageId === null) return 'Others';
+        if (packageId === undefined) return '-';
+        const pkg = packages.find(p => p.id === packageId);
+        return pkg ? pkg.name : `Package ${packageId}`;
+    };
+
+    const getSubjectNames = (subjectIds: number[] | undefined) => {
+        if (!subjectIds?.length) return '-';
+        return subjectIds
+            .map(id => subjects.find(s => s.id === id)?.name || `Subject ${id}`)
+            .join(', ');
+    };
+
     useEffect(() => {
         if (enquiry) {
+            const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
             setSelectedStatus(enquiry.candidateStatus || 'enquiry stage');
             setDetailsForm({
                 name: enquiry.name,
@@ -55,22 +105,41 @@ export default function CandidateDetails() {
                 phone: enquiry.phone,
                 current_location: enquiry.current_location,
                 profession: enquiry.profession,
-                referral: enquiry.referral,
+                referral: referralValue,
+                sourceOther: referralValue === 'Other' ? enquiry.referral : '',
                 consent: enquiry.consent,
                 trainingMode: enquiry.trainingMode,
                 trainingTime: enquiry.trainingTime,
                 startTime: enquiry.startTime,
                 qualification: enquiry.qualification,
                 experience: enquiry.experience,
+                packageId: enquiry.packageId,
+                subjectIds: enquiry.subjectIds || [],
             });
+            loadPackageSubjectOptions();
         }
     }, [enquiry]);
 
     const handleUpdateCandidate = async () => {
         if (!enquiry) return;
 
+        setUpdateError(null); // Clear any previous update errors
+
         const payload: Partial<Enquiry> = {
-            ...detailsForm,
+            name: detailsForm.name,
+            email: detailsForm.email,
+            phone: detailsForm.phone,
+            current_location: detailsForm.current_location,
+            profession: detailsForm.profession,
+            referral: detailsForm.referral === 'Other' ? (detailsForm.sourceOther || 'Other') : detailsForm.referral,
+            consent: detailsForm.consent,
+            trainingMode: detailsForm.trainingMode,
+            trainingTime: detailsForm.trainingTime,
+            startTime: detailsForm.startTime,
+            qualification: detailsForm.qualification,
+            experience: detailsForm.experience,
+            packageId: detailsForm.packageId ?? null,
+            subjectIds: detailsForm.subjectIds || [],
         };
 
         try {
@@ -81,9 +150,56 @@ export default function CandidateDetails() {
 
             setEnquiry({ ...enquiry, ...payload, ...(response || {}) });
             setIsEditingDetails(false);
+            setUpdateError(null); // Clear any errors on success
+            setSuccessMessage('Candidate details updated successfully');
         } catch (err) {
             console.error('Failed to update candidate details:', err);
-            alert('Failed to update candidate details. Please try again.');
+
+            // Check for duplicate contact error
+            if (err instanceof Error) {
+                const errorMessage = err.message.toLowerCase();
+                const status = (err as any).status;
+
+                if (errorMessage.includes('contact already exists') ||
+                    errorMessage.includes('duplicate contact') ||
+                    errorMessage.includes('contact exists') ||
+                    status === 409) {
+                    setUpdateError('Contact already exists. Please use a different email or phone number.');
+                } else if (status === 400) {
+                    // Validation error - show the specific backend message
+                    const serverMessage = err.message;
+                    if (serverMessage && serverMessage.length < 100) {
+                        setUpdateError(serverMessage);
+                    } else {
+                        setUpdateError('Invalid data provided. Please check all fields and try again.');
+                    }
+                } else if (status === 401 || status === 403) {
+                    // Authentication/Authorization error
+                    setUpdateError('You do not have permission to update this enquiry.');
+                } else if (status === 404) {
+                    // Not found error
+                    setUpdateError('Enquiry not found. It may have been deleted.');
+                } else if (status >= 500) {
+                    // Server error
+                    setUpdateError('Server error occurred. Please try again later.');
+                } else if (errorMessage.includes('network') || errorMessage.includes('fetch')) {
+                    // Network error
+                    setUpdateError('Network error. Please check your connection and try again.');
+                } else if (errorMessage.includes('timeout')) {
+                    // Timeout error
+                    setUpdateError('Request timed out. Please try again.');
+                } else {
+                    // Show server-provided error message if it's user-friendly, otherwise use generic message
+                    const serverMessage = err.message;
+                    if (serverMessage && serverMessage.length < 100 && !serverMessage.includes('HTTP')) {
+                        setUpdateError(serverMessage);
+                    } else {
+                        setUpdateError('Failed to update candidate details. Please try again.');
+                    }
+                }
+            } else {
+                setUpdateError('An unexpected error occurred. Please try again.');
+            }
         }
     };
 
@@ -282,20 +398,25 @@ export default function CandidateDetails() {
                         <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
                             <div className="flex items-center justify-between gap-3">
                                 <div className="text-sm text-slate-500">
-                                    {isDemoCandidate ? 'Read-only details for demo candidates.' : 'Fields marked with * are editable.'}
+                                    {isDemoCandidate ? 'Read-only details for demo candidates.' : 'Fields marked with * are mandatory and editable.'}
                                 </div>
-                                {!isDemoCandidate && (
+                                {!isDemoCandidate && !isEditingDetails && (
                                     <button
                                         type="button"
-                                        onClick={() => setIsEditingDetails(prev => !prev)}
+                                        onClick={() => {
+                                            setIsEditingDetails(true);
+                                            setUpdateError(null); // Clear any previous update errors when starting to edit
+                                            setSuccessMessage(null); // Clear any previous success messages when starting to edit
+                                            loadPackageSubjectOptions();
+                                        }}
                                         className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
                                     >
-                                        {isEditingDetails ? 'Cancel edit' : 'Edit details'}
+                                        Edit details
                                     </button>
                                 )}
                             </div>
 
-                            <div className="grid gap-6 md:grid-cols-2">
+                            <div className="space-y-4">
                                 <div className="space-y-4">
                                     <label className="block text-xs font-semibold text-slate-500 uppercase">Name *</label>
                                     <input
@@ -334,86 +455,265 @@ export default function CandidateDetails() {
                                     />
                                 </div>
 
-                                <div className="space-y-4">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Profession *</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.profession || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, profession: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                {!isEditingDetails && (
+                                    <div className="grid gap-4 md:grid-cols-2">
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Package</p>
+                                            <p className="text-sm font-semibold text-slate-900">{getPackageName(detailsForm.packageId)}</p>
+                                        </div>
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Subjects</p>
+                                            <p className="text-sm font-semibold text-slate-900">{getSubjectNames(detailsForm.subjectIds)}</p>
+                                        </div>
+                                    </div>
+                                )}
 
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Referral</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.referral || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, referral: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                {isEditingDetails && (
+                                    <div className="space-y-6">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Select Package</label>
+                                            {packages.length === 0 ? (
+                                                <div className="text-sm text-slate-500">Loading package options…</div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {packages.map(pkg => (
+                                                        <label
+                                                            key={pkg.id}
+                                                            className={`flex items-center gap-2 rounded-3xl border px-4 py-3 cursor-pointer transition-all ${detailsForm.packageId === pkg.id ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-indigo-200 hover:bg-slate-50'}`}
+                                                        >
+                                                            <input
+                                                                type="radio"
+                                                                name="package"
+                                                                value={pkg.id}
+                                                                checked={detailsForm.packageId === pkg.id}
+                                                                onChange={() => {
+                                                                    const packageSubjects = ((pkg as any).subjects as Subject[] | undefined) ?? pkg.Subjects;
+                                                                    setDetailsForm(prev => ({
+                                                                        ...prev,
+                                                                        packageId: pkg.id,
+                                                                        subjectIds: packageSubjects?.map(s => s.id) ?? [],
+                                                                    }));
+                                                                }}
+                                                                className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm font-medium text-slate-700">{pkg.name}</span>
+                                                        </label>
+                                                    ))}
+                                                    <label
+                                                        className={`flex items-center gap-2 rounded-3xl border px-4 py-3 cursor-pointer transition-all ${detailsForm.packageId === null ? 'border-indigo-500 bg-indigo-50 ring-1 ring-indigo-500' : 'border-slate-200 hover:border-indigo-200 hover:bg-slate-50'}`}
+                                                    >
+                                                        <input
+                                                            type="radio"
+                                                            name="package"
+                                                            value="null"
+                                                            checked={detailsForm.packageId === null}
+                                                            onChange={() => setDetailsForm(prev => ({ ...prev, packageId: null, subjectIds: [] }))}
+                                                            className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                        />
+                                                        <span className="text-sm font-medium text-slate-700">Others</span>
+                                                    </label>
+                                                </div>
+                                            )}
+                                        </div>
 
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Consent</label>
-                                    <select
-                                        value={detailsForm.consent ? 'true' : 'false'}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, consent: e.target.value === 'true' }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    >
-                                        <option value="true">Yes</option>
-                                        <option value="false">No</option>
-                                    </select>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Included Subjects</label>
+                                            {subjects.length === 0 ? (
+                                                <div className="text-sm text-slate-500">Loading subjects…</div>
+                                            ) : (
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                                                    {subjects.map(subject => (
+                                                        <label key={subject.id} className="flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-4 py-3 cursor-pointer transition-all hover:border-indigo-200">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={detailsForm.subjectIds?.includes(subject.id) || false}
+                                                                disabled={!isEditingDetails}
+                                                                onChange={(e) => {
+                                                                    const currentIds = detailsForm.subjectIds || [];
+                                                                    const newIds = e.target.checked
+                                                                        ? [...currentIds, subject.id]
+                                                                        : currentIds.filter(id => id !== subject.id);
+                                                                    setDetailsForm(prev => ({ ...prev, subjectIds: newIds }));
+                                                                }}
+                                                                className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                                            />
+                                                            <span className="text-sm text-slate-700">{subject.name}</span>
+                                                        </label>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
 
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Qualification</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.qualification || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, qualification: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
-                                </div>
                             </div>
 
                             <div className="grid gap-6 md:grid-cols-2">
-                                <div className="space-y-4">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Training Mode</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.trainingMode || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, trainingMode: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Current Situation</label>
+                                        <div className="grid gap-2">
+                                            {PROF_SITUATIONS.map(situation => (
+                                                <label key={situation} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="profession"
+                                                        value={situation}
+                                                        checked={detailsForm.profession === situation}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, profession: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{situation}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Training Time</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.trainingTime || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, trainingTime: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Highest Qualification</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {QUALIFICATIONS.map(qualification => (
+                                                <label key={qualification} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="qualification"
+                                                        value={qualification}
+                                                        checked={detailsForm.qualification === qualification}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, qualification: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{qualification}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Experience</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {EXPERIENCES.map(experience => (
+                                                <label key={experience} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="experience"
+                                                        value={experience}
+                                                        checked={detailsForm.experience === experience}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, experience: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{experience}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex items-start gap-3">
+                                        <input
+                                            type="checkbox"
+                                            checked={detailsForm.consent || false}
+                                            disabled={!isEditingDetails}
+                                            onChange={(e) => setDetailsForm(prev => ({ ...prev, consent: e.target.checked }))}
+                                            className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                        />
+                                        <label className="text-sm text-slate-600 leading-relaxed">
+                                            I agree to be contacted via phone, WhatsApp, email, Newsletters regarding NammaQA Training Community program and offers.
+                                        </label>
+                                    </div>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Start Time</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.startTime || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, startTime: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                <div className="space-y-6">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Preferred Training Mode</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {TRAINING_MODES.map(mode => (
+                                                <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="trainingMode"
+                                                        value={mode}
+                                                        checked={detailsForm.trainingMode === mode}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, trainingMode: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{mode}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
 
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Experience</label>
-                                    <input
-                                        type="text"
-                                        value={detailsForm.experience || ''}
-                                        disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, experience: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
-                                    />
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Preferred Timings</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {TRAINING_TIMINGS.map(timing => (
+                                                <label key={timing} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="trainingTiming"
+                                                        value={timing}
+                                                        checked={detailsForm.trainingTime === timing}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, trainingTime: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{timing}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Ideally Start By</label>
+                                        <div className="flex flex-wrap gap-3">
+                                            {START_DATES.map(startDate => (
+                                                <label key={startDate} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="startTime"
+                                                        value={startDate}
+                                                        checked={detailsForm.startTime === startDate}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, startTime: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{startDate}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">How did you hear about us?</label>
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                            {SOURCES.map(source => (
+                                                <label key={source} className="flex items-center gap-2 cursor-pointer">
+                                                    <input
+                                                        type="radio"
+                                                        name="referral"
+                                                        value={source}
+                                                        checked={detailsForm.referral === source}
+                                                        disabled={!isEditingDetails}
+                                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, referral: e.target.value }))}
+                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                    />
+                                                    <span className="text-sm text-slate-700">{source}</span>
+                                                </label>
+                                            ))}
+                                        </div>
+                                        {detailsForm.referral === 'Other' && (
+                                            <input
+                                                type="text"
+                                                value={detailsForm.sourceOther || ''}
+                                                disabled={!isEditingDetails}
+                                                onChange={(e) => setDetailsForm(prev => ({ ...prev, sourceOther: e.target.value }))}
+                                                placeholder="Please specify"
+                                                className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                            />
+                                        )}
+                                    </div>
                                 </div>
                             </div>
 
@@ -430,20 +730,26 @@ export default function CandidateDetails() {
                                         type="button"
                                         onClick={() => {
                                             setIsEditingDetails(false);
+                                            setUpdateError(null); // Clear any update errors when canceling
+                                            setSuccessMessage(null); // Clear any success messages when canceling
                                             if (enquiry) {
+                                                const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
                                                 setDetailsForm({
                                                     name: enquiry.name,
                                                     email: enquiry.email,
                                                     phone: enquiry.phone,
                                                     current_location: enquiry.current_location,
                                                     profession: enquiry.profession,
-                                                    referral: enquiry.referral,
+                                                    referral: referralValue,
+                                                    sourceOther: referralValue === 'Other' ? enquiry.referral : '',
                                                     consent: enquiry.consent,
                                                     trainingMode: enquiry.trainingMode,
                                                     trainingTime: enquiry.trainingTime,
                                                     startTime: enquiry.startTime,
                                                     qualification: enquiry.qualification,
                                                     experience: enquiry.experience,
+                                                    packageId: enquiry.packageId,
+                                                    subjectIds: enquiry.subjectIds || [],
                                                 });
                                             }
                                         }}
@@ -451,6 +757,17 @@ export default function CandidateDetails() {
                                     >
                                         Cancel
                                     </button>
+                                </div>
+                            )}
+
+                            {updateError && (
+                                <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-3xl">
+                                    <div className="flex items-center gap-2">
+                                        <svg className="w-5 h-5 text-rose-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                        </svg>
+                                        <p className="text-sm font-medium text-rose-800">{updateError}</p>
+                                    </div>
                                 </div>
                             )}
                         </div>
@@ -482,7 +799,10 @@ export default function CandidateDetails() {
                                         <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
                                                 <p className="font-semibold text-slate-900">{log.title}</p>
-                                                <p className="text-xs text-slate-500">{new Date(log.createdAt).toLocaleDateString()}</p>
+                                                <div className="text-xs text-slate-500 text-right">
+                                                    <div>{new Date(log.createdAt).toLocaleDateString()}</div>
+                                                    <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                </div>
                                             </div>
                                             <p className="mt-3 text-sm text-slate-700">{log.description}</p>
                                             <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
@@ -543,10 +863,12 @@ export default function CandidateDetails() {
                                         <select
                                             value={selectedStatus}
                                             onChange={(e) => setSelectedStatus(e.target.value)}
-                                            className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                            className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
                                         >
                                             {statusOptions.map(status => (
-                                                <option key={status} value={status}>{status}</option>
+                                                <option key={status} value={status}>
+                                                    {status}
+                                                </option>
                                             ))}
                                         </select>
                                     </div>

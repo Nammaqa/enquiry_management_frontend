@@ -22,6 +22,7 @@ export default function Contact() {
     const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [selectedDate, setSelectedDate] = useState<string>(''); // Date filter in YYYY-MM-DD format
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -33,6 +34,11 @@ export default function Contact() {
         const savedStatusFilter = sessionStorage.getItem('contactPageStatusFilter');
         if (savedStatusFilter) {
             setStatusFilter(savedStatusFilter);
+        }
+        // Restore selectedDate from sessionStorage
+        const savedDate = sessionStorage.getItem('contactPageSelectedDate');
+        if (savedDate) {
+            setSelectedDate(savedDate);
         }
     }, []);
 
@@ -194,6 +200,15 @@ export default function Contact() {
         }
     }, [statusFilter]);
 
+    // Save sortOrder to sessionStorage whenever it changes
+    useEffect(() => {
+        if (selectedDate) {
+            sessionStorage.setItem('contactPageSelectedDate', selectedDate);
+        } else {
+            sessionStorage.removeItem('contactPageSelectedDate');
+        }
+    }, [selectedDate]);
+
     // Apply filters
     const filteredEnquiries = useMemo(() => {
         let filtered = displayedEnquiries;
@@ -213,8 +228,23 @@ export default function Contact() {
             filtered = filtered.filter(enquiry => enquiry.candidateStatus === statusFilter);
         }
 
+        // Date filter
+        if (selectedDate) {
+            filtered = filtered.filter(enquiry => {
+                const enquiryDate = new Date(enquiry.createdAt).toISOString().split('T')[0];
+                return enquiryDate === selectedDate;
+            });
+        }
+
+        // Sort by date (newest first)
+        filtered = filtered.sort((a, b) => {
+            const dateA = new Date(b.createdAt).getTime();
+            const dateB = new Date(a.createdAt).getTime();
+            return dateA - dateB;
+        });
+
         return filtered;
-    }, [displayedEnquiries, searchTerm, statusFilter]);
+    }, [displayedEnquiries, searchTerm, statusFilter, selectedDate]);
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filteredEnquiries.length / itemsPerPage));
@@ -226,7 +256,7 @@ export default function Contact() {
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter]);
+    }, [searchTerm, statusFilter, selectedDate]);
 
     // Reset to page 1 when rows per page changes
     const handleRowsPerPageChange = (newValue: number) => {
@@ -246,6 +276,19 @@ export default function Contact() {
             const subject = subjects.find(s => s.id === id);
             return subject ? subject.name : id;
         }).join(', ');
+    };
+
+    // Format phone number to display as 10 digits
+    const formatPhoneNumber = (phone: string) => {
+        if (!phone) return '';
+        const cleanPhone = phone.replace(/\D/g, '').slice(0, 10);
+        return cleanPhone;
+    };
+
+    // Truncate name to max 25 characters
+    const formatCandidateName = (name: string) => {
+        if (!name) return '';
+        return name.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
     };
 
     const handleCandidateClick = (enquiry: Enquiry) => {
@@ -303,6 +346,25 @@ export default function Contact() {
                         </div>
                     </div>
 
+                    {/* Date Picker */}
+                    <div className="flex items-center gap-2">
+                        <input
+                            type="date"
+                            value={selectedDate}
+                            onChange={(e) => setSelectedDate(e.target.value)}
+                            className="px-4 py-2.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer hover:border-indigo-400 transition-colors"
+                        />
+                        {selectedDate && (
+                            <button
+                                onClick={() => setSelectedDate('')}
+                                className="px-3 py-2.5 text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                title="Clear date filter"
+                            >
+                                ✕
+                            </button>
+                        )}
+                    </div>
+
                     {/* Results Count */}
                     <div className="flex items-center">
                         <div className="bg-indigo-50 text-indigo-700 px-4 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap">
@@ -355,10 +417,10 @@ export default function Contact() {
                     <table className="w-full text-left border-collapse table-fixed">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%]">Candidate</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%]">Candidate <span className="text-rose-500">*</span></th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact <span className="text-rose-500">*</span></th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info <span className="text-rose-500">*</span></th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Training Prefs</th>
                                 {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>}
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Profession</th>
@@ -380,7 +442,7 @@ export default function Contact() {
                                         onClick={rowClickEnabled(enquiry) ? () => handleCandidateClick(enquiry) : undefined}
                                     >
                                         <td className="px-3 py-4">
-                                            <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{enquiry.name}</div>
+                                            <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{formatCandidateName(enquiry.name)}</div>
                                             <div className="text-xs text-black mt-0.5 wrap-break-word">{enquiry.current_location}</div>
                                             {enquiry.consent && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 mt-1">
@@ -401,7 +463,7 @@ export default function Contact() {
                                             </div>
                                             <div className="text-xs text-black mt-1 flex items-center gap-1.5">
                                                 <svg className="w-3 h-3 text-black shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" /></svg>
-                                                {enquiry.phone}
+                                                {formatPhoneNumber(enquiry.phone)}
                                             </div>
                                         </td>
                                         <td className="px-3 py-4">
