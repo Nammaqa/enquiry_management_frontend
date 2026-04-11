@@ -118,7 +118,6 @@ export default function Jobs() {
     const isAllowed = ALLOWED_ROLES.includes(userRole);
 
     const [jobs, setJobs] = useState<JobPost[]>([]);
-    const [success, setSuccess] = useState(false);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);

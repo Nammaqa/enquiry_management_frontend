@@ -388,7 +388,7 @@ export default function Enquiry() {
                                 type="text"
                                 value={formData.candidateName}
                                 onChange={handleFullNameChange}
-                                maxLength="25"
+                                maxLength={25}
                                 className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                 placeholder="Enter full name"
                             />
@@ -403,7 +403,7 @@ export default function Enquiry() {
                                     required
                                     type="text"
                                     inputMode="numeric"
-                                    maxLength="10"
+                                    maxLength={10}
                                     value={formData.candidatePhone}
                                     onChange={handlePhoneChange}
                                     className={`w-full pl-10 pr-12 py-2 rounded-lg border focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all ${

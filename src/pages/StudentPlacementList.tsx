@@ -2,16 +2,9 @@ import { useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
 import type { PlacementApplication } from '../types';
 
-interface ApiResponse {
-    success: boolean;
-    total: number;
-    data: PlacementApplication[];
-}
-
 export default function StudentPlacementList() {
     const [applications, setApplications] = useState<PlacementApplication[]>([]);
     const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
     const [searchTerm, setSearchTerm] = useState('');
     const [updatingId, setUpdatingId] = useState<number | null>(null);
     const [statusError, setStatusError] = useState<string | null>(null);
@@ -77,14 +70,6 @@ export default function StudentPlacementList() {
         return (
             <div className="flex items-center justify-center h-64">
                 <div className="text-indigo-600 font-medium animate-pulse">Loading placement applications...</div>
-            </div>
-        );
-    }
-
-    if (error) {
-        return (
-            <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm">
-                {error}
             </div>
         );
     }
