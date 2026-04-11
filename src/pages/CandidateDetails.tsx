@@ -99,10 +99,13 @@ export default function CandidateDetails() {
         if (enquiry) {
             const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
             setSelectedStatus(enquiry.candidateStatus || 'enquiry stage');
+            // Clean phone and name data on initial load
+            const cleanedName = (enquiry.name || '').replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
+            const cleanedPhone = (enquiry.phone || '').replace(/\D/g, '').slice(0, 10);
             setDetailsForm({
-                name: enquiry.name,
+                name: cleanedName,
                 email: enquiry.email,
-                phone: enquiry.phone,
+                phone: cleanedPhone,
                 current_location: enquiry.current_location,
                 profession: enquiry.profession,
                 referral: referralValue,
@@ -120,10 +123,37 @@ export default function CandidateDetails() {
         }
     }, [enquiry]);
 
+    // Validate phone number format (10 digits starting with 9, 8, 7, or 6)
+    const validatePhoneNumber = (phone: string): string | null => {
+        if (!phone) return null;
+        if (phone.length !== 10) return 'Phone number must be exactly 10 digits';
+        if (!/^[6789]/.test(phone)) return 'Phone number must start with 6, 7, 8, or 9';
+        return null;
+    };
+
+    // Handle full name input - allow only alphabets and spaces, max 25 characters
+    const handleNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
+        setDetailsForm(prev => ({ ...prev, name: value }));
+    };
+
+    // Handle phone input - allow only digits, max 10
+    const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const value = e.target.value.replace(/\D/g, '').slice(0, 10);
+        setDetailsForm(prev => ({ ...prev, phone: value }));
+    };
+
     const handleUpdateCandidate = async () => {
         if (!enquiry) return;
 
         setUpdateError(null); // Clear any previous update errors
+
+        // Validate phone number before updating
+        const phoneError = validatePhoneNumber(detailsForm.phone || '');
+        if (detailsForm.phone && phoneError) {
+            setUpdateError(phoneError);
+            return;
+        }
 
         const payload: Partial<Enquiry> = {
             name: detailsForm.name,
@@ -418,13 +448,15 @@ export default function CandidateDetails() {
 
                             <div className="space-y-4">
                                 <div className="space-y-4">
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Name *</label>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase">Name * </label>
                                     <input
                                         type="text"
                                         value={detailsForm.name || ''}
                                         disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, name: e.target.value }))}
+                                        onChange={handleNameChange}
+                                        maxLength={25}
                                         className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                        placeholder="Enter full name (alphabets and spaces only)"
                                     />
 
                                     <label className="block text-xs font-semibold text-slate-500 uppercase">Email *</label>
@@ -441,9 +473,19 @@ export default function CandidateDetails() {
                                         type="tel"
                                         value={detailsForm.phone || ''}
                                         disabled={!isEditingDetails}
-                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, phone: e.target.value }))}
-                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                        onChange={handlePhoneChange}
+                                        inputMode="numeric"
+                                        maxLength={10}
+                                        className={`w-full rounded-3xl border bg-white px-4 py-3 text-sm text-slate-900 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 ${
+                                            detailsForm.phone && validatePhoneNumber(detailsForm.phone)
+                                                ? 'border-rose-500 focus:border-rose-500'
+                                                : 'border-slate-200 focus:border-indigo-500'
+                                        }`}
+                                        placeholder="Enter 10-digit phone number"
                                     />
+                                    {detailsForm.phone && validatePhoneNumber(detailsForm.phone) && (
+                                        <p className="text-xs text-rose-600 mt-1">{validatePhoneNumber(detailsForm.phone)}</p>
+                                    )}
 
                                     <label className="block text-xs font-semibold text-slate-500 uppercase">Location *</label>
                                     <input

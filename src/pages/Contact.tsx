@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import type { CallLogEntry, Enquiry, Package, Subject } from '../types';
+import * as XLSX from 'xlsx';
 
 export default function Contact() {
     const [enquiries, setEnquiries] = useState<Enquiry[]>([]);
@@ -291,6 +292,87 @@ export default function Contact() {
         return name.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
     };
 
+    // Export filtered data to CSV
+    const exportToXLSX = () => {
+        if (filteredEnquiries.length === 0) {
+            alert('No data to export');
+            return;
+        }
+
+        // Define headers
+        const headers = [
+            'Candidate Name',
+            'Phone',
+            'Email',
+            'Location',
+            'Status',
+            'Package',
+            'Subjects',
+            'Training Mode',
+            'Training Time',
+            'Start Date',
+            'Profession',
+            'Qualification',
+            'Experience',
+            'Source/Referral',
+            'Consent',
+            'Created Date'
+        ];
+
+        // Map data to rows
+        const rows = filteredEnquiries.map(enquiry => [
+            formatCandidateName(enquiry.name),
+            formatPhoneNumber(enquiry.phone),
+            enquiry.email,
+            enquiry.current_location,
+            enquiry.candidateStatus,
+            getPackageName(enquiry.packageId),
+            getSubjectNames(enquiry.subjectIds),
+            enquiry.trainingMode,
+            enquiry.trainingTime,
+            enquiry.startTime,
+            enquiry.profession,
+            enquiry.qualification,
+            enquiry.experience,
+            enquiry.referral,
+            enquiry.consent ? 'Yes' : 'No',
+            new Date(enquiry.createdAt).toLocaleDateString('en-US')
+        ]);
+
+        // Create worksheet data
+        const worksheetData = [headers, ...rows];
+
+        // Create a new workbook
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+        const workbook = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Enquiries');
+
+        // Set column widths for better readability
+        const columnWidths = [
+            { wch: 20 }, // Candidate Name
+            { wch: 12 }, // Phone
+            { wch: 25 }, // Email
+            { wch: 15 }, // Location
+            { wch: 15 }, // Status
+            { wch: 20 }, // Package
+            { wch: 25 }, // Subjects
+            { wch: 15 }, // Training Mode
+            { wch: 15 }, // Training Time
+            { wch: 12 }, // Start Date
+            { wch: 15 }, // Profession
+            { wch: 15 }, // Qualification
+            { wch: 12 }, // Experience
+            { wch: 20 }, // Source/Referral
+            { wch: 10 }, // Consent
+            { wch: 15 }  // Created Date
+        ];
+        worksheet['!cols'] = columnWidths;
+
+        // Generate file name and download
+        const fileName = `${statusFilter || 'enquiry'}_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+        XLSX.writeFile(workbook, fileName);
+    };
+
     const handleCandidateClick = (enquiry: Enquiry) => {
         navigate(`/contact-details/${enquiry.id}`, { state: { enquiry } });
     };
@@ -394,22 +476,41 @@ export default function Contact() {
                         ))}
                     </div>
 
-                    {/* Rows Per Page Selector */}
-                    <div className="px-6 py-3.5 flex items-center gap-2 border-l border-slate-200">
-                        <label htmlFor="rows-per-page" className="text-sm font-medium text-slate-700 whitespace-nowrap">
-                            Rows per page:
-                        </label>
-                        <select
-                            id="rows-per-page"
-                            value={itemsPerPage}
-                            onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
-                            className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
+                    {/* Rows Per Page Selector & Export Button */}
+                    <div className="px-6 py-3.5 flex items-center gap-4 border-l border-slate-200">
+                        <div className="flex items-center gap-2">
+                            <label htmlFor="rows-per-page" className="text-sm font-medium text-slate-700 whitespace-nowrap">
+                                Rows per page:
+                            </label>
+                            <select
+                                id="rows-per-page"
+                                value={itemsPerPage}
+                                onChange={(e) => handleRowsPerPageChange(Number(e.target.value))}
+                                className="px-3 py-2 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent cursor-pointer"
+                            >
+                                <option value={5}>5</option>
+                                <option value={10}>10</option>
+                                <option value={15}>15</option>
+                                <option value={20}>20</option>
+                            </select>
+                        </div>
+
+                        {/* Export Button */}
+                        <button
+                            onClick={exportToXLSX}
+                            disabled={filteredEnquiries.length === 0}
+                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${
+                                filteredEnquiries.length === 0
+                                    ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                                    : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-md'
+                            }`}
+                            title={filteredEnquiries.length === 0 ? 'No data to export' : 'Export filtered data as XLSX'}
                         >
-                            <option value={5}>5</option>
-                            <option value={10}>10</option>
-                            <option value={15}>15</option>
-                            <option value={20}>20</option>
-                        </select>
+                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                            </svg>
+                            <span>Export</span>
+                        </button>
                     </div>
                 </div>
 
