@@ -38,9 +38,7 @@ export default function CandidateDetails() {
     const [error, setError] = useState<string | null>(null);
     const [selectedStatus, setSelectedStatus] = useState('');
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const [newLog, setNewLog] = useState({ title: '', description: '' });
     const [savingStatus, setSavingStatus] = useState(false);
-    const [savingLog, setSavingLog] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [packages, setPackages] = useState<Package[]>([]);
@@ -320,29 +318,7 @@ export default function CandidateDetails() {
         }
     };
 
-    const handleSaveLog = async () => {
-        if (!enquiry || !newLog.title.trim() || !newLog.description.trim()) return;
 
-        setSavingLog(true);
-        try {
-            await apiRequest('/api/logs', {
-                method: 'POST',
-                body: {
-                    enquiryId: enquiry.id,
-                    title: newLog.title,
-                    description: newLog.description,
-                },
-            });
-            setNewLog({ title: '', description: '' });
-            const response = await apiRequest<LogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
-            setLogs(response);
-        } catch (err) {
-            console.error('Failed to save log:', err);
-            alert('Unable to save call log. Please try again.');
-        } finally {
-            setSavingLog(false);
-        }
-    };
 
     if (loading) {
         return (
