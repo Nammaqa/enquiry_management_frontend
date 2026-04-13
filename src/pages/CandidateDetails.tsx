@@ -38,9 +38,7 @@ export default function CandidateDetails() {
     const [error, setError] = useState<string | null>(null);
     const [selectedStatus, setSelectedStatus] = useState('');
     const [logs, setLogs] = useState<LogEntry[]>([]);
-    const [newLog, setNewLog] = useState({ title: '', description: '' });
     const [savingStatus, setSavingStatus] = useState(false);
-    const [savingLog, setSavingLog] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [packages, setPackages] = useState<Package[]>([]);
@@ -320,29 +318,7 @@ export default function CandidateDetails() {
         }
     };
 
-    const handleSaveLog = async () => {
-        if (!enquiry || !newLog.title.trim() || !newLog.description.trim()) return;
 
-        setSavingLog(true);
-        try {
-            await apiRequest('/api/logs', {
-                method: 'POST',
-                body: {
-                    enquiryId: enquiry.id,
-                    title: newLog.title,
-                    description: newLog.description,
-                },
-            });
-            setNewLog({ title: '', description: '' });
-            const response = await apiRequest<LogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
-            setLogs(response);
-        } catch (err) {
-            console.error('Failed to save log:', err);
-            alert('Unable to save call log. Please try again.');
-        } finally {
-            setSavingLog(false);
-        }
-    };
 
     if (loading) {
         return (
@@ -816,70 +792,44 @@ export default function CandidateDetails() {
                     )}
                 </section>
 
-                {!isDemoCandidate && (
-                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                        <button
-                            type="button"
-                            onClick={() => setExpandedSections(prev => ({ ...prev, logs: !prev.logs }))}
-                            className="w-full flex items-center justify-between px-6 py-5 text-left"
-                        >
-                            <div>
-                                <h2 className="text-lg font-semibold text-slate-900">Call Logs</h2>
-                                <p className="text-sm text-slate-500 mt-1">View and add notes for this enquiry.</p>
-                            </div>
-                            <span className="text-2xl font-bold text-slate-400">
-                                {expandedSections.logs ? '-' : '+'}
-                            </span>
-                        </button>
-                    {expandedSections.logs && (
-                        <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
-                            {logs.length === 0 ? (
-                                <div className="text-sm text-slate-500">No call logs available yet.</div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {logs.map(log => (
-                                        <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                                <p className="font-semibold text-slate-900">{log.title}</p>
-                                                <div className="text-xs text-slate-500 text-right">
-                                                    <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                                                    <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                                </div>
-                                            </div>
-                                            <p className="mt-3 text-sm text-slate-700">{log.description}</p>
-                                            <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            <div className="grid gap-4">
-                                <input
-                                    type="text"
-                                    placeholder="Call title"
-                                    value={newLog.title}
-                                    onChange={(e) => setNewLog(prev => ({ ...prev, title: e.target.value }))}
-                                    className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                />
-                                <textarea
-                                    rows={4}
-                                    placeholder="Add a note about the call"
-                                    value={newLog.description}
-                                    onChange={(e) => setNewLog(prev => ({ ...prev, description: e.target.value }))}
-                                    className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                />
-                                <button
-                                    onClick={handleSaveLog}
-                                    disabled={savingLog}
-                                    className="inline-flex items-center justify-center w-max rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                                >
-                                    {savingLog ? 'Saving log...' : 'Save Call Log'}
-                                </button>
-                            </div>
+                <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                    <button
+                        type="button"
+                        onClick={() => setExpandedSections(prev => ({ ...prev, logs: !prev.logs }))}
+                        className="w-full flex items-center justify-between px-6 py-5 text-left"
+                    >
+                        <div>
+                            <h2 className="text-lg font-semibold text-slate-900">Call Logs</h2>
+                            <p className="text-sm text-slate-500 mt-1">View call notes for this enquiry (Read-only).</p>
                         </div>
-                    )}
-                </section>
+                        <span className="text-2xl font-bold text-slate-400">
+                            {expandedSections.logs ? '-' : '+'}
+                        </span>
+                    </button>
+                {expandedSections.logs && (
+                    <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
+                        {logs.length === 0 ? (
+                            <div className="text-sm text-slate-500">No call logs available yet.</div>
+                        ) : (
+                            <div className="space-y-4">
+                                {logs.map(log => (
+                                    <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                            <p className="font-semibold text-slate-900">{log.title}</p>
+                                            <div className="text-xs text-slate-500 text-right">
+                                                <div>{new Date(log.createdAt).toLocaleDateString()}</div>
+                                                <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                            </div>
+                                        </div>
+                                        <p className="mt-3 text-sm text-slate-700">{log.description}</p>
+                                        <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 )}
+            </section>
 
                 {!isDemoCandidate && (
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
