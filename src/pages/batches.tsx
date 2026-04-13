@@ -97,6 +97,9 @@ export default function Batches() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
+    // Search state
+    const [searchQuery, setSearchQuery] = useState('');
+
     // Form state
     const [batchForm, setBatchForm] = useState({
         name: '',
@@ -371,6 +374,12 @@ export default function Batches() {
         return inst ? `${inst.name}${inst.email ? ` (${inst.email})` : ''}` : 'N/A';
     };
 
+    // Filter batches based on search query
+    const filteredBatches = batches.filter(batch =>
+        batch.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        batch.code.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
     return (
         <div className="space-y-4">
             {/* Header */}
@@ -398,19 +407,45 @@ export default function Batches() {
                     </button>
                 </div>
             )}
-            {/* Error Message */}
-            {error && (
-                <div className="bg-rose-50 border border-rose-200 text-rose-700 px-4 py-3 rounded-lg text-sm">
-                    {error}
+            
+            {/* Search Bar */}
+            {batches.length > 0 && (
+                <div className="bg-white rounded-lg border border-slate-200 mb-4 p-4">
+                    <div className="flex items-center gap-2">
+                        <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <input
+                            type="text"
+                            placeholder="Search by batch name or code..."
+                            value={searchQuery}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setCurrentPage(1);
+                            }}
+                            className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                        />
+                        {searchQuery && (
+                            <button
+                                onClick={() => {
+                                    setSearchQuery('');
+                                    setCurrentPage(1);
+                                }}
+                                className="text-slate-400 hover:text-slate-600"
+                            >
+                                <CloseIcon />
+                            </button>
+                        )}
+                    </div>
                 </div>
             )}
 
             {/* Pagination Controls - Top */}
-            {batches.length > 0 && (
+            {filteredBatches.length > 0 && (
                 <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
                     <div className="flex items-center gap-4">
                         <div className="text-sm text-slate-600">
-                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, batches.length)} to {Math.min(currentPage * itemsPerPage, batches.length)} of {batches.length} batches
+                            Showing {Math.min((currentPage - 1) * itemsPerPage + 1, filteredBatches.length)} to {Math.min(currentPage * itemsPerPage, filteredBatches.length)} of {filteredBatches.length} batches
                         </div>
                         <div className="flex items-center gap-2">
                             <label className="text-sm text-slate-600">Rows per page:</label>
@@ -439,7 +474,7 @@ export default function Batches() {
                             Previous
                         </button>
                         <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.ceil(batches.length / itemsPerPage) }, (_, i) => (
+                            {Array.from({ length: Math.ceil(filteredBatches.length / itemsPerPage) }, (_, i) => (
                                 <button
                                     key={i + 1}
                                     onClick={() => setCurrentPage(i + 1)}
@@ -454,8 +489,8 @@ export default function Batches() {
                             ))}
                         </div>
                         <button
-                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(batches.length / itemsPerPage)))}
-                            disabled={currentPage === Math.ceil(batches.length / itemsPerPage)}
+                            onClick={() => setCurrentPage(prev => Math.min(prev + 1, Math.ceil(filteredBatches.length / itemsPerPage)))}
+                            disabled={currentPage === Math.ceil(filteredBatches.length / itemsPerPage)}
                             className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
@@ -487,14 +522,14 @@ export default function Batches() {
                                         Loading batches...
                                     </td>
                                 </tr>
-                            ) : batches.length === 0 ? (
+                            ) : filteredBatches.length === 0 ? (
                                 <tr>
                                     <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
-                                        No batches found. Click "Create Batch" to create one.
+                                        {batches.length === 0 ? 'No batches found. Click "Create Batch" to create one.' : 'No batches match your search.'}
                                     </td>
                                 </tr>
                             ) : (
-                                batches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((batch) => (
+                                filteredBatches.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((batch) => (
                                     <tr key={batch.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 text-sm text-slate-800">{batch.name}</td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{batch.code}</td>
@@ -620,8 +655,15 @@ export default function Batches() {
                             <div className="space-y-4">
                                 {/* Error Message in Modal */}
                                 {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm">
-                                        {error}
+                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
+                                        <span>{error}</span>
+                                        <button
+                                            onClick={() => setError(null)}
+                                            className="text-rose-700 hover:text-rose-900"
+                                            aria-label="Close error message"
+                                        >
+                                            <CloseIcon />
+                                        </button>
                                     </div>
                                 )}
 

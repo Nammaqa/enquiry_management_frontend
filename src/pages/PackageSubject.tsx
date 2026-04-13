@@ -77,7 +77,9 @@ export default function PackageSubject() {
     // Form states
     const [subjectForm, setSubjectForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: ''});
     const [packageForm, setPackageForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
-    const [subjectSearchQuery, setSubjectSearchQuery] = useState('');
+    const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
+    const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
+    const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
     const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
     const [currentPackagePage, setCurrentPackagePage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
@@ -408,6 +410,16 @@ if (subjectForm.prerequisites) {
         return filteredSubjects.every(subject => packageForm.subjectIds.includes(subject.id));
     };
 
+    // Filter subjects and packages for table views
+    const filteredTableSubjects = subjects.filter(subject =>
+        subject.name.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase()) ||
+        subject.code.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase())
+    );
+
+    const filteredTablePackages = packages.filter(pkg =>
+        pkg.name.toLowerCase().includes(tablePackageSearchQuery.toLowerCase()) ||
+        pkg.code.toLowerCase().includes(tablePackageSearchQuery.toLowerCase())
+    );
 
     return (
         <div className="space-y-4">
@@ -522,12 +534,46 @@ if (subjectForm.prerequisites) {
             )}
 
             {/* Pagination Controls - Top */}
-            {activeTab === 'subjects' && subjects.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
-                    <div className="flex items-center gap-4">
-                        <div className="text-sm text-slate-600">
-                            Showing {Math.min((currentSubjectPage - 1) * itemsPerPage + 1, subjects.length)} to {Math.min(currentSubjectPage * itemsPerPage, subjects.length)} of {subjects.length} subjects
+            {activeTab === 'subjects' && (
+                <>
+                    {subjects.length > 0 && (
+                        <div className="bg-white rounded-lg border border-slate-200 mb-4 p-4">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    placeholder="Search by subject name or code..."
+                                    value={tableSubjectSearchQuery}
+                                    onChange={(e) => {
+                                        setTableSubjectSearchQuery(e.target.value);
+                                        setCurrentSubjectPage(1);
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                                {tableSubjectSearchQuery && (
+                                    <button
+                                        onClick={() => {
+                                            setTableSubjectSearchQuery('');
+                                            setCurrentSubjectPage(1);
+                                        }}
+                                        className="text-slate-400 hover:text-slate-600"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
                         </div>
+                    )}
+                    {filteredTableSubjects.length > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="text-sm text-slate-600">
+                                    Showing {Math.min((currentSubjectPage - 1) * itemsPerPage + 1, filteredTableSubjects.length)} to {Math.min(currentSubjectPage * itemsPerPage, filteredTableSubjects.length)} of {filteredTableSubjects.length} subjects
+                                </div>
                         <div className="flex items-center gap-2">
                             <label className="text-sm text-slate-600">Rows per page:</label>
                             <select
@@ -555,7 +601,7 @@ if (subjectForm.prerequisites) {
                             Previous
                         </button>
                         <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.ceil(subjects.length / itemsPerPage) }, (_, i) => (
+                            {Array.from({ length: Math.ceil(filteredTableSubjects.length / itemsPerPage) }, (_, i) => (
                                 <button
                                     key={i + 1}
                                     onClick={() => setCurrentSubjectPage(i + 1)}
@@ -570,22 +616,58 @@ if (subjectForm.prerequisites) {
                             ))}
                         </div>
                         <button
-                            onClick={() => setCurrentSubjectPage(prev => Math.min(prev + 1, Math.ceil(subjects.length / itemsPerPage)))}
-                            disabled={currentSubjectPage === Math.ceil(subjects.length / itemsPerPage)}
+                            onClick={() => setCurrentSubjectPage(prev => Math.min(prev + 1, Math.ceil(filteredTableSubjects.length / itemsPerPage)))}
+                            disabled={currentSubjectPage === Math.ceil(filteredTableSubjects.length / itemsPerPage)}
                             className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                         </button>
                     </div>
                 </div>
+                    )}
+                </>
             )}
 
-            {activeTab === 'packages' && packages.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
-                    <div className="flex items-center gap-4">
-                        <div className="text-sm text-slate-600">
-                            Showing {Math.min((currentPackagePage - 1) * itemsPerPage + 1, packages.length)} to {Math.min(currentPackagePage * itemsPerPage, packages.length)} of {packages.length} packages
+            {activeTab === 'packages' && (
+                <>
+                    {packages.length > 0 && (
+                        <div className="bg-white rounded-lg border border-slate-200 mb-4 p-4">
+                            <div className="flex items-center gap-2">
+                                <svg className="w-5 h-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    placeholder="Search by package name or code..."
+                                    value={tablePackageSearchQuery}
+                                    onChange={(e) => {
+                                        setTablePackageSearchQuery(e.target.value);
+                                        setCurrentPackagePage(1);
+                                    }}
+                                    className="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                />
+                                {tablePackageSearchQuery && (
+                                    <button
+                                        onClick={() => {
+                                            setTablePackageSearchQuery('');
+                                            setCurrentPackagePage(1);
+                                        }}
+                                        className="text-slate-400 hover:text-slate-600"
+                                    >
+                                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                                        </svg>
+                                    </button>
+                                )}
+                            </div>
                         </div>
+                    )}
+                    {filteredTablePackages.length > 0 && (
+                        <div className="flex items-center justify-between px-4 py-3 bg-white rounded-lg border border-slate-200 mb-4">
+                            <div className="flex items-center gap-4">
+                                <div className="text-sm text-slate-600">
+                                    Showing {Math.min((currentPackagePage - 1) * itemsPerPage + 1, filteredTablePackages.length)} to {Math.min(currentPackagePage * itemsPerPage, filteredTablePackages.length)} of {filteredTablePackages.length} packages
+                                </div>
                         <div className="flex items-center gap-2">
                             <label className="text-sm text-slate-600">Rows per page:</label>
                             <select
@@ -613,7 +695,7 @@ if (subjectForm.prerequisites) {
                             Previous
                         </button>
                         <div className="flex items-center gap-1">
-                            {Array.from({ length: Math.ceil(packages.length / itemsPerPage) }, (_, i) => (
+                            {Array.from({ length: Math.ceil(filteredTablePackages.length / itemsPerPage) }, (_, i) => (
                                 <button
                                     key={i + 1}
                                     onClick={() => setCurrentPackagePage(i + 1)}
@@ -628,14 +710,16 @@ if (subjectForm.prerequisites) {
                             ))}
                         </div>
                         <button
-                            onClick={() => setCurrentPackagePage(prev => Math.min(prev + 1, Math.ceil(packages.length / itemsPerPage)))}
-                            disabled={currentPackagePage === Math.ceil(packages.length / itemsPerPage)}
+                            onClick={() => setCurrentPackagePage(prev => Math.min(prev + 1, Math.ceil(filteredTablePackages.length / itemsPerPage)))}
+                            disabled={currentPackagePage === Math.ceil(filteredTablePackages.length / itemsPerPage)}
                             className="px-3 py-1 border border-slate-300 rounded-lg text-sm font-medium text-slate-700 hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             Next
                         </button>
                     </div>
                 </div>
+                    )}
+                </>
             )}
 
             {/* Tables */}
@@ -667,8 +751,14 @@ if (subjectForm.prerequisites) {
                                             No subjects found. Click "Add Subject" to create one.
                                         </td>
                                     </tr>
+                                ) : filteredTableSubjects.length === 0 ? (
+                                    <tr>
+                                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                            {subjects.length === 0 ? 'No subjects found. Click "Add Subject" to create one.' : 'No subjects match your search.'}
+                                        </td>
+                                    </tr>
                                 ) : (
-                                    subjects.slice((currentSubjectPage - 1) * itemsPerPage, currentSubjectPage * itemsPerPage).map((subject) => (
+                                    filteredTableSubjects.slice((currentSubjectPage - 1) * itemsPerPage, currentSubjectPage * itemsPerPage).map((subject) => (
                                         <tr key={subject.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-slate-800">{subject.name}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600">{subject.code}</td>
@@ -731,14 +821,14 @@ if (subjectForm.prerequisites) {
                                             Loading packages...
                                         </td>
                                     </tr>
-                                ) : packages.length === 0 ? (
+                                ) : filteredTablePackages.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
-                                            No packages found. Click "Add Package" to create one.
+                                        <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                            {packages.length === 0 ? 'No packages found. Click "Add Package" to create one.' : 'No packages match your search.'}
                                         </td>
                                     </tr>
                                 ) : (
-                                    packages.slice((currentPackagePage - 1) * itemsPerPage, currentPackagePage * itemsPerPage).map((pkg) => (
+                                    filteredTablePackages.slice((currentPackagePage - 1) * itemsPerPage, currentPackagePage * itemsPerPage).map((pkg) => (
                                         <tr key={pkg.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-slate-800">{pkg.name}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600">{pkg.code}</td>
@@ -806,8 +896,15 @@ if (subjectForm.prerequisites) {
                             <div className="space-y-4">
                                 {/* Error Message in Modal */}
                                 {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm">
-                                        {error}
+                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
+                                        <span>{error}</span>
+                                        <button
+                                            onClick={() => setError(null)}
+                                            className="text-rose-700 hover:text-rose-900 flex-shrink-0"
+                                            aria-label="Close error message"
+                                        >
+                                            <CloseIcon />
+                                        </button>
                                     </div>
                                 )}
 
@@ -981,8 +1078,15 @@ if (subjectForm.prerequisites) {
                             <div className="space-y-4">
                                 {/* Error Message in Modal */}
                                 {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm">
-                                        {error}
+                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
+                                        <span>{error}</span>
+                                        <button
+                                            onClick={() => setError(null)}
+                                            className="text-rose-700 hover:text-rose-900 flex-shrink-0"
+                                            aria-label="Close error message"
+                                        >
+                                            <CloseIcon />
+                                        </button>
                                     </div>
                                 )}
 
