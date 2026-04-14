@@ -60,6 +60,7 @@ export default function CandidateDetails() {
         ? ['enquiry stage', 'demo']
         : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
     const isDemoCandidate = enquiry?.candidateStatus === 'demo';
+    
 
     useEffect(() => {
         if (isDemoCandidate && isEditingDetails) {
