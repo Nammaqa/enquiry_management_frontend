@@ -50,6 +50,9 @@ export default function CandidateDetails() {
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
+    const [logForm, setLogForm] = useState({ title: '', description: '' });
+    const [submittingLog, setSubmittingLog] = useState(false);
+    const [logError, setLogError] = useState<string | null>(null);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -315,6 +318,46 @@ export default function CandidateDetails() {
             alert('Failed to update status. Please try again.');
         } finally {
             setSavingStatus(false);
+        }
+    };
+
+    const handleAddLog = async (e: React.FormEvent) => {
+        e.preventDefault();
+
+        if (!enquiry) return;
+        if (!logForm.title.trim()) {
+            setLogError('Call title is required');
+            return;
+        }
+        if (!logForm.description.trim()) {
+            setLogError('Call description is required');
+            return;
+        }
+
+        setSubmittingLog(true);
+        setLogError(null);
+
+        try {
+            const response = await apiRequest<{ message: string; log: LogEntry }>('/api/logs', {
+                method: 'POST',
+                body: {
+                    enquiryId: enquiry.id,
+                    title: logForm.title.trim(),
+                    description: logForm.description.trim(),
+                },
+            });
+
+            if (response?.log) {
+                setLogs(prev => [response.log, ...prev]);
+                setLogForm({ title: '', description: '' });
+                setSuccessMessage('Call log added successfully');
+            }
+        } catch (err) {
+            console.error('Failed to add log:', err);
+            const errorMessage = err instanceof Error ? err.message : 'Failed to add call log. Please try again.';
+            setLogError(errorMessage);
+        } finally {
+            setSubmittingLog(false);
         }
     };
 
@@ -800,7 +843,7 @@ export default function CandidateDetails() {
                     >
                         <div>
                             <h2 className="text-lg font-semibold text-slate-900">Call Logs</h2>
-                            <p className="text-sm text-slate-500 mt-1">View call notes for this enquiry (Read-only).</p>
+                            <p className="text-sm text-slate-500 mt-1">{isDemoCandidate ? 'View call notes for this enquiry.' : 'Add and view call notes for this enquiry.'}</p>
                         </div>
                         <span className="text-2xl font-bold text-slate-400">
                             {expandedSections.logs ? '-' : '+'}
@@ -808,25 +851,88 @@ export default function CandidateDetails() {
                     </button>
                 {expandedSections.logs && (
                     <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
-                        {logs.length === 0 ? (
-                            <div className="text-sm text-slate-500">No call logs available yet.</div>
-                        ) : (
-                            <div className="space-y-4">
-                                {logs.map(log => (
-                                    <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                            <p className="font-semibold text-slate-900">{log.title}</p>
-                                            <div className="text-xs text-slate-500 text-right">
-                                                <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                                                <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                                            </div>
-                                        </div>
-                                        <p className="mt-3 text-sm text-slate-700">{log.description}</p>
-                                        <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
+                        {!isDemoCandidate && (
+                            <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
+                                
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
+                                    <input
+                                        type="text"
+                                        value={logForm.title}
+                                        onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
+                                        placeholder="Enter call title"
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                        disabled={submittingLog}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
+                                    <textarea
+                                        value={logForm.description}
+                                        onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
+                                        placeholder="Enter call details and notes..."
+                                        rows={4}
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
+                                        disabled={submittingLog}
+                                    />
+                                </div>
+
+                                {logError && (
+                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
+                                        <p className="text-xs text-rose-700 font-medium">{logError}</p>
                                     </div>
-                                ))}
-                            </div>
+                                )}
+
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLogForm({ title: '', description: '' });
+                                            setLogError(null);
+                                        }}
+                                        disabled={submittingLog}
+                                        className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        Clear
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingLog}
+                                        className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                                    >
+                                        {submittingLog ? 'Saving...' : 'Save Log'}
+                                    </button>
+                                </div>
+                            </form>
                         )}
+
+                        <div>
+                            <h3 className="font-semibold text-slate-900 text-sm mb-4">
+                                Existing Logs
+                                {logs.length > 0 && <span className="text-slate-500 font-normal ml-2">{logs.length} total</span>}
+                            </h3>
+                            {logs.length === 0 ? (
+                                <div className="text-sm text-slate-500 py-4">No call logs available yet.</div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {logs.map(log => (
+                                        <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                <p className="font-semibold text-slate-900">{log.title}</p>
+                                                <div className="text-xs text-slate-500 text-right">
+                                                    <div>{new Date(log.createdAt).toLocaleDateString()}</div>
+                                                    <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                                </div>
+                                            </div>
+                                            <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
+                                            <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </section>
