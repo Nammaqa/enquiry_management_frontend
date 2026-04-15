@@ -27,7 +27,7 @@ export default function Contact() {
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
-    const allowedStatuses = isCounsellor ? ['enquiry stage', 'demo', 'class'] : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+    const allowedStatuses = isCounsellor ? ['enquiry stage'] : ['enquiry stage', 'qualified demo', 'class qualified'];
 
     useEffect(() => {
         fetchAllData();
@@ -301,6 +301,7 @@ export default function Contact() {
 
         // Define headers
         const headers = [
+            'Enquiry ID',
             'Candidate Name',
             'Phone',
             'Email',
@@ -321,6 +322,7 @@ export default function Contact() {
 
         // Map data to rows
         const rows = filteredEnquiries.map(enquiry => [
+            enquiry.id,
             formatCandidateName(enquiry.name),
             formatPhoneNumber(enquiry.phone),
             enquiry.email,
@@ -349,6 +351,7 @@ export default function Contact() {
 
         // Set column widths for better readability
         const columnWidths = [
+            { wch: 10 }, // Enquiry ID
             { wch: 20 }, // Candidate Name
             { wch: 12 }, // Phone
             { wch: 25 }, // Email
@@ -374,7 +377,7 @@ export default function Contact() {
     };
 
     const handleCandidateClick = (enquiry: Enquiry) => {
-        navigate(`/contact-details/${enquiry.id}`, { state: { enquiry } });
+        navigate(`/contact-details/${enquiry.id}?from=enquiries`, { state: { enquiry } });
     };
 
     const rowClickEnabled = (_enquiry?: Enquiry) => true;
@@ -412,7 +415,7 @@ export default function Contact() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'demo' ? 'Demo List' : statusFilter === 'class' ? 'Class List' : statusFilter} by name, phone, or email...`}
+                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'qualified demo' ? 'Qualified Demo' : statusFilter === 'class qualified' ? 'Class Qualified' : statusFilter} by name, phone, or email...`}
                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
                             />
                             {searchTerm && (
@@ -471,7 +474,7 @@ export default function Contact() {
                                         : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
                                 }`}
                             >
-                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'demo' ? 'Demo List' : status === 'class' ? 'Class List' : status}
+                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'qualified demo' ? 'Qualified Demo' : status === 'class qualified' ? 'Class Qualified' : status}
                             </button>
                         ))}
                     </div>
@@ -518,20 +521,21 @@ export default function Contact() {
                     <table className="w-full text-left border-collapse table-fixed">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%]">Candidate <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Training Prefs</th>
-                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>}
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Profession</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Date</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate <span className="text-rose-500">*</span></th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%] align-top">Contact <span className="text-rose-500">*</span></th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info <span className="text-rose-500">*</span></th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Training Prefs</th>
+                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Add Logs</th>}
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={8 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -542,6 +546,9 @@ export default function Contact() {
                                         className={`transition-all ${rowClickEnabled(enquiry) ? 'hover:opacity-80 cursor-pointer' : 'cursor-default'}`}
                                         onClick={rowClickEnabled(enquiry) ? () => handleCandidateClick(enquiry) : undefined}
                                     >
+                                        <td className="px-3 py-4">
+                                            <div className="text-sm font-semibold text-slate-900">{enquiry.id}</div>
+                                        </td>
                                         <td className="px-3 py-4">
                                             <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{formatCandidateName(enquiry.name)}</div>
                                             <div className="text-xs text-black mt-0.5 wrap-break-word">{enquiry.current_location}</div>
