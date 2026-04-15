@@ -27,7 +27,7 @@ const PROF_SITUATIONS = ['Fresher', 'Currently Working', 'Switching from Another
 const QUALIFICATIONS = ['Diploma', "Bachelor's Degree", "Master's Degree", 'Other'];
 const EXPERIENCES = ['Less than 1 Year or Fresher', '1-3 Years', '3-5 Years', '5+ Years'];
 const SOURCES = ['Instagram', 'Youtube', 'Whatsapp Channel', 'Friend Reference', 'Facebook', 'College Reference', 'Linkedin', 'Other Social Network', 'Other'];
-
+// hello
 export default function CandidateDetails() {
     const { id } = useParams<{ id: string }>();
     const location = useLocation();
@@ -60,7 +60,7 @@ export default function CandidateDetails() {
         ? ['enquiry stage', 'demo']
         : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
     const isDemoCandidate = enquiry?.candidateStatus === 'demo';
-    
+
 
     useEffect(() => {
         if (isDemoCandidate && isEditingDetails) {
