@@ -15,7 +15,7 @@ interface Batch {
     code: string;
     status: 'yet to start' | 'In progress' | 'completed';
     sessionLink?: string;
-    sessionDate?: string;
+    sessionStartDate?: string;
     sessionEndDate?: string;
     sessionTime?: string;
     sessionQr?: string;
@@ -106,7 +106,7 @@ export default function Batches() {
         code: '',
         status: 'yet to start' as 'yet to start' | 'In progress' | 'completed',
         sessionLink: '',
-        sessionDate: '',
+        sessionStartDate: '',
         sessionEndDate: '',
         sessionTime: '',
         numberOfStudents: 0,
@@ -229,7 +229,7 @@ export default function Batches() {
                 code: batch.code,
                 status: batch.status,
                 sessionLink: batch.sessionLink || '',
-                sessionDate: formatDateForInput(batch.sessionDate),
+                sessionStartDate: formatDateForInput(batch.sessionStartDate),
                 sessionEndDate: formatDateForInput(batch.sessionEndDate),
                 sessionTime: batch.sessionTime || '',
                 numberOfStudents: batch.numberOfStudents || 0,
@@ -244,7 +244,7 @@ export default function Batches() {
                 code: '',
                 status: 'yet to start',
                 sessionLink: '',
-                sessionDate: '',
+                sessionStartDate: '',
                 sessionEndDate: '',
                 sessionTime: '',
                 numberOfStudents: 0,
@@ -260,8 +260,8 @@ export default function Batches() {
     // Save batch
     const saveBatch = async () => {
         // Validate required fields
-        if (!batchForm.name || !batchForm.code || !batchForm.sessionDate || !batchForm.sessionTime) {
-            setError('Batch Name, Code, Session Date, and Session Time are required');
+        if (!batchForm.name || !batchForm.code || !batchForm.sessionStartDate || !batchForm.sessionTime) {
+            setError('Batch Name, Code, Session Start Date, and Session Time are required');
             return;
         }
 
@@ -274,7 +274,7 @@ export default function Batches() {
             formData.append('code', batchForm.code);
             formData.append('status', batchForm.status);
             formData.append('sessionLink', batchForm.sessionLink);
-            formData.append('sessionDate', batchForm.sessionDate);
+            formData.append('sessionStartDate', batchForm.sessionStartDate);
             if (batchForm.sessionEndDate) formData.append('sessionEndDate', batchForm.sessionEndDate);
             formData.append('sessionTime', batchForm.sessionTime);
             formData.append('numberOfStudents', batchForm.numberOfStudents.toString());
@@ -319,7 +319,7 @@ export default function Batches() {
                 code: '',
                 status: 'yet to start',
                 sessionLink: '',
-                sessionDate: '',
+                sessionStartDate: '',
                 sessionEndDate: '',
                 sessionTime: '',
                 numberOfStudents: 0,
@@ -787,8 +787,8 @@ export default function Batches() {
                                     </label>
                                     <input
                                         type="date"
-                                        value={batchForm.sessionDate}
-                                        onChange={(e) => setBatchForm({ ...batchForm, sessionDate: e.target.value })}
+                                        value={batchForm.sessionStartDate}
+                                        onChange={(e) => setBatchForm({ ...batchForm, sessionStartDate: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     />
                                 </div>
