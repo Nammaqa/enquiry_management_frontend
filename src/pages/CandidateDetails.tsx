@@ -33,6 +33,24 @@ export default function CandidateDetails() {
     const location = useLocation();
     const navigate = useNavigate();
 
+    // Extract the 'from' query parameter to determine where to navigate back to
+    const getBackPath = () => {
+        const params = new URLSearchParams(location.search);
+        const fromParam = params.get('from');
+        
+        if (fromParam === 'demo-list') {
+            return '/demo-list';
+        }
+        if (fromParam === 'enquiries') {
+            return '/enquiries';
+        }
+        if (fromParam === 'class-list') {
+            return '/class-list';
+        }
+        // Default to enquiries page if no parameter or unknown value
+        return '/enquiries';
+    };
+
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
     const [loading, setLoading] = useState(!location.state?.enquiry);
     const [error, setError] = useState<string | null>(null);
@@ -377,10 +395,10 @@ export default function CandidateDetails() {
             <div className="flex flex-col items-center justify-center h-screen bg-slate-50">
                 <div className="text-rose-600 font-medium mb-4">{error || 'Candidate not found'}</div>
                 <button
-                    onClick={() => navigate('/enquiries')}
+                    onClick={() => navigate(getBackPath())}
                     className="px-4 py-2 bg-white border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50"
                 >
-                    Back to Enquiries
+                    Back to List
                 </button>
             </div>
         );
@@ -391,7 +409,7 @@ export default function CandidateDetails() {
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
                     <button
-                        onClick={() => navigate('/enquiries')}
+                        onClick={() => navigate(getBackPath())}
                         className="p-2 hover:bg-white rounded-full text-slate-400 hover:text-slate-600 transition-colors"
                     >
                         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

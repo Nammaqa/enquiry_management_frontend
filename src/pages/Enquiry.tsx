@@ -612,7 +612,7 @@ export default function Enquiry() {
 
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-3">Current Situation</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-3">Current Student Professional</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {PROF_SITUATIONS.map(sit => (
                                     <label key={sit} className="flex items-center gap-2 cursor-pointer">
@@ -635,7 +635,7 @@ export default function Enquiry() {
                                         type="text"
                                         value={formData.situationOther}
                                         onChange={e => setFormData({ ...formData, situationOther: e.target.value })}
-                                        placeholder="Enter your current situation"
+                                        placeholder="Enter your current student professional"
                                         className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                     />
                                 </div>

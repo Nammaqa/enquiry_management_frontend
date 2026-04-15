@@ -84,6 +84,20 @@ const PlacementIcon = () => (
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
 );
+
+const DemoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M23 7l-7 5 7 5V7z" />
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+);
+
+const ClassIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+);
+
 interface NavItemProps {
     icon: React.ReactNode;
     label: string;
@@ -132,10 +146,17 @@ export default function MainContent({ children }: { children: React.ReactNode })
     const jobsAllowedRoles = ['ADMIN','HR', 'COUNSELLOR'];
     const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
     const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
+    const counsellorOnlyRoles = ['COUNSELLOR']; // Only counsellors see demo and class lists
     const navItems = [
         { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
         { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
         { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
+        ...(counsellorOnlyRoles.includes(fullRoleName)
+            ? [
+                { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
+                { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
+            ]
+            : []),
         ...(userRolesAllowedRoles.includes(fullRoleName)
             ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
             : []),
@@ -186,6 +207,12 @@ export default function MainContent({ children }: { children: React.ReactNode })
         }
         if (activeItem?.label == 'Student Placement List') {
             return 'View and manage all student job applications';
+        }
+        if (activeItem?.label == 'Demo List') {
+            return 'View all candidates in demo stage';
+        }
+        if (activeItem?.label == 'Class List') {
+            return 'View all candidates in class stage';
         }
         return 'Enquiry Forms Portal';
     }
