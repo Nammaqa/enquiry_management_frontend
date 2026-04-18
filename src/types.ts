@@ -8,6 +8,7 @@ export interface Package {
     id: number;
     name: string;
     code: string;
+    cost?: number;
     Subjects?: Subject[];
 }
 
@@ -15,7 +16,16 @@ export interface CallLogEntry {
     id: string;
     title: string;
     description: string;
-    createdAt: string;
+    enquiryId?: number;
+    userId?: number;
+    createdAt?: string;
+    updatedAt?: string;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        role: string;
+    };
 }
 
 export interface Enquiry {
@@ -46,6 +56,12 @@ export interface BillingDetails {
     total: number;
     paid: number;
     discount: number;
+}
+
+export interface Billing {
+    total?: number;
+    paid?: number;
+    discount?: number;
 }
 
 export interface Billing {

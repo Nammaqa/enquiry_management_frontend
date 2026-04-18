@@ -11,6 +11,7 @@ interface Subject {
     overview?: string;
     syllabus?: string;
     prerequisites?: string;
+    fees?: number;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -23,6 +24,7 @@ interface Package {
     overview?: string;
     syllabus?: string;
     prerequisites?: string;
+    fees?: number;
     createdAt?: string;
     updatedAt?: string;
     Subjects: Subject[];
@@ -75,8 +77,8 @@ export default function PackageSubject() {
     const [editingPackage, setEditingPackage] = useState<Package | null>(null);
 
     // Form states
-    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: ''});
-    const [packageForm, setPackageForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
+    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: ''});
+    const [packageForm, setPackageForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
     const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
@@ -135,7 +137,7 @@ export default function PackageSubject() {
     const openSubjectModal = (subject?: Subject) => {
         if (subject) {
             setEditingSubject(subject);
-            setSubjectForm({ name: subject.name, code: subject.code, image: subject.image || '', overview: subject.overview || '', syllabus: subject.syllabus || '', prerequisites: subject.prerequisites || ''});
+            setSubjectForm({ name: subject.name, code: subject.code, image: subject.image || '', overview: subject.overview || '', syllabus: subject.syllabus || '', prerequisites: subject.prerequisites || '', fees: subject.fees?.toString() || ''});
         } else {
             setEditingSubject(null);
             setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
@@ -147,7 +149,12 @@ export default function PackageSubject() {
 
     const saveSubject = async () => {
         if (!subjectForm.name || !subjectForm.code) {
-            setError('name and code are required');
+            setError('⚠️ Subject name and code are mandatory fields');
+            return;
+        }
+
+        if (!subjectForm.fees || subjectForm.fees.trim() === '') {
+            setError('⚠️ Fees is a mandatory field');
             return;
         }
 
@@ -161,6 +168,7 @@ export default function PackageSubject() {
             const formData = new FormData();
             formData.append('name', subjectForm.name);
             formData.append('code', subjectForm.code);
+            formData.append('fees', subjectForm.fees);
 
             // Append image file if selected (backend will handle Cloudinary upload)
             const imageInput = document.querySelector('input[type="file"]#subjectImageFile') as HTMLInputElement;
@@ -178,6 +186,9 @@ if (subjectForm.syllabus) {
 if (subjectForm.prerequisites) {
     formData.append('prerequisites', subjectForm.prerequisites);
 }
+if (subjectForm.fees) {
+    formData.append('fees', subjectForm.fees);
+}
 
             if (editingSubject) {
                 // Update subject
@@ -188,7 +199,7 @@ if (subjectForm.prerequisites) {
                 });
                 setSuccessMessage(`Subject "${subjectForm.name}" updated successfully`);
                 setIsSubjectModalOpen(false);
-                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
                 await fetchSubjects();
                 // Only fetch packages if subject name changed (might be displayed in package lists)
                 if (editingSubject.name !== subjectForm.name) {
@@ -203,7 +214,7 @@ if (subjectForm.prerequisites) {
                 });
                 setSuccessMessage(`Subject "${subjectForm.name}" created successfully`);
                 setIsSubjectModalOpen(false);
-                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
                 await fetchSubjects();
             }
         } catch (err) {
@@ -258,10 +269,10 @@ if (subjectForm.prerequisites) {
             setEditingPackage(pkg);
             // Convert Subjects array to subjectIds array
             const subjectIds = pkg.Subjects.map(s => s.id);
-            setPackageForm({ name: pkg.name, code: pkg.code, image: pkg.image || '', overview: pkg.overview || '', syllabus: pkg.syllabus || '', prerequisites: pkg.prerequisites || '',  subjectIds });
+            setPackageForm({ name: pkg.name, code: pkg.code, image: pkg.image || '', overview: pkg.overview || '', syllabus: pkg.syllabus || '', prerequisites: pkg.prerequisites || '', fees: pkg.fees?.toString() || '', subjectIds });
         } else {
             setEditingPackage(null);
-            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '',  subjectIds: [] });
+            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
         }
         setSubjectSearchQuery(''); // Reset search when opening modal
         setError(null);
@@ -276,7 +287,12 @@ if (subjectForm.prerequisites) {
         }
 
         if (!packageForm.subjectIds || packageForm.subjectIds.length === 0) {
-            setError('Please select subject it is mandatory');
+            setError('⚠️ Subjects are mandatory - Please select at least one subject for this package');
+            return;
+        }
+
+        if (!packageForm.fees || packageForm.fees.trim() === '') {
+            setError('⚠️ Fees is a mandatory field');
             return;
         }
 
@@ -296,6 +312,7 @@ if (subjectForm.prerequisites) {
             formData.append('overview', packageForm.overview || '');
             formData.append('syllabus', packageForm.syllabus || '');
             formData.append('prerequisites', packageForm.prerequisites || '');
+            formData.append('fees', packageForm.fees);
             formData.append('subjectIds', JSON.stringify(packageForm.subjectIds || []));
 
             // Only append image if there's a new file
@@ -322,7 +339,7 @@ if (subjectForm.prerequisites) {
 
             await fetchPackages();
             setIsPackageModalOpen(false);
-            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An error occurred';
             
@@ -731,6 +748,8 @@ if (subjectForm.prerequisites) {
                                 <tr>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subject Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subject Code</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Packages</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Fees</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Image</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Overview</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Syllabus</th>
@@ -741,19 +760,19 @@ if (subjectForm.prerequisites) {
                             <tbody className="divide-y divide-slate-200">
                                 {loading && subjects.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
                                             Loading subjects...
                                         </td>
                                     </tr>
                                 ) : subjects.length === 0 ? (
                                     <tr>
-                                        <td colSpan={3} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
                                             No subjects found. Click "Add Subject" to create one.
                                         </td>
                                     </tr>
                                 ) : filteredTableSubjects.length === 0 ? (
                                     <tr>
-                                        <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
                                             {subjects.length === 0 ? 'No subjects found. Click "Add Subject" to create one.' : 'No subjects match your search.'}
                                         </td>
                                     </tr>
@@ -762,6 +781,12 @@ if (subjectForm.prerequisites) {
                                         <tr key={subject.id} className="hover:bg-slate-50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-slate-800">{subject.name}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600">{subject.code}</td>
+                                            <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate">
+                                                {packages.filter(pkg => pkg.Subjects?.some(s => s.id === subject.id)).map(p => p.name).join(', ') || 'No packages'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">
+                                                ₹{subject.fees || '0'}
+                                            </td>
                                             <td className="px-4 py-3">
                                                 {subject.image ? (
                                                     <img 
@@ -804,6 +829,7 @@ if (subjectForm.prerequisites) {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Package Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Package Code</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subjects</th>
+                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Fees</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Image</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Overview</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Syllabus</th>
@@ -817,13 +843,13 @@ if (subjectForm.prerequisites) {
                             <tbody className="divide-y divide-slate-200">
                                 {loading && packages.length === 0 ? (
                                     <tr>
-                                        <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
                                             Loading packages...
                                         </td>
                                     </tr>
                                 ) : filteredTablePackages.length === 0 ? (
                                     <tr>
-                                        <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={9} className="px-4 py-8 text-center text-slate-500 text-sm">
                                             {packages.length === 0 ? 'No packages found. Click "Add Package" to create one.' : 'No packages match your search.'}
                                         </td>
                                     </tr>
@@ -834,6 +860,9 @@ if (subjectForm.prerequisites) {
                                             <td className="px-4 py-3 text-sm text-slate-600">{pkg.code}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate">
                                                 {pkg.Subjects?.map(s => s.name).join(', ') || 'No subjects'}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">
+                                                ₹{pkg.fees || '0'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {pkg.image ? (
@@ -916,6 +945,7 @@ if (subjectForm.prerequisites) {
                                         type="text"
                                         value={subjectForm.name}
                                         onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Mathematics"
                                     />
@@ -928,6 +958,7 @@ if (subjectForm.prerequisites) {
                                         type="text"
                                         value={subjectForm.code}
                                         onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., MATH101"
                                     />
@@ -968,6 +999,21 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setSubjectForm({ ...subjectForm, prerequisites: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., PREREQUISITES"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Fees <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={subjectForm.fees}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, fees: e.target.value })}
+                                        required
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., 5000"
+                                        step="0.01"
                                     />
                                 </div>
                             </div>
@@ -1098,6 +1144,7 @@ if (subjectForm.prerequisites) {
                                         type="text"
                                         value={packageForm.name}
                                         onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Science Package"
                                     />
@@ -1110,6 +1157,7 @@ if (subjectForm.prerequisites) {
                                         type="text"
                                         value={packageForm.code}
                                         onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., SCI001"
                                     />
@@ -1210,6 +1258,21 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setPackageForm({ ...packageForm, prerequisites: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., PREREQUISITES"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Fees <span className="text-rose-500">*</span>
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={packageForm.fees}
+                                        onChange={(e) => setPackageForm({ ...packageForm, fees: e.target.value })}
+                                        required
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., 10000"
+                                        step="0.01"
                                     />
                                 </div>
                             </div>

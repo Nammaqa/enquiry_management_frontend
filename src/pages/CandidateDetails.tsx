@@ -65,19 +65,25 @@ export default function CandidateDetails() {
         details: true,
         logs: false,
         status: false,
+        payment: false,
+        movement: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
     const [logForm, setLogForm] = useState({ title: '', description: '' });
     const [submittingLog, setSubmittingLog] = useState(false);
     const [logError, setLogError] = useState<string | null>(null);
+    const [paymentAmount, setPaymentAmount] = useState<number>(0);
+    const [processingPayment, setProcessingPayment] = useState(false);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
+    const isAccounts = role === 'ACCOUNTS';
     const statusOptions = isCounsellor
         ? ['enquiry stage', 'demo']
         : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
     const isDemoCandidate = enquiry?.candidateStatus === 'demo';
+    const canMoveCandidate = enquiry?.candidateStatus === 'demo' || enquiry?.candidateStatus === 'qualified demo';
 
 
     useEffect(() => {
@@ -113,6 +119,74 @@ export default function CandidateDetails() {
         return subjectIds
             .map(id => subjects.find(s => s.id === id)?.name || `Subject ${id}`)
             .join(', ');
+    };
+
+    const getPackageCost = (packageId: number | null | undefined): number => {
+        if (!packageId) return 0;
+        const pkg = packages.find(p => p.id === packageId);
+        return pkg ? (pkg as any).cost || 0 : 0;
+    };
+
+    const calculatePaymentDetails = (enquiry: Enquiry) => {
+        const totalCost = getPackageCost(enquiry.packageId);
+        const discount = enquiry.billing?.discount || 0;
+        const baseCost = totalCost - discount;
+        const gst = baseCost * 0.18;
+        const finalAmount = baseCost + gst;
+
+        return {
+            totalCost,
+            discount,
+            baseCost,
+            gst: Math.round(gst * 100) / 100,
+            finalAmount: Math.round(finalAmount * 100) / 100,
+            paidAmount: enquiry.billing?.paid || 0
+        };
+    };
+
+    const handlePayment = async () => {
+        if (!enquiry) return;
+        
+        if (paymentAmount < 1) {
+            alert('Payment amount must be at least ₹1');
+            return;
+        }
+
+        setProcessingPayment(true);
+        try {
+            // Update payment and move to class list
+            const updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
+                method: 'PUT',
+                body: {
+                    candidateStatus: 'class',
+                    billing: {
+                        ...enquiry.billing,
+                        paid: (enquiry.billing?.paid || 0) + paymentAmount
+                    }
+                }
+            });
+
+            setEnquiry(updatedEnquiry);
+            setPaymentAmount(0);
+            setSuccessMessage(`Payment of ₹${paymentAmount} processed successfully! Candidate moved to Class List.`);
+            setUpdateError(null);
+        } catch (err) {
+            console.error('Payment processing failed:', err);
+            if (err instanceof Error) {
+                const status = (err as any).status;
+                if (status === 403) {
+                    setUpdateError('You do not have permission to update enquiries. Please contact your administrator.');
+                } else if (status === 401) {
+                    setUpdateError('Your session has expired. Please login again.');
+                } else {
+                    setUpdateError(err.message || 'Failed to process payment. Please try again.');
+                }
+            } else {
+                setUpdateError('Failed to process payment. Please try again.');
+            }
+        } finally {
+            setProcessingPayment(false);
+        }
     };
 
     useEffect(() => {
@@ -927,6 +1001,62 @@ export default function CandidateDetails() {
                             </form>
                         )}
 
+                        {(isAccounts || !isDemoCandidate) && (
+                            <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
+                                    <input
+                                        type="text"
+                                        value={logForm.title}
+                                        onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
+                                        placeholder="Enter call title"
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                        disabled={submittingLog}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
+                                    <textarea
+                                        value={logForm.description}
+                                        onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
+                                        placeholder="Enter call details and notes..."
+                                        rows={4}
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
+                                        disabled={submittingLog}
+                                    />
+                                </div>
+
+                                {logError && (
+                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
+                                        <p className="text-xs text-rose-700 font-medium">{logError}</p>
+                                    </div>
+                                )}
+
+                                <div className="flex justify-end gap-3">
+                                    <button
+                                        type="button"
+                                        onClick={() => {
+                                            setLogForm({ title: '', description: '' });
+                                            setLogError(null);
+                                        }}
+                                        disabled={submittingLog}
+                                        className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                    >
+                                        Clear
+                                    </button>
+                                    <button
+                                        type="submit"
+                                        disabled={submittingLog}
+                                        className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                                    >
+                                        {submittingLog ? 'Saving...' : 'Save Log'}
+                                    </button>
+                                </div>
+                            </form>
+                        )}
+
                         <div>
                             <h3 className="font-semibold text-slate-900 text-sm mb-4">
                                 Existing Logs
@@ -936,19 +1066,25 @@ export default function CandidateDetails() {
                                 <div className="text-sm text-slate-500 py-4">No call logs available yet.</div>
                             ) : (
                                 <div className="space-y-4">
-                                    {logs.map(log => (
-                                        <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                                <p className="font-semibold text-slate-900">{log.title}</p>
-                                                <div className="text-xs text-slate-500 text-right">
-                                                    <div>{new Date(log.createdAt).toLocaleDateString()}</div>
-                                                    <div>{new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                    {logs.map(log => {
+                                        const createdDate = log.createdAt ? new Date(log.createdAt) : null;
+                                        const formattedDate = createdDate && !isNaN(createdDate.getTime())
+                                            ? createdDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                                            : '-';
+                                        const displayUser = log.user?.name || log.author || 'Unknown user';
+                                        return (
+                                            <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                    <p className="font-semibold text-slate-900">{log.title}</p>
+                                                    <div className="text-xs text-slate-500 text-right">
+                                                        <div>{formattedDate}</div>
+                                                        <div>by {displayUser}</div>
+                                                    </div>
                                                 </div>
+                                                <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
                                             </div>
-                                            <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
-                                            <p className="mt-3 text-xs text-slate-500">Created by {log.author}</p>
-                                        </div>
-                                    ))}
+                                        );
+                                    })}
                                 </div>
                             )}
                         </div>
@@ -1012,6 +1148,136 @@ export default function CandidateDetails() {
                             </div>
                         </div>
                     )}
+                    </section>
+                )}
+
+                {enquiry?.candidateStatus === 'demo' && (
+                    <>
+                        {/* Payment Section */}
+                        <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                            <button
+                                type="button"
+                                onClick={() => setExpandedSections(prev => ({ ...prev, payment: !prev.payment }))}
+                                className="w-full flex items-center justify-between px-6 py-5 text-left"
+                            >
+                                <div>
+                                    <h2 className="text-lg font-semibold text-slate-900">Payment</h2>
+                                    <p className="text-sm text-slate-500 mt-1">Manage payment and billing details.</p>
+                                </div>
+                                <span className="text-2xl font-bold text-slate-400">
+                                    {expandedSections.payment ? '-' : '+'}
+                                </span>
+                            </button>
+                            {expandedSections.payment && (
+                                <div className="px-6 pb-6 border-t border-slate-200">
+                                    <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-4">
+                                        {enquiry && calculatePaymentDetails(enquiry).totalCost > 0 ? (
+                                            <>
+                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                                                    <span className="text-slate-600">Total Package Cost:</span>
+                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).totalCost}</span>
+                                                </div>
+                                                {calculatePaymentDetails(enquiry).discount > 0 && (
+                                                    <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                                                        <span className="text-slate-600">Discount:</span>
+                                                        <span className="font-semibold text-green-600">-₹{calculatePaymentDetails(enquiry).discount}</span>
+                                                    </div>
+                                                )}
+                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                                                    <span className="text-slate-600">Base Cost:</span>
+                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).baseCost}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                                                    <span className="text-slate-600">GST (18%):</span>
+                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).gst}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center pt-2 pb-3 border-b border-slate-200">
+                                                    <span className="text-slate-900 font-semibold">Total Amount Due:</span>
+                                                    <span className="text-lg font-bold text-indigo-600">₹{calculatePaymentDetails(enquiry).finalAmount}</span>
+                                                </div>
+                                                <div className="flex justify-between items-center text-sm py-2">
+                                                    <span className="text-slate-600">Amount Paid:</span>
+                                                    <span className="font-semibold text-green-600">₹{calculatePaymentDetails(enquiry).paidAmount}</span>
+                                                </div>
+
+                                                <div className="pt-4 space-y-2">
+                                                    <label className="text-sm font-medium text-slate-700">Pay Partial Amount (Minimum ₹1):</label>
+                                                    <div className="flex gap-2">
+                                                        <input
+                                                            type="number"
+                                                            min="1"
+                                                            value={paymentAmount || ''}
+                                                            onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                                                            placeholder="Enter amount"
+                                                            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                        />
+                                                        <button
+                                                            onClick={handlePayment}
+                                                            disabled={processingPayment}
+                                                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
+                                                        >
+                                                            {processingPayment ? 'Processing...' : 'Pay & Move'}
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <div className="text-sm text-slate-600 py-2">No package cost information available</div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+                        </section>
+                    </>
+                )}
+
+                {canMoveCandidate && (
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, movement: !prev.movement }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Move Candidate</h2>
+                                <p className="text-sm text-slate-500 mt-1">Move candidate to different stages.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.movement ? '-' : '+'}
+                            </span>
+                        </button>
+                        {expandedSections.movement && (
+                            <div className="px-6 pb-6 border-t border-slate-200">
+                                <div className="grid gap-4 rounded-3xl border border-slate-200 bg-white p-5">
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-[0.16em] mb-2">Select Status</label>
+                                        <select
+                                            value={selectedStatus}
+                                            onChange={(e) => setSelectedStatus(e.target.value)}
+                                            className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
+                                        >
+                                            <option value="enquiry stage">Enquiry Stage</option>
+                                            <option value="class">Class List</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                        <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
+                                        <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry?.candidateStatus || 'Not set'}</p>
+                                    </div>
+
+                                    <div className="flex justify-end">
+                                        <button
+                                            onClick={handleStageUpdate}
+                                            disabled={savingStatus || selectedStatus === enquiry?.candidateStatus}
+                                            className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                        >
+                                            {savingStatus ? 'Saving...' : 'Save Status'}
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </section>
                 )}
             </div>

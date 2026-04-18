@@ -147,29 +147,36 @@ export default function MainContent({ children }: { children: React.ReactNode })
     const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
     const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
     const counsellorOnlyRoles = ['COUNSELLOR']; // Only counsellors see demo and class lists
-    const navItems = [
-        { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
-        { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
-        { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
-        ...(counsellorOnlyRoles.includes(fullRoleName)
-            ? [
-                { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
-                { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
-            ]
-            : []),
-        ...(userRolesAllowedRoles.includes(fullRoleName)
-            ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
-            : []),
-        ...(batchesAllowedRoles.includes(fullRoleName)
-            ? [{ icon: <CalendarIcon />, label: 'Batches', path: '/batches' }]
-            : []),
-        ...(jobsAllowedRoles.includes(fullRoleName)
-            ? [
-                { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
-                { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
-            ]
-            : []),
-    ];
+    
+    const navItems = fullRoleName === 'ACCOUNTS'
+        ? [
+            { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
+            { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
+            { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
+        ]
+        : [
+            { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
+            { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
+            { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
+            ...(counsellorOnlyRoles.includes(fullRoleName)
+                ? [
+                    { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
+                    { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
+                ]
+                : []),
+            ...(userRolesAllowedRoles.includes(fullRoleName)
+                ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
+                : []),
+            ...(batchesAllowedRoles.includes(fullRoleName)
+                ? [{ icon: <CalendarIcon />, label: 'Batches', path: '/batches' }]
+                : []),
+            ...(jobsAllowedRoles.includes(fullRoleName)
+                ? [
+                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
+                    { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
+                ]
+                : []),
+        ];
 
     const handleLogout = () => {
         // Clear all localStorage
