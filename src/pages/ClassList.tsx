@@ -351,7 +351,16 @@ export default function ClassList() {
                                 </tr>
                             ) : (
                                 paginatedEnquiries.map((enquiry) => (
-                                    <tr key={enquiry.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => navigate(`/contact-details/${enquiry.id}?from=class-list`, { state: { enquiry } })}>
+                                    <tr
+                                        key={enquiry.id}
+                                        className="hover:bg-slate-50 transition-colors cursor-pointer"
+                                        onClick={() => {
+                                            sessionStorage.setItem('classListSearchTerm', searchTerm);
+                                            sessionStorage.setItem('classListSelectedDate', selectedDate);
+                                            sessionStorage.setItem('classListCurrentPage', currentPage.toString());
+                                            navigate(`/contact-details/${enquiry.id}?from=class-list`, { state: { enquiry } });
+                                        }}
+                                    >
                                         <td className="px-3 py-4">
                                             <div className="text-sm font-semibold text-slate-900">{enquiry.id}</div>
                                         </td>
@@ -398,7 +407,6 @@ export default function ClassList() {
                                             <div className="text-xs text-slate-900 mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
                                         <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
-
                                     </tr>
                                 ))
                             )}

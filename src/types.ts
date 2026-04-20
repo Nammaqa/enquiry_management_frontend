@@ -2,6 +2,7 @@ export interface Subject {
     id: number;
     name: string;
     code: string;
+    fees?: number;
 }
 
 export interface Package {
@@ -9,6 +10,7 @@ export interface Package {
     name: string;
     code: string;
     cost?: number;
+    fees?: string;
     Subjects?: Subject[];
 }
 
@@ -59,17 +61,25 @@ export interface BillingDetails {
 }
 
 export interface Billing {
-    total?: number;
-    paid?: number;
-    discount?: number;
-}
-
-export interface Billing {
     id: number;
+    enquiryId: number;
     packageCost: string;
     amountPaid: string;
     discount: string;
+    gst: string;
+    gstAmount: string;
     balance: string;
+    packageType: string;
+    subjectIds: number[] | null;
+    subjectWiseBreakdown: any | null;
+    createdAt: string;
+    updatedAt: string;
+    enquiry: {
+        id: number;
+        name: string;
+        email: string;
+        phone: string;
+    };
 }
 
 export interface JobPost {

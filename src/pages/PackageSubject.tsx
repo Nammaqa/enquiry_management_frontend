@@ -140,7 +140,7 @@ export default function PackageSubject() {
             setSubjectForm({ name: subject.name, code: subject.code, image: subject.image || '', overview: subject.overview || '', syllabus: subject.syllabus || '', prerequisites: subject.prerequisites || '', fees: subject.fees?.toString() || ''});
         } else {
             setEditingSubject(null);
-            setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+            setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
         }
         setError(null);
         setSuccessMessage(null);

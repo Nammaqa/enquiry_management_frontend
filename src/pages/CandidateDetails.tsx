@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
-import type { Enquiry, Package, Subject } from '../types';
+import type { Enquiry, Package, Subject, Billing } from '../types';
 
 interface LogEntry {
     id: number;
@@ -9,6 +9,12 @@ interface LogEntry {
     description: string;
     author: string;
     createdAt: string;
+    user?: {
+        id: number;
+        name: string;
+        email: string;
+        role: string;
+    };
 }
 
 interface DetailsFormData extends Partial<Enquiry> {
@@ -75,6 +81,40 @@ export default function CandidateDetails() {
     const [logError, setLogError] = useState<string | null>(null);
     const [paymentAmount, setPaymentAmount] = useState<number>(0);
     const [processingPayment, setProcessingPayment] = useState(false);
+    const [discountAmount, setDiscountAmount] = useState<number>(0);
+    const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
+    const [billing, setBilling] = useState<Billing | null>(null);
+
+    const paymentDetails = billing ? {
+        packageCost: parseFloat(billing.packageCost),
+        discount: parseFloat(billing.discount),
+        baseCost: parseFloat(billing.packageCost) - parseFloat(billing.discount),
+        gstRate: parseFloat(billing.gst),
+        gstAmount: parseFloat(billing.gstAmount),
+        totalCost: parseFloat(billing.packageCost) - parseFloat(billing.discount) + parseFloat(billing.gstAmount),
+        paidAmount: parseFloat(billing.amountPaid),
+        balance: parseFloat(billing.balance),
+    } : {
+        packageCost: 0,
+        discount: 0,
+        baseCost: 0,
+        gstRate: 18,
+        gstAmount: 0,
+        totalCost: 0,
+        paidAmount: 0,
+        balance: 0,
+    };
+
+    const fetchBilling = async () => {
+        if (!enquiry?.id) return;
+        try {
+            const response = await apiRequest<Billing>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
+            setBilling(response);
+        } catch (err) {
+            console.error('Failed to fetch billing:', err);
+            setBilling(null);
+        }
+    };
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -121,66 +161,115 @@ export default function CandidateDetails() {
             .join(', ');
     };
 
-    const getPackageCost = (packageId: number | null | undefined): number => {
+    const getPackageCost = (packageId: number | null): number => {
         if (!packageId) return 0;
         const pkg = packages.find(p => p.id === packageId);
-        return pkg ? (pkg as any).cost || 0 : 0;
+        return pkg ? (pkg.cost || parseFloat(pkg.fees || '0')) : 0;
     };
 
-    const calculatePaymentDetails = (enquiry: Enquiry) => {
-        const totalCost = getPackageCost(enquiry.packageId);
-        const discount = enquiry.billing?.discount || 0;
-        const baseCost = totalCost - discount;
-        const gst = baseCost * 0.18;
-        const finalAmount = baseCost + gst;
+    const calculatePaymentDetails = (enquiry: Enquiry, billing: Billing | null) => {
+        let packageCost = 0;
+        if (enquiry.packageId) {
+            packageCost = getPackageCost(enquiry.packageId);
+        } else {
+            // For "others", sum the fees of selected subjects
+            packageCost = enquiry.subjectIds.reduce((sum, subjectId) => {
+                const subject = subjects.find(s => s.id === subjectId);
+                return sum + (subject?.fees || 0);
+            }, 0);
+        }
+        const discount = applyDiscount ? discountAmount : 0;
+        const baseCost = packageCost - discount;
+        const gstRate = 18;
+        const gstAmount = baseCost * (gstRate / 100);
+        const totalCost = baseCost + gstAmount;
+        const paidAmount:any = billing?.amountPaid || 0;
+        const balance = totalCost - paidAmount;
 
         return {
-            totalCost,
+            packageCost,
             discount,
-            baseCost,
-            gst: Math.round(gst * 100) / 100,
-            finalAmount: Math.round(finalAmount * 100) / 100,
-            paidAmount: enquiry.billing?.paid || 0
+            baseCost: Math.round(baseCost * 100) / 100,
+            gstRate,
+            gstAmount: Math.round(gstAmount * 100) / 100,
+            totalCost: Math.round(totalCost * 100) / 100,
+            paidAmount,
+            balance: Math.max(0, Math.round(balance * 100) / 100),
         };
     };
 
     const handlePayment = async () => {
         if (!enquiry) return;
-        
+
         if (paymentAmount < 1) {
             alert('Payment amount must be at least ₹1');
             return;
         }
 
+        const paymentDetails = calculatePaymentDetails(enquiry, billing);
+        if (paymentAmount > paymentDetails.balance) {
+            alert('Payment amount cannot exceed the balance amount');
+            return;
+        }
+
         setProcessingPayment(true);
         try {
-            // Update payment and move to class list
-            const updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
-                method: 'PUT',
-                body: {
-                    candidateStatus: 'class',
-                    billing: {
-                        ...enquiry.billing,
-                        paid: (enquiry.billing?.paid || 0) + paymentAmount
-                    }
-                }
-            });
+            // Create or update billing record
+            const billingData = {
+                enquiryId: enquiry.id,
+                packageCost: paymentDetails.packageCost,
+                discount: paymentDetails.discount,
+                gst: paymentDetails.gstRate,
+                gstAmount: paymentDetails.gstAmount,
+                amountPaid: parseFloat(billing?.amountPaid || '0') + paymentAmount,
+                balance: parseFloat(billing?.balance || '0') - paymentAmount,
+            };
 
+            if (billing?.id) {
+                // Update existing billing
+                await apiRequest(`/api/billings/${billing.id}`, {
+                    method: 'PUT',
+                    body: billingData,
+                });
+            } else {
+                // Create new billing
+                await apiRequest('/api/billings', {
+                    method: 'POST',
+                    body: billingData,
+                });
+            }
+
+            // Move candidate to class list
+            try {
+                await apiRequest<Enquiry>(`/api/enquiries/change-status`, {
+                    method: 'POST',
+                    body: {
+                        enquiryId: enquiry.id,
+                        newStatus: 'class',
+                    },
+                });
+            } catch (statusErr) {
+                console.warn('Status change endpoint failed, falling back to direct enquiry update', statusErr);
+                // If change-status is restricted, try direct update instead.
+                await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
+                    method: 'PUT',
+                    body: {
+                        candidateStatus: 'class',
+                    },
+                });
+            }
+
+            // Refresh enquiry data
+            const updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, { method: 'GET' });
             setEnquiry(updatedEnquiry);
+            fetchBilling();
+
             setPaymentAmount(0);
             setSuccessMessage(`Payment of ₹${paymentAmount} processed successfully! Candidate moved to Class List.`);
-            setUpdateError(null);
         } catch (err) {
             console.error('Payment processing failed:', err);
             if (err instanceof Error) {
-                const status = (err as any).status;
-                if (status === 403) {
-                    setUpdateError('You do not have permission to update enquiries. Please contact your administrator.');
-                } else if (status === 401) {
-                    setUpdateError('Your session has expired. Please login again.');
-                } else {
-                    setUpdateError(err.message || 'Failed to process payment. Please try again.');
-                }
+                setUpdateError(err.message || 'Failed to process payment. Please try again.');
             } else {
                 setUpdateError('Failed to process payment. Please try again.');
             }
@@ -341,6 +430,7 @@ export default function CandidateDetails() {
             try {
                 const data = await apiRequest<Enquiry>(`/api/enquiries/${id}`, { method: 'GET' });
                 setEnquiry(data);
+                setBilling(data.billing || null);
                 setError(null);
             } catch (err) {
                 console.error('Failed to fetch candidate details:', err);
@@ -349,6 +439,7 @@ export default function CandidateDetails() {
                     const found = all.find(e => e.id === Number(id));
                     if (found) {
                         setEnquiry(found);
+                        setBilling(found.billing || null);
                         setError(null);
                     } else {
                         setError('Candidate not found.');
@@ -364,6 +455,22 @@ export default function CandidateDetails() {
 
         fetchData();
     }, [id]);
+
+    useEffect(() => {
+        if (!enquiry) return;
+
+        const fetchBilling = async () => {
+            try {
+                const response = await apiRequest<Billing>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
+                setBilling(response);
+            } catch (err) {
+                console.error('Failed to fetch billing:', err);
+                // Keep the billing from enquiry if API fails
+            }
+        };
+
+        fetchBilling();
+    }, [enquiry]);
 
     useEffect(() => {
         const fetchLogs = async () => {
@@ -497,7 +604,16 @@ export default function CandidateDetails() {
                 </div>
                 <div className="flex items-center gap-3">
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                        Status: 
+                        <select 
+                            value={enquiry.candidateStatus} 
+                            disabled 
+                            className="bg-transparent border-none outline-none font-semibold text-slate-900 ml-1"
+                        >
+                            <option value="enquiry stage">enquiry stage</option>
+                            <option value="demo">demo</option>
+                            <option value="class">class</option>
+                        </select>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
@@ -1151,7 +1267,7 @@ export default function CandidateDetails() {
                     </section>
                 )}
 
-                {enquiry?.candidateStatus === 'demo' && (
+                {(isAccounts && enquiry?.candidateStatus === 'demo') || (isAccounts && enquiry?.candidateStatus === 'class') ? (
                     <>
                         {/* Payment Section */}
                         <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -1170,68 +1286,122 @@ export default function CandidateDetails() {
                             </button>
                             {expandedSections.payment && (
                                 <div className="px-6 pb-6 border-t border-slate-200">
-                                    <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-4">
-                                        {enquiry && calculatePaymentDetails(enquiry).totalCost > 0 ? (
+                                    <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
+                                        {billing && paymentDetails.packageCost > 0 ? (
                                             <>
+                                                {/* Package Cost Display */}
                                                 <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                    <span className="text-slate-600">Total Package Cost:</span>
-                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).totalCost}</span>
-                                                </div>
-                                                {calculatePaymentDetails(enquiry).discount > 0 && (
-                                                    <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                        <span className="text-slate-600">Discount:</span>
-                                                        <span className="font-semibold text-green-600">-₹{calculatePaymentDetails(enquiry).discount}</span>
-                                                    </div>
-                                                )}
-                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                    <span className="text-slate-600">Base Cost:</span>
-                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).baseCost}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                    <span className="text-slate-600">GST (18%):</span>
-                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).gst}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center pt-2 pb-3 border-b border-slate-200">
-                                                    <span className="text-slate-900 font-semibold">Total Amount Due:</span>
-                                                    <span className="text-lg font-bold text-indigo-600">₹{calculatePaymentDetails(enquiry).finalAmount}</span>
-                                                </div>
-                                                <div className="flex justify-between items-center text-sm py-2">
-                                                    <span className="text-slate-600">Amount Paid:</span>
-                                                    <span className="font-semibold text-green-600">₹{calculatePaymentDetails(enquiry).paidAmount}</span>
+                                                    <span className="text-slate-600">Package Cost:</span>
+                                                    <span className="font-semibold text-slate-900">₹{paymentDetails.packageCost}</span>
                                                 </div>
 
-                                                <div className="pt-4 space-y-2">
-                                                    <label className="text-sm font-medium text-slate-700">Pay Partial Amount (Minimum ₹1):</label>
-                                                    <div className="flex gap-2">
+                                                {/* Discount Section */}
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center gap-3">
+                                                        <input
+                                                            type="checkbox"
+                                                            id="applyDiscount"
+                                                            checked={applyDiscount}
+                                                            onChange={(e) => setApplyDiscount(e.target.checked)}
+                                                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                                        />
+                                                        <label htmlFor="applyDiscount" className="text-sm font-medium text-slate-700">
+                                                            Apply Discount
+                                                        </label>
+                                                    </div>
+
+                                                    {applyDiscount && (
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Discount Amount (₹)</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                max={paymentDetails.packageCost}
+                                                                value={discountAmount || ''}
+                                                                onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                                                                placeholder="Enter discount amount"
+                                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                            />
+                                                        </div>
+                                                    )}
+                                                </div>
+
+                                                {/* Cost Breakdown */}
+                                                <div className="space-y-3">
+                                                    {paymentDetails.discount > 0 && (
+                                                        <div className="flex justify-between items-center text-sm pb-2 border-b border-slate-200">
+                                                            <span className="text-slate-600">Discount:</span>
+                                                            <span className="font-semibold text-green-600">-₹{paymentDetails.discount}</span>
+                                                        </div>
+                                                    )}
+
+                                                    <div className="flex justify-between items-center text-sm pb-2 border-b border-slate-200">
+                                                        <span className="text-slate-600">Base Amount:</span>
+                                                        <span className="font-semibold text-slate-900">₹{paymentDetails.baseCost}</span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center text-sm pb-2 border-b border-slate-200">
+                                                        <span className="text-slate-600">GST (18%):</span>
+                                                        <span className="font-semibold text-red-600">-₹{paymentDetails.gstAmount}</span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center pt-2 pb-2 border-b border-slate-200">
+                                                        <span className="text-slate-900 font-semibold">Total Amount:</span>
+                                                        <span className="text-lg font-bold text-indigo-600">₹{paymentDetails.totalCost}</span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center text-sm py-2">
+                                                        <span className="text-slate-600">Amount Paid:</span>
+                                                        <span className="font-semibold text-green-600">₹{paymentDetails.paidAmount}</span>
+                                                    </div>
+
+                                                    <div className="flex justify-between items-center text-sm py-2 border-t border-slate-200">
+                                                        <span className="text-slate-900 font-semibold">Balance Amount:</span>
+                                                        <span className="text-lg font-bold text-red-600">₹{paymentDetails.balance}</span>
+                                                    </div>
+                                                </div>
+
+                                                {/* Payment Input */}
+                                                <div className="pt-4 space-y-3">
+                                                    <label className="block text-sm font-medium text-slate-700">
+                                                        Payment Amount (₹1 - ₹{paymentDetails.balance}):
+                                                    </label>
+                                                    <div className="flex gap-3">
                                                         <input
                                                             type="number"
                                                             min="1"
+                                                            max={paymentDetails.balance}
                                                             value={paymentAmount || ''}
                                                             onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                                                            placeholder="Enter amount"
-                                                            className="flex-1 px-3 py-2 text-sm border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            placeholder="Enter payment amount"
+                                                            className="flex-1 px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                         />
                                                         <button
                                                             onClick={handlePayment}
-                                                            disabled={processingPayment}
-                                                            className="px-4 py-2 bg-indigo-600 text-white text-sm font-medium rounded-lg hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
+                                                            disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry, billing).balance}
+                                                            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
                                                         >
-                                                            {processingPayment ? 'Processing...' : 'Pay & Move'}
+                                                            {processingPayment ? 'Processing...' : 'Pay & Move to Class'}
                                                         </button>
                                                     </div>
+                                                    <p className="text-xs text-slate-500">
+                                                        Payment will automatically move the candidate to Class List.
+                                                    </p>
                                                 </div>
                                             </>
                                         ) : (
-                                            <div className="text-sm text-slate-600 py-2">No package cost information available</div>
+                                            <div className="text-sm text-slate-600 py-4 text-center">
+                                                No package selected or package cost not available.
+                                            </div>
                                         )}
                                     </div>
                                 </div>
                             )}
                         </section>
-                    </>
-                )}
+                    </>):<></>
+                }
 
-                {canMoveCandidate && (
+                {isAccounts && canMoveCandidate && (
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                         <button
                             type="button"
@@ -1257,7 +1427,8 @@ export default function CandidateDetails() {
                                             className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
                                         >
                                             <option value="enquiry stage">Enquiry Stage</option>
-                                            <option value="class">Class List</option>
+                                            <option value="demo">Demo Stage</option>
+                                            <option value="class list">Class List</option>
                                         </select>
                                     </div>
 

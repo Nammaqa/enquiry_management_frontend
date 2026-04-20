@@ -26,6 +26,7 @@ export default function DemoList() {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchAllData();
@@ -193,6 +194,30 @@ export default function DemoList() {
             setLogError('Failed to save log. Please try again.');
         } finally {
             setSavingLog(false);
+        }
+    };
+
+    const handleStatusChange = async (enquiryId: number, newStatus: string) => {
+        setUpdatingStatusId(enquiryId);
+        try {
+            const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
+                method: 'POST',
+                body: {
+                    enquiryId,
+                    newStatus,
+                },
+            });
+
+            if (response?.enquiry) {
+                setEnquiries(prev => prev.map(item =>
+                    item.id === enquiryId ? { ...item, candidateStatus: response.enquiry.candidateStatus } : item
+                ));
+            }
+        } catch (err) {
+            console.error('Failed to update status:', err);
+            alert('Failed to update status. Please try again.');
+        } finally {
+            setUpdatingStatusId(null);
         }
     };
 
@@ -433,7 +458,7 @@ export default function DemoList() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[11%] align-top">Training Prefs</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Profession</th>
                                 {isAccounts && (
-                                    <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Logs</th>
+                                    <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Actions</th>
                                 )}
                             </tr>
                         </thead>
@@ -472,9 +497,23 @@ export default function DemoList() {
                                             )}
                                         </td>
                                         <td className="px-3 py-4">
-                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-slate-900">
-                                                {enquiry.candidateStatus}
-                                            </span>
+                                            {isAccounts ? (
+                                                <select
+                                                    value={enquiry.candidateStatus}
+                                                    onChange={(e) => handleStatusChange(enquiry.id, e.target.value)}
+                                                    disabled={updatingStatusId === enquiry.id}
+                                                    onClick={(e) => e.stopPropagation()}
+                                                    className="w-full rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
+                                                >
+                                                    <option value="enquiry stage">Enquiry Stage</option>
+                                                    <option value="demo">Demo</option>
+                                                    <option value="class">Class</option>
+                                                </select>
+                                            ) : (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-slate-900">
+                                                    {enquiry.candidateStatus}
+                                                </span>
+                                            )}
                                             <div className="text-xs text-slate-500 mt-1.5">Ref: {enquiry.referral || '-'}</div>
                                         </td>
                                         <td className="px-3 py-4">
@@ -507,22 +546,24 @@ export default function DemoList() {
                                         <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
                                         {isAccounts && (
                                             <td className="px-3 py-4">
-                                                <div className="flex flex-col items-center gap-1">
-                                            <button
-                                                type="button"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    openLogModal(enquiry);
-                                                }}
-                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
-                                                title="Add call log"
-                                            >
-                                                +
-                                            </button>
-                                            <span className="text-[11px] text-slate-500 text-center">
-                                                {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
-                                            </span>
-                                        </div>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openLogModal(enquiry);
+                                                            }}
+                                                            className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
+                                                            title="Add call log"
+                                                        >
+                                                            +
+                                                        </button>
+                                                        <span className="text-[11px] text-slate-500 text-center">
+                                                            {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
+                                                        </span>
+                                                    </div>
+                                                </div>
                                             </td>
                                         )}
                                     </tr>

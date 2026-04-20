@@ -689,7 +689,7 @@ export default function Contact() {
                                                     <div key={log.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                         <div className="flex items-start justify-between gap-3">
                                                             <p className="text-sm font-semibold text-slate-900">{log.title}</p>
-                                                            <span className="text-[11px] uppercase tracking-wide text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                                                            <span className="text-[11px] uppercase tracking-wide text-slate-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Unknown date'}</span>
                                                         </div>
                                                         <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
                                                     </div>
