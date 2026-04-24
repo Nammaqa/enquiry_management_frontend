@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
-import type { Enquiry, Package, Subject } from '../types';
+import type { CallLogEntry, Enquiry, Package, Subject } from '../types';
 import * as XLSX from 'xlsx';
 
 export default function DemoList() {
@@ -10,7 +10,16 @@ export default function DemoList() {
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [logModalOpen, setLogModalOpen] = useState(false);
+    const [activeEnquiryForLogs, setActiveEnquiryForLogs] = useState<Enquiry | null>(null);
+    const [logTitle, setLogTitle] = useState('');
+    const [logDescription, setLogDescription] = useState('');
+    const [fetchingLogs, setFetchingLogs] = useState(false);
+    const [savingLog, setSavingLog] = useState(false);
+    const [logError, setLogError] = useState<string | null>(null);
     const navigate = useNavigate();
+    const role = localStorage.getItem('userRole');
+    const isAccounts = role === 'ACCOUNTS';
 
     // Filter and Pagination State
     const [searchTerm, setSearchTerm] = useState('');
@@ -42,16 +51,40 @@ export default function DemoList() {
 
             // Filter to only demo status
             const demoEnquiries = enquiriesData.filter(e => e.candidateStatus === 'demo');
+            const enquiriesWithPendingLogs = demoEnquiries.map(enquiry => ({
+                ...enquiry,
+                callLogs: undefined,
+            }));
 
-            setEnquiries(demoEnquiries);
+            setEnquiries(enquiriesWithPendingLogs);
             setPackages(packagesData);
             setSubjects(subjectsData);
+            fetchCallLogsForEnquiries(enquiriesWithPendingLogs).catch(err => {
+                console.error('Failed to prefetch call logs:', err);
+            });
         } catch (err) {
             console.error('Error fetching data:', err);
             setError('Failed to load demo list data.');
         } finally {
             setLoading(false);
         }
+    };
+
+    const fetchCallLogsForEnquiries = async (enquiriesList: Enquiry[]) => {
+        const callLogsResults = await Promise.all(enquiriesList.map(async (enquiry) => {
+            try {
+                const response = await apiRequest<CallLogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
+                return { id: enquiry.id, callLogs: response };
+            } catch (err) {
+                console.error(`Failed to load call logs for enquiry ${enquiry.id}:`, err);
+                return { id: enquiry.id, callLogs: [] };
+            }
+        }));
+
+        setEnquiries(prevEnquiries => prevEnquiries.map(enquiry => {
+            const logResult = callLogsResults.find(result => result.id === enquiry.id);
+            return logResult ? { ...enquiry, callLogs: logResult.callLogs } : enquiry;
+        }));
     };
 
     // Reset to page 1 when filters change
@@ -96,6 +129,71 @@ export default function DemoList() {
     const formatPhoneNumber = (phone: string) => {
         if (!phone) return '';
         return phone.replace(/\D/g, '').slice(0, 10);
+    };
+
+    const openLogModal = async (enquiry: Enquiry) => {
+        setActiveEnquiryForLogs({ ...enquiry, callLogs: enquiry.callLogs ?? [] });
+        setLogTitle('');
+        setLogDescription('');
+        setLogError(null);
+        setLogModalOpen(true);
+        setFetchingLogs(true);
+
+        try {
+            const response = await apiRequest<CallLogEntry[]>(`/api/logs/${enquiry.id}`, { method: 'GET' });
+            setActiveEnquiryForLogs({ ...enquiry, callLogs: response });
+            setEnquiries(prev => prev.map(item => item.id === enquiry.id ? { ...item, callLogs: response } : item));
+        } catch (err) {
+            console.error('Failed to fetch call logs:', err);
+            setLogError('Unable to load logs. Please try again.');
+        } finally {
+            setFetchingLogs(false);
+        }
+    };
+
+    const closeLogModal = () => {
+        setLogModalOpen(false);
+        setActiveEnquiryForLogs(null);
+        setLogTitle('');
+        setLogDescription('');
+        setLogError(null);
+    };
+
+    const handleSaveLog = async () => {
+        if (!activeEnquiryForLogs) return;
+        if (!logTitle.trim() || !logDescription.trim()) {
+            setLogError('Please enter both title and description for the log.');
+            return;
+        }
+
+        setSavingLog(true);
+        setLogError(null);
+
+        try {
+            const response = await apiRequest<{ message: string; log: CallLogEntry }>('/api/logs', {
+                method: 'POST',
+                body: {
+                    enquiryId: activeEnquiryForLogs.id,
+                    title: logTitle.trim(),
+                    description: logDescription.trim(),
+                },
+            });
+
+            const newLog = response.log;
+            const updatedLogs = [newLog, ...(activeEnquiryForLogs.callLogs ?? [])];
+            setActiveEnquiryForLogs({ ...activeEnquiryForLogs, callLogs: updatedLogs });
+            setEnquiries(prev => prev.map(item =>
+                item.id === activeEnquiryForLogs.id ? { ...item, callLogs: updatedLogs } : item
+            ));
+            setLogTitle('');
+            setLogDescription('');
+            setLogError('Log added successfully.');
+        } catch (err) {
+            console.error('Failed to save log:', err);
+            setLogError('Failed to save log. Please try again.');
+        } finally {
+            setSavingLog(false);
+        }
     };
 
     const filteredEnquiries = useMemo(() => {
@@ -328,24 +426,27 @@ export default function DemoList() {
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[15%] align-top">Candidate</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%] align-top">Contact</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Training Prefs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Package Info</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[11%] align-top">Training Prefs</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Profession</th>
+                                {isAccounts && (
+                                    <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Actions</th>
+                                )}
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {loading && enquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 8 : 7} className="px-6 py-12 text-center text-slate-500">
                                         Loading demo list...
                                     </td>
                                 </tr>
                             ) : paginatedEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 8 : 7} className="px-6 py-12 text-center text-slate-500">
                                         No demo candidates found.
                                     </td>
                                 </tr>
@@ -404,7 +505,28 @@ export default function DemoList() {
                                             <div className="text-xs text-slate-900 mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
                                         <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
-
+                                        {isAccounts && (
+                                            <td className="px-3 py-4">
+                                                <div className="flex items-center gap-2">
+                                                    <div className="flex flex-col items-center gap-1">
+                                                        <button
+                                                            type="button"
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                openLogModal(enquiry);
+                                                            }}
+                                                            className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
+                                                            title="Add call log"
+                                                        >
+                                                            +
+                                                        </button>
+                                                        <span className="text-[11px] text-slate-500 text-center">
+                                                            {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        )}
                                     </tr>
                                 ))
                             )}
@@ -412,6 +534,115 @@ export default function DemoList() {
                     </table>
                 </div>
             </div>
+
+            {logModalOpen && activeEnquiryForLogs && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4 py-6">
+                    <div className="w-full max-w-3xl overflow-hidden rounded-3xl bg-white shadow-2xl ring-1 ring-slate-200">
+                        <div className="flex flex-col gap-2 border-b border-slate-200 bg-slate-50 px-6 py-5 sm:flex-row sm:items-center sm:justify-between">
+                            <div>
+                                <h3 className="text-xl font-semibold text-slate-900">Call Logs for {formatCandidateName(activeEnquiryForLogs.name)}</h3>
+                                <p className="text-sm text-slate-500">Review recent notes and add a new call update.</p>
+                            </div>
+                            <button
+                                type="button"
+                                onClick={closeLogModal}
+                                className="rounded-full border border-slate-200 bg-white px-3 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                            >
+                                ✕
+                            </button>
+                        </div>
+
+                        <div className="max-h-[85vh] overflow-auto px-6 py-6">
+                            <div className="grid gap-6 lg:grid-cols-[1.4fr,1fr]">
+                                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                                    <div className="mb-4 flex items-center justify-between gap-4">
+                                        <h4 className="text-sm font-semibold text-slate-900">Call title</h4>
+                                        <span className="text-xs text-slate-500">Enter call title</span>
+                                    </div>
+                                    <input
+                                        type="text"
+                                        value={logTitle}
+                                        onChange={(e) => setLogTitle(e.target.value)}
+                                        placeholder="Call title"
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                    />
+                                </div>
+
+                                <div className="rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                                    <div className="mb-4 flex items-center justify-between gap-4">
+                                        <h4 className="text-sm font-semibold text-slate-900">Add a note about the call</h4>
+                                        <span className="text-xs text-slate-500">Add a note about the call</span>
+                                    </div>
+                                    <textarea
+                                        value={logDescription}
+                                        onChange={(e) => setLogDescription(e.target.value)}
+                                        rows={6}
+                                        placeholder="Add a note about the call"
+                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none"
+                                    />
+                                </div>
+                            </div>
+
+                            {logError && (
+                                <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                                    {logError}
+                                </div>
+                            )}
+
+                            <div className="mt-6 rounded-3xl border border-slate-200 bg-slate-50 p-5">
+                                <div className="mb-4 flex items-center justify-between">
+                                    <h4 className="text-sm font-semibold text-slate-900">Existing Logs</h4>
+                                    <span className="text-xs text-slate-500">{activeEnquiryForLogs.callLogs?.length ?? 0} total</span>
+                                </div>
+                                <div className="space-y-4">
+                                    {fetchingLogs ? (
+                                        <div className="text-sm text-slate-500">Loading logs...</div>
+                                    ) : activeEnquiryForLogs.callLogs?.length ? (
+                                        activeEnquiryForLogs.callLogs.map(log => {
+                                            const date = log.createdAt ? new Date(log.createdAt) : null;
+                                            const formattedDate = date && !isNaN(date.getTime())
+                                                ? date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                                                : '-';
+                                            return (
+                                                <div key={log.id} className="rounded-3xl border border-slate-200 bg-white p-4">
+                                                    <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                                                        <p className="font-semibold text-slate-900">{log.title}</p>
+                                                        <div className="text-xs text-slate-500 text-right">
+                                                            <div>{formattedDate}</div>
+                                                            {log.user?.name && <div>by {log.user.name}</div>}
+                                                        </div>
+                                                    </div>
+                                                    <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        <div className="text-sm text-slate-500">No logs found for this candidate.</div>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end">
+                                <button
+                                    type="button"
+                                    onClick={closeLogModal}
+                                    className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-100"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={handleSaveLog}
+                                    disabled={savingLog}
+                                    className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:cursor-not-allowed disabled:opacity-60"
+                                >
+                                    {savingLog ? 'Saving...' : 'Save Log'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* Pagination */}
             {totalPages > 1 && (
