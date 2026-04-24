@@ -7,6 +7,11 @@ interface Subject {
     id: number;
     name: string;
     code: string;
+    domain?: string;
+    mode?: string;
+    type?: string;
+    description?: string;
+    duration?: number;
     image?: string;
     overview?: string;
     syllabus?: string;
@@ -20,6 +25,11 @@ interface Package {
     id: number;
     name: string;
     code: string;
+    domain?: string;
+    mode?: string;
+    type?: string;
+    description?: string;
+    duration?: number;
     image?: string;
     overview?: string;
     syllabus?: string;
@@ -61,6 +71,65 @@ const SearchIcon = () => (
     </svg>
 );
 
+const domains = [
+    {
+        name: 'Testing',
+        code: 'TST',
+        type: 'Domain',
+        description: 'Software Testing and Quality Assurance',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'Development',
+        code: 'DEV',
+        type: 'Domain',
+        description: 'Web and Application Development',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'Cybersecurity',
+        code: 'CYB',
+        type: 'Domain',
+        description: 'Cybersecurity and Information Security',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'Devops',
+        code: 'DOP',
+        type: 'Domain',
+        description: 'DevOps and Infrastructure Management',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'AI/ML',
+        code: 'AIM',
+        type: 'Domain',
+        description: 'Artificial Intelligence and Machine Learning',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'Data Analytics',
+        code: 'DAT',
+        type: 'Domain',
+        description: 'Data Analytics and Business Intelligence',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+    {
+        name: 'UI/UX Design',
+        code: 'UIX',
+        type: 'Domain',
+        description: 'User Interface and User Experience Design',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+    },
+];
+
 export default function PackageSubject() {
     const [activeTab, setActiveTab] = useState<'subjects' | 'packages'>('subjects');
     const [subjects, setSubjects] = useState<Subject[]>([]);
@@ -77,8 +146,8 @@ export default function PackageSubject() {
     const [editingPackage, setEditingPackage] = useState<Package | null>(null);
 
     // Form states
-    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: ''});
-    const [packageForm, setPackageForm] = useState({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] as number[], });
+    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: ''});
+    const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
     const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
@@ -137,10 +206,23 @@ export default function PackageSubject() {
     const openSubjectModal = (subject?: Subject) => {
         if (subject) {
             setEditingSubject(subject);
-            setSubjectForm({ name: subject.name, code: subject.code, image: subject.image || '', overview: subject.overview || '', syllabus: subject.syllabus || '', prerequisites: subject.prerequisites || '', fees: subject.fees?.toString() || ''});
+            setSubjectForm({
+                name: subject.name,
+                code: subject.code,
+                domain: subject.domain || 'Testing',
+                mode: subject.mode || 'Online',
+                type: subject.type || 'starter',
+                description: subject.description || '',
+                duration: subject.duration?.toString() || '',
+                image: subject.image || '',
+                overview: subject.overview || '',
+                syllabus: subject.syllabus || '',
+                prerequisites: subject.prerequisites || '',
+                fees: subject.fees?.toString() || ''
+            });
         } else {
             setEditingSubject(null);
-            setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
+            setSubjectForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
         }
         setError(null);
         setSuccessMessage(null);
@@ -168,6 +250,11 @@ export default function PackageSubject() {
             const formData = new FormData();
             formData.append('name', subjectForm.name);
             formData.append('code', subjectForm.code);
+            formData.append('domain', subjectForm.domain || 'Testing');
+            formData.append('mode', subjectForm.mode || 'Online');
+            formData.append('type', subjectForm.type || 'starter');
+            formData.append('description', subjectForm.description || '');
+            formData.append('duration', subjectForm.duration || '');
             formData.append('fees', subjectForm.fees);
 
             // Append image file if selected (backend will handle Cloudinary upload)
@@ -199,7 +286,20 @@ if (subjectForm.fees) {
                 });
                 setSuccessMessage(`Subject "${subjectForm.name}" updated successfully`);
                 setIsSubjectModalOpen(false);
-                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
+                setSubjectForm({
+                    name: '',
+                    code: '',
+                    domain: 'Testing',
+                    mode: 'Online',
+                    type: 'starter',
+                    description: '',
+                    duration: '',
+                    image: '',
+                    overview: '',
+                    syllabus: '',
+                    prerequisites: '',
+                    fees: ''
+                });
                 await fetchSubjects();
                 // Only fetch packages if subject name changed (might be displayed in package lists)
                 if (editingSubject.name !== subjectForm.name) {
@@ -214,7 +314,20 @@ if (subjectForm.fees) {
                 });
                 setSuccessMessage(`Subject "${subjectForm.name}" created successfully`);
                 setIsSubjectModalOpen(false);
-                setSubjectForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
+                setSubjectForm({
+                    name: '',
+                    code: '',
+                    domain: 'Testing',
+                    mode: 'Online',
+                    type: 'starter',
+                    description: '',
+                    duration: '',
+                    image: '',
+                    overview: '',
+                    syllabus: '',
+                    prerequisites: '',
+                    fees: ''
+                });
                 await fetchSubjects();
             }
         } catch (err) {
@@ -269,10 +382,24 @@ if (subjectForm.fees) {
             setEditingPackage(pkg);
             // Convert Subjects array to subjectIds array
             const subjectIds = pkg.Subjects.map(s => s.id);
-            setPackageForm({ name: pkg.name, code: pkg.code, image: pkg.image || '', overview: pkg.overview || '', syllabus: pkg.syllabus || '', prerequisites: pkg.prerequisites || '', fees: pkg.fees?.toString() || '', subjectIds });
+            setPackageForm({
+                name: pkg.name,
+                code: pkg.code,
+                domain: pkg.domain || 'Testing',
+                mode: pkg.mode || 'Online',
+                type: pkg.type || 'starter',
+                description: pkg.description || '',
+                duration: pkg.duration?.toString() || '',
+                image: pkg.image || '',
+                overview: pkg.overview || '',
+                syllabus: pkg.syllabus || '',
+                prerequisites: pkg.prerequisites || '',
+                fees: pkg.fees?.toString() || '',
+                subjectIds,
+            });
         } else {
             setEditingPackage(null);
-            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
         }
         setSubjectSearchQuery(''); // Reset search when opening modal
         setError(null);
@@ -309,6 +436,11 @@ if (subjectForm.fees) {
             const formData = new FormData();
             formData.append('name', packageForm.name);
             formData.append('code', packageForm.code);
+            formData.append('domain', packageForm.domain || 'Testing');
+            formData.append('mode', packageForm.mode || 'Online');
+            formData.append('type', packageForm.type || 'starter');
+            formData.append('description', packageForm.description || '');
+            formData.append('duration', packageForm.duration || '');
             formData.append('overview', packageForm.overview || '');
             formData.append('syllabus', packageForm.syllabus || '');
             formData.append('prerequisites', packageForm.prerequisites || '');
@@ -339,7 +471,7 @@ if (subjectForm.fees) {
 
             await fetchPackages();
             setIsPackageModalOpen(false);
-            setPackageForm({ name: '', code: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An error occurred';
             
@@ -965,6 +1097,75 @@ if (subjectForm.fees) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Domain
+                                    </label>
+                                    <select
+                                        value={subjectForm.domain}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, domain: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        {domains.map((domainOption) => (
+                                            <option key={domainOption.code} value={domainOption.name}>
+                                                {domainOption.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Mode
+                                    </label>
+                                    <select
+                                        value={subjectForm.mode}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, mode: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        <option value="Online">Online</option>
+                                        <option value="Offline">Offline</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Type
+                                    </label>
+                                    <select
+                                        value={subjectForm.type}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, type: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        <option value="starter">Starter</option>
+                                        <option value="advance">Advance</option>
+                                        <option value="expert">Expert</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Description
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={subjectForm.description}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, description: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., Basic testing concepts"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Duration (hours)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={subjectForm.duration}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, duration: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., 40"
+                                        min="0"
+                                        step="1"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
                                         Overview
                                     </label>
                                     <input
@@ -1160,6 +1361,75 @@ if (subjectForm.fees) {
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., SCI001"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Domain
+                                    </label>
+                                    <select
+                                        value={packageForm.domain}
+                                        onChange={(e) => setPackageForm({ ...packageForm, domain: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        {domains.map((domainOption) => (
+                                            <option key={domainOption.code} value={domainOption.name}>
+                                                {domainOption.name}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Mode
+                                    </label>
+                                    <select
+                                        value={packageForm.mode}
+                                        onChange={(e) => setPackageForm({ ...packageForm, mode: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        <option value="Online">Online</option>
+                                        <option value="Offline">Offline</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Type
+                                    </label>
+                                    <select
+                                        value={packageForm.type}
+                                        onChange={(e) => setPackageForm({ ...packageForm, type: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                    >
+                                        <option value="starter">Starter</option>
+                                        <option value="advance">Advance</option>
+                                        <option value="expert">Expert</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Description
+                                    </label>
+                                    <input
+                                        type="text"
+                                        value={packageForm.description}
+                                        onChange={(e) => setPackageForm({ ...packageForm, description: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., Comprehensive package overview"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Duration (hours)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        value={packageForm.duration}
+                                        onChange={(e) => setPackageForm({ ...packageForm, duration: e.target.value })}
+                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        placeholder="e.g., 120"
+                                        min="0"
+                                        step="1"
                                     />
                                 </div>
                                 <div>

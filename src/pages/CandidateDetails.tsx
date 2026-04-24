@@ -1368,9 +1368,14 @@ export default function CandidateDetails() {
                                         >
                                             {statusOptions.filter(status => status !== enquiry?.candidateStatus).map(status => (
                                                 <option key={status} value={status}>
-                                                    {status === 'enquiry stage' ? 'Enquiry Stage' :
-                                                     status === 'class' ? 'Class List' :
-                                                     status === 'qualified demo' ? 'Qualified Demo' }
+                                                    {status === 'enquiry stage'
+                                                        ? 'Enquiry Stage'
+                                                        : status === 'class'
+                                                        ? 'Class List'
+                                                        : status === 'qualified demo'
+                                                        ? 'Qualified Demo'
+                                                        : status
+                                                    }
                                                 </option>
                                             ))}
                                         </select>
