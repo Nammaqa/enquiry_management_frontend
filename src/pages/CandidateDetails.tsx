@@ -151,7 +151,7 @@ export default function CandidateDetails() {
         const gstRate = 18;
         const gstAmount = baseCost * (gstRate / 100);
         const totalCost = baseCost + gstAmount;
-        const paidAmount = enquiry.billing?.amountPaid || 0;
+        const paidAmount = enquiry.billing ? parseFloat(enquiry.billing.amountPaid) || 0 : 0;
         const balance = totalCost - paidAmount;
 
         return {
