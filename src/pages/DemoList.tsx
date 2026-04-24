@@ -26,7 +26,6 @@ export default function DemoList() {
     const [selectedDate, setSelectedDate] = useState<string>('');
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
-    const [updatingStatusId, setUpdatingStatusId] = useState<number | null>(null);
 
     useEffect(() => {
         fetchAllData();
@@ -194,30 +193,6 @@ export default function DemoList() {
             setLogError('Failed to save log. Please try again.');
         } finally {
             setSavingLog(false);
-        }
-    };
-
-    const handleStatusChange = async (enquiryId: number, newStatus: string) => {
-        setUpdatingStatusId(enquiryId);
-        try {
-            const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
-                method: 'POST',
-                body: {
-                    enquiryId,
-                    newStatus,
-                },
-            });
-
-            if (response?.enquiry) {
-                setEnquiries(prev => prev.map(item =>
-                    item.id === enquiryId ? { ...item, candidateStatus: response.enquiry.candidateStatus } : item
-                ));
-            }
-        } catch (err) {
-            console.error('Failed to update status:', err);
-            alert('Failed to update status. Please try again.');
-        } finally {
-            setUpdatingStatusId(null);
         }
     };
 
@@ -497,23 +472,9 @@ export default function DemoList() {
                                             )}
                                         </td>
                                         <td className="px-3 py-4">
-                                            {isAccounts ? (
-                                                <select
-                                                    value={enquiry.candidateStatus}
-                                                    onChange={(e) => handleStatusChange(enquiry.id, e.target.value)}
-                                                    disabled={updatingStatusId === enquiry.id}
-                                                    onClick={(e) => e.stopPropagation()}
-                                                    className="w-full rounded-full border border-slate-200 bg-white px-2 py-1 text-xs font-medium text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
-                                                >
-                                                    <option value="enquiry stage">Enquiry Stage</option>
-                                                    <option value="demo">Demo</option>
-                                                    <option value="class">Class</option>
-                                                </select>
-                                            ) : (
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-slate-900">
-                                                    {enquiry.candidateStatus}
-                                                </span>
-                                            )}
+                                            <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-slate-900">
+                                                {enquiry.candidateStatus}
+                                            </span>
                                             <div className="text-xs text-slate-500 mt-1.5">Ref: {enquiry.referral || '-'}</div>
                                         </td>
                                         <td className="px-3 py-4">
