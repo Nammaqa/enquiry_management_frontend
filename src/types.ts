@@ -2,7 +2,6 @@ export interface Subject {
     id: number;
     name: string;
     code: string;
-    fees?: number;
 }
 
 export interface Package {
@@ -10,7 +9,6 @@ export interface Package {
     name: string;
     code: string;
     cost?: number;
-    fees?: string;
     Subjects?: Subject[];
 }
 
@@ -47,6 +45,7 @@ export interface Enquiry {
     referral: string;
     consent: boolean;
     candidateStatus: string; // The "Deal Stage"
+    targetedFees?: Record<string, number>;
     demoStatus?: string; // New field requested
     billing?: Billing;
     callLogs?: CallLogEntry[];

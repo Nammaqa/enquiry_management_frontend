@@ -16,7 +16,6 @@ interface Subject {
     overview?: string;
     syllabus?: string;
     prerequisites?: string;
-    fees?: number;
     createdAt?: string;
     updatedAt?: string;
 }
@@ -34,7 +33,6 @@ interface Package {
     overview?: string;
     syllabus?: string;
     prerequisites?: string;
-    fees?: number;
     createdAt?: string;
     updatedAt?: string;
     Subjects: Subject[];
@@ -146,8 +144,8 @@ export default function PackageSubject() {
     const [editingPackage, setEditingPackage] = useState<Package | null>(null);
 
     // Form states
-    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: ''});
-    const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] as number[], });
+    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: ''});
+    const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
     const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
@@ -217,12 +215,11 @@ export default function PackageSubject() {
                 image: subject.image || '',
                 overview: subject.overview || '',
                 syllabus: subject.syllabus || '',
-                prerequisites: subject.prerequisites || '',
-                fees: subject.fees?.toString() || ''
+                prerequisites: subject.prerequisites || ''
             });
         } else {
             setEditingSubject(null);
-            setSubjectForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '' });
+            setSubjectForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '' });
         }
         setError(null);
         setSuccessMessage(null);
@@ -235,10 +232,6 @@ export default function PackageSubject() {
             return;
         }
 
-        if (!subjectForm.fees || subjectForm.fees.trim() === '') {
-            setError('⚠️ Fees is a mandatory field');
-            return;
-        }
 
         if (formLoading) return; // Prevent multiple simultaneous saves
 
@@ -255,7 +248,6 @@ export default function PackageSubject() {
             formData.append('type', subjectForm.type || 'starter');
             formData.append('description', subjectForm.description || '');
             formData.append('duration', subjectForm.duration || '');
-            formData.append('fees', subjectForm.fees);
 
             // Append image file if selected (backend will handle Cloudinary upload)
             const imageInput = document.querySelector('input[type="file"]#subjectImageFile') as HTMLInputElement;
@@ -272,9 +264,6 @@ if (subjectForm.syllabus) {
 }
 if (subjectForm.prerequisites) {
     formData.append('prerequisites', subjectForm.prerequisites);
-}
-if (subjectForm.fees) {
-    formData.append('fees', subjectForm.fees);
 }
 
             if (editingSubject) {
@@ -297,8 +286,7 @@ if (subjectForm.fees) {
                     image: '',
                     overview: '',
                     syllabus: '',
-                    prerequisites: '',
-                    fees: ''
+                    prerequisites: ''
                 });
                 await fetchSubjects();
                 // Only fetch packages if subject name changed (might be displayed in package lists)
@@ -325,8 +313,7 @@ if (subjectForm.fees) {
                     image: '',
                     overview: '',
                     syllabus: '',
-                    prerequisites: '',
-                    fees: ''
+                    prerequisites: ''
                 });
                 await fetchSubjects();
             }
@@ -394,12 +381,11 @@ if (subjectForm.fees) {
                 overview: pkg.overview || '',
                 syllabus: pkg.syllabus || '',
                 prerequisites: pkg.prerequisites || '',
-                fees: pkg.fees?.toString() || '',
                 subjectIds,
             });
         } else {
             setEditingPackage(null);
-            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
         }
         setSubjectSearchQuery(''); // Reset search when opening modal
         setError(null);
@@ -415,11 +401,6 @@ if (subjectForm.fees) {
 
         if (!packageForm.subjectIds || packageForm.subjectIds.length === 0) {
             setError('⚠️ Subjects are mandatory - Please select at least one subject for this package');
-            return;
-        }
-
-        if (!packageForm.fees || packageForm.fees.trim() === '') {
-            setError('⚠️ Fees is a mandatory field');
             return;
         }
 
@@ -444,7 +425,6 @@ if (subjectForm.fees) {
             formData.append('overview', packageForm.overview || '');
             formData.append('syllabus', packageForm.syllabus || '');
             formData.append('prerequisites', packageForm.prerequisites || '');
-            formData.append('fees', packageForm.fees);
             formData.append('subjectIds', JSON.stringify(packageForm.subjectIds || []));
 
             // Only append image if there's a new file
@@ -471,7 +451,7 @@ if (subjectForm.fees) {
 
             await fetchPackages();
             setIsPackageModalOpen(false);
-            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', fees: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
         } catch (err) {
             const errorMessage = err instanceof Error ? err.message : 'An error occurred';
             
@@ -881,7 +861,6 @@ if (subjectForm.fees) {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subject Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subject Code</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Packages</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Fees</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Image</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Overview</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Syllabus</th>
@@ -915,9 +894,6 @@ if (subjectForm.fees) {
                                             <td className="px-4 py-3 text-sm text-slate-600">{subject.code}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate">
                                                 {packages.filter(pkg => pkg.Subjects?.some(s => s.id === subject.id)).map(p => p.name).join(', ') || 'No packages'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">
-                                                ₹{subject.fees || '0'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {subject.image ? (
@@ -961,7 +937,6 @@ if (subjectForm.fees) {
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Package Name</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Package Code</th>
                                     <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Subjects</th>
-                                    <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Fees</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Image</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Overview</th>
                                     <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Syllabus</th>
@@ -992,9 +967,6 @@ if (subjectForm.fees) {
                                             <td className="px-4 py-3 text-sm text-slate-600">{pkg.code}</td>
                                             <td className="px-4 py-3 text-sm text-slate-600 max-w-xs truncate">
                                                 {pkg.Subjects?.map(s => s.name).join(', ') || 'No subjects'}
-                                            </td>
-                                            <td className="px-4 py-3 text-sm font-semibold text-slate-900">
-                                                ₹{pkg.fees || '0'}
                                             </td>
                                             <td className="px-4 py-3">
                                                 {pkg.image ? (
@@ -1203,20 +1175,6 @@ if (subjectForm.fees) {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Fees <span className="text-rose-500">*</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={subjectForm.fees}
-                                        onChange={(e) => setSubjectForm({ ...subjectForm, fees: e.target.value })}
-                                        required
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="e.g., 5000"
-                                        step="0.01"
-                                    />
-                                </div>
                             </div>
 
                             {/* Right Column - Image */}
@@ -1531,20 +1489,6 @@ if (subjectForm.fees) {
                                     />
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Fees <span className="text-rose-500">*</span>
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={packageForm.fees}
-                                        onChange={(e) => setPackageForm({ ...packageForm, fees: e.target.value })}
-                                        required
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
-                                        placeholder="e.g., 10000"
-                                        step="0.01"
-                                    />
-                                </div>
                             </div>
 
                             {/* Right Column - Image */}
