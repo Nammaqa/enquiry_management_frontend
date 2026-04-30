@@ -71,11 +71,15 @@ export default function CandidateDetails() {
         details: true,
         logs: false,
         status: false,
+        fees: false,
         payment: false,
         movement: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
+    const [feesByPackage, setFeesByPackage] = useState<Record<number, string>>({});
+    const [feesBySubject, setFeesBySubject] = useState<Record<number, string>>({});
+    const [newSubjectToAdd, setNewSubjectToAdd] = useState<number | null>(null);
     const [logForm, setLogForm] = useState({ title: '', description: '' });
     const [submittingLog, setSubmittingLog] = useState(false);
     const [logError, setLogError] = useState<string | null>(null);
@@ -115,12 +119,88 @@ export default function CandidateDetails() {
         }
     };
 
+    const getSelectedPackageFee = (packageId: number | null | undefined) => {
+        if (!packageId) return 0;
+        return Number(feesByPackage[packageId] || 0);
+    };
+
+    const getSubjectFee = (subjectId: number) => {
+        return Number(feesBySubject[subjectId] || 0);
+    };
+
     const getPackageName = (packageId: number | null | undefined) => {
         if (packageId === null) return 'Others';
         if (packageId === undefined) return '-';
         const pkg = packages.find(p => p.id === packageId);
         return pkg ? pkg.name : `Package ${packageId}`;
     };
+
+    const buildTargetedFees = (subjectIds: number[]) => {
+        return subjectIds.reduce<Record<string, number>>((acc, subjectId) => {
+            const subjectName = subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`;
+            acc[subjectName] = Number(feesBySubject[subjectId] || 0);
+            return acc;
+        }, {});
+    };
+
+    const savePackageSubjectUpdate = async (packageId: number | null, subjectIds: number[]) => {
+        if (!enquiry) return;
+
+        setUpdateError(null);
+
+        try {
+            const response = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
+                method: 'PUT',
+                body: {
+                    packageId: packageId ?? null,
+                    subjectIds,
+                    targetedFees: buildTargetedFees(subjectIds),
+                },
+            });
+
+            setEnquiry(prev => prev ? ({ ...prev, ...(response || {}), packageId: packageId ?? null, subjectIds }) : prev);
+            setSuccessMessage('Package and subject selection updated successfully');
+        } catch (err) {
+            console.error('Failed to update package/subject selection:', err);
+            if (err instanceof Error) {
+                setUpdateError(err.message || 'Failed to update package and subject selection.');
+            } else {
+                setUpdateError('Failed to update package and subject selection.');
+            }
+        }
+    };
+
+    const handleAddSubject = async () => {
+        if (!newSubjectToAdd) return;
+        if (detailsForm.subjectIds?.includes(newSubjectToAdd)) return;
+
+        const updatedSubjectIds = [...(detailsForm.subjectIds || []), newSubjectToAdd];
+        setDetailsForm(prev => ({
+            ...prev,
+            subjectIds: updatedSubjectIds,
+        }));
+        setFeesBySubject(prev => ({ ...prev, [newSubjectToAdd]: '' }));
+        setNewSubjectToAdd(null);
+
+        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds);
+    };
+
+    const handleRemoveSubject = async (subjectId: number) => {
+        const updatedSubjectIds = (detailsForm.subjectIds || []).filter(id => id !== subjectId);
+        setDetailsForm(prev => ({
+            ...prev,
+            subjectIds: updatedSubjectIds,
+        }));
+        setFeesBySubject(prev => {
+            const next = { ...prev };
+            delete next[subjectId];
+            return next;
+        });
+
+        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds);
+    };
+
+    const availableAdditionalSubjects = subjects.filter(subject => !(detailsForm.subjectIds || []).includes(subject.id));
 
     const getSubjectNames = (subjectIds: number[] | undefined) => {
         if (!subjectIds?.length) return '-';
@@ -132,18 +212,17 @@ export default function CandidateDetails() {
     const getPackageCost = (packageId: number | null): number => {
         if (!packageId) return 0;
         const pkg = packages.find(p => p.id === packageId);
-        return pkg ? (pkg.cost || parseFloat(pkg.fees || '0')) : 0;
+        return pkg ? pkg.cost || 0 : 0;
     };
 
     const calculatePaymentDetails = (enquiry: Enquiry) => {
         let packageCost = 0;
         if (enquiry.packageId) {
-            packageCost = getPackageCost(enquiry.packageId);
+            packageCost = getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId);
         } else {
-            // For "others", sum the fees of selected subjects
+            // For "others", sum the entered fees for selected subjects
             packageCost = enquiry.subjectIds.reduce((sum, subjectId) => {
-                const subject = subjects.find(s => s.id === subjectId);
-                return sum + (subject?.fees || 0);
+                return sum + getSubjectFee(subjectId);
             }, 0);
         }
         const discount = applyDiscount ? discountAmount : 0;
@@ -272,6 +351,24 @@ export default function CandidateDetails() {
             loadPackageSubjectOptions();
         }
     }, [enquiry]);
+
+    useEffect(() => {
+        if (!enquiry?.targetedFees || subjects.length === 0) return;
+
+        const feeLookup = Object.fromEntries(
+            Object.entries(enquiry.targetedFees).map(([name, fee]) => [name.toLowerCase(), fee])
+        );
+
+        const mappedFees = (enquiry.subjectIds || []).reduce<Record<number, string>>((acc, subjectId) => {
+            const subjectName = subjects.find(subject => subject.id === subjectId)?.name;
+            if (!subjectName) return acc;
+            const fee = feeLookup[subjectName.toLowerCase()];
+            if (fee !== undefined) acc[subjectId] = fee.toString();
+            return acc;
+        }, {});
+
+        setFeesBySubject(prev => ({ ...mappedFees, ...prev }));
+    }, [enquiry?.targetedFees, enquiry?.subjectIds, subjects]);
 
     // Validate phone number format (10 digits starting with 9, 8, 7, or 6)
     const validatePhoneNumber = (phone: string): string | null => {
@@ -1204,6 +1301,159 @@ export default function CandidateDetails() {
                             </div>
                         </div>
                     )}
+                    </section>
+                )}
+
+                {isCounsellor && isDemoCandidate && (
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, fees: !prev.fees }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Fees</h2>
+                                <p className="text-sm text-slate-500 mt-1">Enter fees for the selected package and subjects.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.fees ? '-' : '+'}
+                            </span>
+                        </button>
+                        {expandedSections.fees && (
+                            <div className="px-6 pb-6 border-t border-slate-200">
+                                <div className="space-y-4">
+                                    {detailsForm.packageId !== null && detailsForm.packageId !== undefined ? (
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                <div>
+                                                    <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Package</p>
+                                                    <p className="text-sm font-semibold text-slate-900">{getPackageName(detailsForm.packageId)}</p>
+                                                </div>
+                                                <div className="flex-1 min-w-[160px]">
+                                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                    <input
+                                                        type="number"
+                                                        min="0"
+                                                        value={detailsForm.packageId ? feesByPackage[detailsForm.packageId] || '' : ''}
+                                                        onChange={(e) => {
+                                                            const value = e.target.value;
+                                                            if (detailsForm.packageId) {
+                                                                setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: value }));
+                                                            }
+                                                        }}
+                                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        placeholder="Enter package fee"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-600">
+                                            No package selected.
+                                        </div>
+                                    )}
+
+                                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                        <div className="mb-4">
+                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Subjects</p>
+                                            <p className="text-sm font-semibold text-slate-900">Assigned Subjects</p>
+                                        </div>
+                                        <div className="grid gap-3 sm:grid-cols-[1fr_150px] items-end mb-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add Subject</label>
+                                                <select
+                                                    value={newSubjectToAdd ?? ''}
+                                                    onChange={(e) => setNewSubjectToAdd(Number(e.target.value) || null)}
+                                                    className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                >
+                                                    <option value="">Select subject</option>
+                                                    {availableAdditionalSubjects.map(subject => (
+                                                        <option key={subject.id} value={subject.id}>{subject.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <button
+                                                type="button"
+                                                onClick={handleAddSubject}
+                                                disabled={!newSubjectToAdd}
+                                                className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 transition-colors"
+                                            >
+                                                Add Subject
+                                            </button>
+                                        </div>
+                                        {enquiry?.targetedFees && Object.keys(enquiry.targetedFees).length > 0 && (
+                                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 mb-4">
+                                                <p className="text-sm font-semibold text-slate-900 mb-3">Existing targeted fees</p>
+                                                <div className="grid gap-2">
+                                                    {Object.entries(enquiry.targetedFees).map(([name, fee]) => (
+                                                        <div key={name} className="flex justify-between text-sm text-slate-700">
+                                                            <span>{name}</span>
+                                                            <span>₹{fee}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {detailsForm.subjectIds?.length ? (
+                                            <div className="space-y-3">
+                                                {detailsForm.subjectIds.map(subjectId => (
+                                                    <div key={subjectId} className="grid gap-3 sm:grid-cols-[1fr_180px] items-center rounded-3xl border border-slate-200 bg-white p-4">
+                                                        <div className="flex items-center justify-between gap-3">
+                                                            <p className="text-sm font-medium text-slate-800">{subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`}</p>
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => handleRemoveSubject(subjectId)}
+                                                                className="text-rose-600 hover:text-rose-700 text-sm font-medium"
+                                                            >
+                                                                Remove
+                                                            </button>
+                                                        </div>
+                                                        <div>
+                                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                            <input
+                                                                type="number"
+                                                                min="0"
+                                                                value={feesBySubject[subjectId] || ''}
+                                                                onChange={(e) => {
+                                                                    const value = e.target.value;
+                                                                    setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
+                                                                }}
+                                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                placeholder="Enter subject fee"
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <div className="text-sm text-slate-600">No subjects selected.</div>
+                                        )}
+                                    </div>
+
+                                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+                                        <div className="flex justify-between gap-3">
+                                            <span className="font-medium">Total entered fees</span>
+                                            <span className="font-semibold text-slate-900">₹{(
+                                                (detailsForm.packageId ? getSelectedPackageFee(detailsForm.packageId) : 0) +
+                                                (detailsForm.subjectIds || []).reduce((sum, id) => sum + getSubjectFee(id), 0)
+                                            ).toFixed(2)}</span>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => savePackageSubjectUpdate(detailsForm.packageId ?? null, detailsForm.subjectIds || [])}
+                                            className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
+                                        >
+                                            Save subjects
+                                        </button>
+                                        <p className="text-sm text-slate-500">Saving will update the candidate fields and persist selected subjects.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                     </section>
                 )}
 
