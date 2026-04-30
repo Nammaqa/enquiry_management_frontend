@@ -91,18 +91,25 @@ export default function CandidateDetails() {
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
     const isAccounts = role === 'ACCOUNTS';
-    const statusOptions = isCounsellor
-        ? ['enquiry stage', 'demo']
-        : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
     const isDemoCandidate = enquiry?.candidateStatus === 'demo';
     const canMoveCandidate = enquiry?.candidateStatus === 'demo' || enquiry?.candidateStatus === 'qualified demo';
-
+    const statusOptions = isCounsellor
+        ? ['enquiry stage', 'demo']
+        : isAccounts && isDemoCandidate
+        ? ['enquiry stage']
+        : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
 
     useEffect(() => {
         if (isDemoCandidate && isEditingDetails) {
             setIsEditingDetails(false);
         }
     }, [isDemoCandidate, isEditingDetails]);
+
+    useEffect(() => {
+        if (selectedStatus && !statusOptions.includes(selectedStatus)) {
+            setSelectedStatus(statusOptions[0] || '');
+        }
+    }, [statusOptions, selectedStatus]);
 
     const loadPackageSubjectOptions = async () => {
         if (packages.length > 0 && subjects.length > 0) return;
@@ -215,9 +222,16 @@ export default function CandidateDetails() {
         return pkg ? pkg.cost || 0 : 0;
     };
 
+    const getTargetedFeesTotal = (enquiry: Enquiry) => {
+        if (!enquiry.targetedFees) return 0;
+        return Object.values(enquiry.targetedFees).reduce((sum, fee) => sum + Number(fee), 0);
+    };
+
     const calculatePaymentDetails = (enquiry: Enquiry) => {
         let packageCost = 0;
-        if (enquiry.packageId) {
+        if (isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0) {
+            packageCost = getTargetedFeesTotal(enquiry);
+        } else if (enquiry.packageId) {
             packageCost = getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId);
         } else {
             // For "others", sum the entered fees for selected subjects
@@ -1477,15 +1491,34 @@ export default function CandidateDetails() {
                             {expandedSections.payment && (
                                 <div className="px-6 pb-6 border-t border-slate-200">
                                     <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
-                                        {enquiry && calculatePaymentDetails(enquiry).packageCost > 0 ? (
+                                        {enquiry && ((isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0) || calculatePaymentDetails(enquiry).packageCost > 0) ? (
                                             <>
-                                                {/* Package Cost Display */}
-                                                <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                    <span className="text-slate-600">Package Cost:</span>
-                                                    <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).packageCost}</span>
-                                                </div>
+                                                {isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0 ? (
+                                                    <div className="space-y-4">
+                                                        <div className="text-sm font-semibold text-slate-900 pb-3 border-b border-slate-200">Subject fees</div>
+                                                        <div className="space-y-3">
+                                                            {Object.entries(enquiry.targetedFees).map(([name, fee]) => (
+                                                                <div key={name} className="flex justify-between items-center text-sm text-slate-700">
+                                                                    <span>{name}</span>
+                                                                    <span className="font-semibold text-slate-900">₹{fee}</span>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                        <div className="flex justify-between items-center text-sm pt-3 border-t border-slate-200">
+                                                            <span className="text-slate-600">Total Package Cost:</span>
+                                                            <span className="font-semibold text-slate-900">₹{getTargetedFeesTotal(enquiry)}</span>
+                                                        </div>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
+                                                            <span className="text-slate-600">Package Cost:</span>
+                                                            <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).packageCost}</span>
+                                                        </div>
 
-                                                {/* Discount Section */}
+                                                        {/* Discount Section */}
+                                                    </>
+                                                )}
                                                 <div className="space-y-3">
                                                     <div className="flex items-center gap-3">
                                                         <input
