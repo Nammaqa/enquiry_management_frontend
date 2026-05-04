@@ -22,6 +22,7 @@ interface EnquiryFormData {
     candidatePhone: string;
     candidateEmail: string;
     candidateLocation: string;
+    collegeName: string;
     packageId: number | null;
     subjectIds: number[];
     trainingMode: string;
@@ -42,6 +43,7 @@ const INITIAL_FORM_STATE: EnquiryFormData = {
     candidatePhone: '',
     candidateEmail: '',
     candidateLocation: '',
+    collegeName: '',
     packageId: null,
     subjectIds: [],
     trainingMode: '',
@@ -302,6 +304,7 @@ export default function Enquiry() {
                 email: formData.candidateEmail,
                 phone: formData.candidatePhone,
                 current_location: formData.candidateLocation,
+                collegeName: formData.collegeName,
                 packageId: formData.packageId === PACKAGE_ID_OTHERS ? null : formData.packageId,
                 subjectIds: formData.subjectIds,
                 trainingMode: formData.trainingMode,
@@ -457,6 +460,18 @@ export default function Enquiry() {
                                     onChange={e => setFormData({ ...formData, candidateLocation: e.target.value })}
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="City, Area"
+                                />
+                            </div>
+
+                            {/* College Name */}
+                            <div className="relative">
+                                <label className="block text-sm font-medium text-slate-700 mb-2">College Name</label>
+                                <input
+                                    type="text"
+                                    value={formData.collegeName}
+                                    onChange={e => setFormData({ ...formData, collegeName: e.target.value })}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="Enter college name (optional)"
                                 />
                             </div>
                         </div>

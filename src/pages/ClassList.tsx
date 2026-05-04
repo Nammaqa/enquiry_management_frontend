@@ -367,6 +367,9 @@ export default function ClassList() {
                                         <td className="px-3 py-4">
                                             <div className="text-sm font-medium text-slate-900">{formatCandidateName(enquiry.name)}</div>
                                             <div className="text-xs text-slate-600 mt-0.5">{enquiry.current_location}</div>
+                                            {enquiry.collegeName && (
+                                                <div className="text-xs text-slate-500 mt-0.5">{enquiry.collegeName}</div>
+                                            )}
                                             {enquiry.consent && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 mt-1">
                                                     Consent
