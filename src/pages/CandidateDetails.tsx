@@ -43,7 +43,7 @@ export default function CandidateDetails() {
     const getBackPath = () => {
         const params = new URLSearchParams(location.search);
         const fromParam = params.get('from');
-        
+
         if (fromParam === 'demo-list') {
             return '/demo-list';
         }
@@ -87,6 +87,8 @@ export default function CandidateDetails() {
     const [processingPayment, setProcessingPayment] = useState(false);
     const [discountAmount, setDiscountAmount] = useState<number>(0);
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
+    const [billingData, setBillingData] = useState<any>(null);
+    const [loadingBilling, setLoadingBilling] = useState(false);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -96,8 +98,8 @@ export default function CandidateDetails() {
     const statusOptions = isCounsellor
         ? ['enquiry stage', 'demo']
         : isAccounts && isDemoCandidate
-        ? ['enquiry stage']
-        : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+            ? ['enquiry stage']
+            : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
 
     useEffect(() => {
         if (isDemoCandidate && isEditingDetails) {
@@ -240,11 +242,12 @@ export default function CandidateDetails() {
             }, 0);
         }
         const discount = applyDiscount ? discountAmount : 0;
-        const baseCost = packageCost - discount;
+        const discountedAmount = packageCost - discount;
         const gstRate = 18;
-        const gstAmount = baseCost * (gstRate / 100);
-        const totalCost = baseCost + gstAmount;
-        const paidAmount = enquiry.billing ? parseFloat(enquiry.billing.amountPaid) || 0 : 0;
+        const totalCost = discountedAmount;
+        const gstAmount = totalCost - (totalCost / (1 + gstRate / 100));
+        const baseCost = totalCost / (1 + gstRate / 100);
+        const paidAmount = billingData ? parseFloat(billingData.amountPaid) || 0 : (enquiry.billing ? parseFloat(enquiry.billing.amountPaid) || 0 : 0);
         const balance = totalCost - paidAmount;
 
         return {
@@ -275,64 +278,102 @@ export default function CandidateDetails() {
 
         setProcessingPayment(true);
         try {
-            // Create or update billing record
-            const billingData = {
-                enquiryId: enquiry.id,
-                packageCost: paymentDetails.packageCost,
-                discount: paymentDetails.discount,
-                gst: paymentDetails.gstRate,
-                gstAmount: paymentDetails.gstAmount,
-                amountPaid: paymentAmount,
-                balance: paymentDetails.balance,
-            };
+            let billingPayload: object;
 
-            if (enquiry.billing?.id) {
-                // Update existing billing
-                await apiRequest(`/api/billings/${enquiry.billing.id}`, {
+            if (billingData?.id) {
+                // ── UPDATE PATH ──────────────────────────────────────────────
+                // Add new payment to existing amountPaid
+                const previouslyPaid = parseFloat(billingData.amountPaid) || 0;
+
+                console.log('previous paid = ', previouslyPaid)
+                console.log('now paid = ', paymentAmount)
+                const newAmountPaid = previouslyPaid + paymentAmount;
+
+                // Reduce balance by entered amount (use stored balance, not recalculated)
+                const existingBalance = parseFloat(billingData.balance) || 0;
+                const newBalance = Math.max(0, Math.round((existingBalance - paymentAmount) * 100) / 100);
+
+                billingPayload = {
+                    enquiryId: enquiry.id,
+                    packageCost: billingData.packageCost,   // keep original values
+                    discount: billingData.discount,
+                    gst: billingData.gst,
+                    gstAmount: billingData.gstAmount,
+                    amountPaid: newAmountPaid,
+                    balance: newBalance,
+                };
+
+                await apiRequest(`/api/billings/${billingData.id}`, {
                     method: 'PUT',
-                    body: billingData,
+                    body: billingPayload,
                 });
+
             } else {
-                // Create new billing
+                // ── CREATE PATH ──────────────────────────────────────────────
+                // Fresh calculation from paymentDetails
+                const newBalance = Math.max(
+                    0,
+                    Math.round((paymentDetails.totalCost - paymentAmount) * 100) / 100
+                );
+
+                billingPayload = {
+                    enquiryId: enquiry.id,
+                    packageCost: paymentDetails.packageCost,
+                    discount: paymentDetails.discount,
+                    gst: paymentDetails.gstRate,
+                    gstAmount: paymentDetails.gstAmount,
+                    amountPaid: paymentAmount,
+                    balance: newBalance,
+                };
+
                 await apiRequest('/api/billings', {
                     method: 'POST',
-                    body: billingData,
+                    body: billingPayload,
                 });
             }
 
-            // Move candidate to class list
-            try {
-                await apiRequest<Enquiry>(`/api/enquiries/change-status`, {
-                    method: 'POST',
-                    body: {
-                        enquiryId: enquiry.id,
-                        newStatus: 'class',
-                    },
-                });
-            } catch (statusErr) {
-                console.warn('Status change endpoint failed, falling back to direct enquiry update', statusErr);
-                // If change-status is restricted, try direct update instead.
-                await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
-                    method: 'PUT',
-                    body: {
-                        candidateStatus: 'class',
-                    },
-                });
+            // Move to class if currently in demo
+            if (enquiry.candidateStatus === 'demo') {
+                try {
+                    await apiRequest<Enquiry>(`/api/enquiries/change-status`, {
+                        method: 'POST',
+                        body: { enquiryId: enquiry.id, newStatus: 'class' },
+                    });
+                } catch (statusErr) {
+                    console.warn('Status change endpoint failed, falling back', statusErr);
+                    await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
+                        method: 'PUT',
+                        body: { candidateStatus: 'class' },
+                    });
+                }
             }
 
-            // Refresh enquiry data
+            // Refresh enquiry
             const updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, { method: 'GET' });
             setEnquiry(updatedEnquiry);
 
+            // Refresh billing
+            try {
+                const updatedBillingData = await apiRequest<any>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
+                setBillingData(updatedBillingData);
+            } catch (err) {
+                console.error('Failed to refresh billing data:', err);
+            }
+
             setPaymentAmount(0);
-            setSuccessMessage(`Payment of ₹${paymentAmount} processed successfully! Candidate moved to Class List.`);
+            const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
+            const newTotalPaid = previouslyPaid + paymentAmount;
+            const message = enquiry.candidateStatus === 'demo'
+                ? `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}. Candidate moved to Class List.`
+                : `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}.`;
+            setSuccessMessage(message);
+
         } catch (err) {
             console.error('Payment processing failed:', err);
-            if (err instanceof Error) {
-                setUpdateError(err.message || 'Failed to process payment. Please try again.');
-            } else {
-                setUpdateError('Failed to process payment. Please try again.');
-            }
+            setUpdateError(err instanceof Error
+                ? err.message || 'Failed to process payment. Please try again.'
+                : 'Failed to process payment. Please try again.'
+            );
         } finally {
             setProcessingPayment(false);
         }
@@ -350,6 +391,7 @@ export default function CandidateDetails() {
                 email: enquiry.email,
                 phone: cleanedPhone,
                 current_location: enquiry.current_location,
+                collegeName: enquiry.collegeName,
                 profession: enquiry.profession,
                 referral: referralValue,
                 sourceOther: referralValue === 'Other' ? enquiry.referral : '',
@@ -421,6 +463,7 @@ export default function CandidateDetails() {
             email: detailsForm.email,
             phone: detailsForm.phone,
             current_location: detailsForm.current_location,
+            collegeName: detailsForm.collegeName,
             profession: detailsForm.profession,
             referral: detailsForm.referral === 'Other' ? (detailsForm.sourceOther || 'Other') : detailsForm.referral,
             consent: detailsForm.consent,
@@ -545,6 +588,24 @@ export default function CandidateDetails() {
         };
 
         fetchLogs();
+    }, [enquiry]);
+
+    useEffect(() => {
+        const fetchBillingData = async () => {
+            if (!enquiry) return;
+            setLoadingBilling(true);
+            try {
+                const response = await apiRequest<any>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
+                setBillingData(response);
+            } catch (err) {
+                console.error('Failed to fetch billing data:', err);
+                setBillingData(null);
+            } finally {
+                setLoadingBilling(false);
+            }
+        };
+
+        fetchBillingData();
     }, [enquiry]);
 
     const handleStageUpdate = async () => {
@@ -755,11 +816,10 @@ export default function CandidateDetails() {
                                         onChange={handlePhoneChange}
                                         inputMode="numeric"
                                         maxLength={10}
-                                        className={`w-full rounded-3xl border bg-white px-4 py-3 text-sm text-slate-900 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 ${
-                                            detailsForm.phone && validatePhoneNumber(detailsForm.phone)
-                                                ? 'border-rose-500 focus:border-rose-500'
-                                                : 'border-slate-200 focus:border-indigo-500'
-                                        }`}
+                                        className={`w-full rounded-3xl border bg-white px-4 py-3 text-sm text-slate-900 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 ${detailsForm.phone && validatePhoneNumber(detailsForm.phone)
+                                            ? 'border-rose-500 focus:border-rose-500'
+                                            : 'border-slate-200 focus:border-indigo-500'
+                                            }`}
                                         placeholder="Enter 10-digit phone number"
                                     />
                                     {detailsForm.phone && validatePhoneNumber(detailsForm.phone) && (
@@ -774,6 +834,16 @@ export default function CandidateDetails() {
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, current_location: e.target.value }))}
                                         className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
                                     />
+
+                                    <label className="block text-xs font-semibold text-slate-500 uppercase">College Name</label>
+                                    <input
+                                        type="text"
+                                        value={detailsForm.collegeName || ''}
+                                        disabled={!isEditingDetails}
+                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, collegeName: e.target.value }))}
+                                        className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                        placeholder="Enter college name"
+                                    />
                                 </div>
 
                                 {!isEditingDetails && (
@@ -785,6 +855,10 @@ export default function CandidateDetails() {
                                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                             <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Subjects</p>
                                             <p className="text-sm font-semibold text-slate-900">{getSubjectNames(detailsForm.subjectIds)}</p>
+                                        </div>
+                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">College Name</p>
+                                            <p className="text-sm font-semibold text-slate-900">{detailsForm.collegeName || '-'}</p>
                                         </div>
                                     </div>
                                 )}
@@ -1060,6 +1134,7 @@ export default function CandidateDetails() {
                                                     email: enquiry.email,
                                                     phone: enquiry.phone,
                                                     current_location: enquiry.current_location,
+                                                    collegeName: enquiry.collegeName,
                                                     profession: enquiry.profession,
                                                     referral: referralValue,
                                                     sourceOther: referralValue === 'Other' ? enquiry.referral : '',
@@ -1109,155 +1184,155 @@ export default function CandidateDetails() {
                             {expandedSections.logs ? '-' : '+'}
                         </span>
                     </button>
-                {expandedSections.logs && (
-                    <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
-                        {!isDemoCandidate && (
-                            <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
-                                
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
-                                    <input
-                                        type="text"
-                                        value={logForm.title}
-                                        onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
-                                        placeholder="Enter call title"
-                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
-                                        disabled={submittingLog}
-                                    />
-                                </div>
+                    {expandedSections.logs && (
+                        <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
+                            {!isDemoCandidate && (
+                                <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                    <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
 
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
-                                    <textarea
-                                        value={logForm.description}
-                                        onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
-                                        placeholder="Enter call details and notes..."
-                                        rows={4}
-                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
-                                        disabled={submittingLog}
-                                    />
-                                </div>
-
-                                {logError && (
-                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
-                                        <p className="text-xs text-rose-700 font-medium">{logError}</p>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
+                                        <input
+                                            type="text"
+                                            value={logForm.title}
+                                            onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
+                                            placeholder="Enter call title"
+                                            className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            disabled={submittingLog}
+                                        />
                                     </div>
-                                )}
 
-                                <div className="flex justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setLogForm({ title: '', description: '' });
-                                            setLogError(null);
-                                        }}
-                                        disabled={submittingLog}
-                                        className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        Clear
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={submittingLog}
-                                        className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                                    >
-                                        {submittingLog ? 'Saving...' : 'Save Log'}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
-
-                        {(isAccounts || !isDemoCandidate) && (
-                            <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
-                                    <input
-                                        type="text"
-                                        value={logForm.title}
-                                        onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
-                                        placeholder="Enter call title"
-                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
-                                        disabled={submittingLog}
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
-                                    <textarea
-                                        value={logForm.description}
-                                        onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
-                                        placeholder="Enter call details and notes..."
-                                        rows={4}
-                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
-                                        disabled={submittingLog}
-                                    />
-                                </div>
-
-                                {logError && (
-                                    <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
-                                        <p className="text-xs text-rose-700 font-medium">{logError}</p>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
+                                        <textarea
+                                            value={logForm.description}
+                                            onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
+                                            placeholder="Enter call details and notes..."
+                                            rows={4}
+                                            className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
+                                            disabled={submittingLog}
+                                        />
                                     </div>
-                                )}
 
-                                <div className="flex justify-end gap-3">
-                                    <button
-                                        type="button"
-                                        onClick={() => {
-                                            setLogForm({ title: '', description: '' });
-                                            setLogError(null);
-                                        }}
-                                        disabled={submittingLog}
-                                        className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                    >
-                                        Clear
-                                    </button>
-                                    <button
-                                        type="submit"
-                                        disabled={submittingLog}
-                                        className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                                    >
-                                        {submittingLog ? 'Saving...' : 'Save Log'}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                                    {logError && (
+                                        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
+                                            <p className="text-xs text-rose-700 font-medium">{logError}</p>
+                                        </div>
+                                    )}
 
-                        <div>
-                            <h3 className="font-semibold text-slate-900 text-sm mb-4">
-                                Existing Logs
-                                {logs.length > 0 && <span className="text-slate-500 font-normal ml-2">{logs.length} total</span>}
-                            </h3>
-                            {logs.length === 0 ? (
-                                <div className="text-sm text-slate-500 py-4">No call logs available yet.</div>
-                            ) : (
-                                <div className="space-y-4">
-                                    {logs.map(log => {
-                                        const createdDate = log.createdAt ? new Date(log.createdAt) : null;
-                                        const formattedDate = createdDate && !isNaN(createdDate.getTime())
-                                            ? createdDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
-                                            : '-';
-                                        const displayUser = log.user?.name || log.author || 'Unknown user';
-                                        return (
-                                            <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-                                                    <p className="font-semibold text-slate-900">{log.title}</p>
-                                                    <div className="text-xs text-slate-500 text-right">
-                                                        <div>{formattedDate}</div>
-                                                        <div>by {displayUser}</div>
-                                                    </div>
-                                                </div>
-                                                <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
-                                            </div>
-                                        );
-                                    })}
-                                </div>
+                                    <div className="flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLogForm({ title: '', description: '' });
+                                                setLogError(null);
+                                            }}
+                                            disabled={submittingLog}
+                                            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            Clear
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={submittingLog}
+                                            className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                                        >
+                                            {submittingLog ? 'Saving...' : 'Save Log'}
+                                        </button>
+                                    </div>
+                                </form>
                             )}
+
+                            {(isAccounts || !isDemoCandidate) && (
+                                <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                    <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
+                                        <input
+                                            type="text"
+                                            value={logForm.title}
+                                            onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
+                                            placeholder="Enter call title"
+                                            className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
+                                            disabled={submittingLog}
+                                        />
+                                    </div>
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
+                                        <textarea
+                                            value={logForm.description}
+                                            onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
+                                            placeholder="Enter call details and notes..."
+                                            rows={4}
+                                            className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
+                                            disabled={submittingLog}
+                                        />
+                                    </div>
+
+                                    {logError && (
+                                        <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
+                                            <p className="text-xs text-rose-700 font-medium">{logError}</p>
+                                        </div>
+                                    )}
+
+                                    <div className="flex justify-end gap-3">
+                                        <button
+                                            type="button"
+                                            onClick={() => {
+                                                setLogForm({ title: '', description: '' });
+                                                setLogError(null);
+                                            }}
+                                            disabled={submittingLog}
+                                            className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+                                        >
+                                            Clear
+                                        </button>
+                                        <button
+                                            type="submit"
+                                            disabled={submittingLog}
+                                            className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
+                                        >
+                                            {submittingLog ? 'Saving...' : 'Save Log'}
+                                        </button>
+                                    </div>
+                                </form>
+                            )}
+
+                            <div>
+                                <h3 className="font-semibold text-slate-900 text-sm mb-4">
+                                    Existing Logs
+                                    {logs.length > 0 && <span className="text-slate-500 font-normal ml-2">{logs.length} total</span>}
+                                </h3>
+                                {logs.length === 0 ? (
+                                    <div className="text-sm text-slate-500 py-4">No call logs available yet.</div>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {logs.map(log => {
+                                            const createdDate = log.createdAt ? new Date(log.createdAt) : null;
+                                            const formattedDate = createdDate && !isNaN(createdDate.getTime())
+                                                ? createdDate.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' })
+                                                : '-';
+                                            const displayUser = log.user?.name || log.author || 'Unknown user';
+                                            return (
+                                                <div key={log.id} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+                                                        <p className="font-semibold text-slate-900">{log.title}</p>
+                                                        <div className="text-xs text-slate-500 text-right">
+                                                            <div>{formattedDate}</div>
+                                                            <div>by {displayUser}</div>
+                                                        </div>
+                                                    </div>
+                                                    <p className="mt-3 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                )}
-            </section>
+                    )}
+                </section>
 
                 {!isDemoCandidate && (
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -1265,56 +1340,56 @@ export default function CandidateDetails() {
                             type="button"
                             onClick={() => setExpandedSections(prev => ({ ...prev, status: !prev.status }))}
                             className="w-full flex items-center justify-between px-6 py-5 text-left"
-                    >
-                        <div>
-                            <h2 className="text-lg font-semibold text-slate-900">Status</h2>
-                            <p className="text-sm text-slate-500 mt-1">Manage the candidate's stage and demo status.</p>
-                        </div>
-                        <span className="text-2xl font-bold text-slate-400">
-                            {expandedSections.status ? '-' : '+'}
-                        </span>
-                    </button>
-                    {expandedSections.status && (
-                        <div className="px-6 pb-6 border-t border-slate-200">
-                            <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
-                                <div className="grid gap-4">
-                                    <div>
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-[0.16em] mb-2">Select Status</label>
-                                        <select
-                                            value={selectedStatus}
-                                            onChange={(e) => setSelectedStatus(e.target.value)}
-                                            className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
-                                        >
-                                            {statusOptions.map(status => (
-                                                <option key={status} value={status}>
-                                                    {status}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Status</h2>
+                                <p className="text-sm text-slate-500 mt-1">Manage the candidate's stage and demo status.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.status ? '-' : '+'}
+                            </span>
+                        </button>
+                        {expandedSections.status && (
+                            <div className="px-6 pb-6 border-t border-slate-200">
+                                <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
+                                    <div className="grid gap-4">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-[0.16em] mb-2">Select Status</label>
+                                            <select
+                                                value={selectedStatus}
+                                                onChange={(e) => setSelectedStatus(e.target.value)}
+                                                className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
+                                            >
+                                                {statusOptions.map(status => (
+                                                    <option key={status} value={status}>
+                                                        {status}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
 
-                                    <div className="grid gap-2">
-                                        <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
-                                            <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry.candidateStatus || 'Not set'}</p>
+                                        <div className="grid gap-2">
+                                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                                <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
+                                                <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry.candidateStatus || 'Not set'}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </div>
 
-                                {isCounsellor && (
-                                    <div className="flex justify-end">
-                                        <button
-                                            onClick={handleStageUpdate}
-                                            disabled={savingStatus || selectedStatus === enquiry.candidateStatus}
-                                            className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
-                                        >
-                                            {savingStatus ? 'Saving...' : 'Save Status'}
-                                        </button>
-                                    </div>
-                                )}
+                                    {isCounsellor && (
+                                        <div className="flex justify-end">
+                                            <button
+                                                onClick={handleStageUpdate}
+                                                disabled={savingStatus || selectedStatus === enquiry.candidateStatus}
+                                                className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
+                                            >
+                                                {savingStatus ? 'Saving...' : 'Save Status'}
+                                            </button>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    )}
+                        )}
                     </section>
                 )}
 
@@ -1471,7 +1546,7 @@ export default function CandidateDetails() {
                     </section>
                 )}
 
-                {isAccounts && enquiry?.candidateStatus === 'demo' && (
+                {isAccounts && (enquiry?.candidateStatus === 'demo' || enquiry?.candidateStatus === 'class') && (
                     <>
                         {/* Payment Section */}
                         <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -1565,7 +1640,7 @@ export default function CandidateDetails() {
 
                                                     <div className="flex justify-between items-center text-sm pb-2 border-b border-slate-200">
                                                         <span className="text-slate-600">GST (18%):</span>
-                                                        <span className="font-semibold text-red-600">-₹{calculatePaymentDetails(enquiry).gstAmount}</span>
+                                                        <span className="font-semibold text-red-600">₹{calculatePaymentDetails(enquiry).gstAmount}</span>
                                                     </div>
 
                                                     <div className="flex justify-between items-center pt-2 pb-2 border-b border-slate-200">
@@ -1604,11 +1679,11 @@ export default function CandidateDetails() {
                                                             disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance}
                                                             className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
                                                         >
-                                                            {processingPayment ? 'Processing...' : 'Pay & Move to Class'}
+                                                            {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
                                                         </button>
                                                     </div>
                                                     <p className="text-xs text-slate-500">
-                                                        Payment will automatically move the candidate to Class List.
+                                                        {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
                                                     </p>
                                                 </div>
                                             </>
@@ -1654,10 +1729,10 @@ export default function CandidateDetails() {
                                                     {status === 'enquiry stage'
                                                         ? 'Enquiry Stage'
                                                         : status === 'class'
-                                                        ? 'Class List'
-                                                        : status === 'qualified demo'
-                                                        ? 'Qualified Demo'
-                                                        : status
+                                                            ? 'Class List'
+                                                            : status === 'qualified demo'
+                                                                ? 'Qualified Demo'
+                                                                : status
                                                     }
                                                 </option>
                                             ))}

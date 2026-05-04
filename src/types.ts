@@ -34,6 +34,7 @@ export interface Enquiry {
     email: string;
     phone: string;
     current_location: string;
+    collegeName?: string;
     packageId: number | null;
     subjectIds: number[];
     trainingMode: string;

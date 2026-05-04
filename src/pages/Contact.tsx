@@ -552,6 +552,9 @@ export default function Contact() {
                                         <td className="px-3 py-4">
                                             <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{formatCandidateName(enquiry.name)}</div>
                                             <div className="text-xs text-black mt-0.5 wrap-break-word">{enquiry.current_location}</div>
+                                            {enquiry.collegeName && (
+                                                <div className="text-xs text-slate-500 mt-0.5">{enquiry.collegeName}</div>
+                                            )}
                                             {enquiry.consent && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 mt-1">
                                                     Consent
