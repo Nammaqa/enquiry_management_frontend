@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import type { Enquiry, Package, Subject } from '../types';
+import InvoiceModal from '../components/InvoiceModal';
 
 interface LogEntry {
     id: number;
@@ -89,6 +90,7 @@ export default function CandidateDetails() {
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
     const [billingData, setBillingData] = useState<any>(null);
     const [loadingBilling, setLoadingBilling] = useState(false);
+    const [showInvoice, setShowInvoice] = useState(false);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -761,7 +763,25 @@ export default function CandidateDetails() {
         );
     }
 
+    // ── Invoice data (computed before JSX) ──────────────────────────────────
+    const invoiceItems: { name: string; fee: number }[] = enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
+        ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
+        : enquiry.packageId
+            ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
+            : (enquiry.subjectIds || []).map(sid => ({
+                name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
+                fee: getSubjectFee(sid),
+            }));
+
+    const invoiceDate = billingData?.createdAt
+        ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const invoiceNumber = `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
+    // ────────────────────────────────────────────────────────────────────────
+
     return (
+        <>
         <div className="min-h-screen bg-slate-50/50 -m-6 p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
@@ -1807,6 +1827,20 @@ export default function CandidateDetails() {
                                                         {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
                                                     </p>
                                                 </div>
+
+                                                {/* Download Invoice button */}
+                                                {billingData && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowInvoice(true)}
+                                                        className="inline-flex items-center gap-2 rounded-3xl border border-indigo-300 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                        Download Tax Invoice
+                                                    </button>
+                                                )}
                                             </>
                                         ) : (
                                             <div className="text-sm text-slate-600 py-4 text-center">
@@ -1881,5 +1915,23 @@ export default function CandidateDetails() {
                 )}
             </div>
         </div>
+
+        {showInvoice && (
+            <InvoiceModal
+                isOpen={showInvoice}
+                onClose={() => setShowInvoice(false)}
+                candidateName={enquiry.name}
+                candidateEmail={enquiry.email}
+                candidatePhone={enquiry.phone}
+                candidateLocation={enquiry.current_location}
+                invoiceNumber={invoiceNumber}
+                invoiceDate={invoiceDate}
+                items={invoiceItems}
+                discount={parseFloat(billingData?.discount || '0')}
+                amountPaid={parseFloat(billingData?.amountPaid || '0')}
+                balance={parseFloat(billingData?.balance || '0')}
+            />
+        )}
+        </>
     );
 }
