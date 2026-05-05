@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import type { Enquiry, Package, Subject } from '../types';
+import InvoiceModal from '../components/InvoiceModal';
 
 interface LogEntry {
     id: number;
@@ -89,6 +90,7 @@ export default function CandidateDetails() {
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
     const [billingData, setBillingData] = useState<any>(null);
     const [loadingBilling, setLoadingBilling] = useState(false);
+    const [showInvoice, setShowInvoice] = useState(false);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -144,7 +146,13 @@ export default function CandidateDetails() {
         return pkg ? pkg.name : `Package ${packageId}`;
     };
 
-    const buildTargetedFees = (subjectIds: number[]) => {
+    const buildTargetedFees = (packageId: number | null, subjectIds: number[]) => {
+        if (packageId) {
+            // When a package is selected, only store the package fee under the package name
+            const pkgName = packages.find(p => p.id === packageId)?.name || `Package ${packageId}`;
+            return { [pkgName]: Number(feesByPackage[packageId] || 0) };
+        }
+        // No package ("Others") — store individual subject fees
         return subjectIds.reduce<Record<string, number>>((acc, subjectId) => {
             const subjectName = subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`;
             acc[subjectName] = Number(feesBySubject[subjectId] || 0);
@@ -157,18 +165,67 @@ export default function CandidateDetails() {
 
         setUpdateError(null);
 
+        // Compute total fee for billing
+        const totalFee = packageId
+            ? Number(feesByPackage[packageId] || 0)
+            : subjectIds.reduce((sum, id) => sum + Number(feesBySubject[id] || 0), 0);
+
         try {
+            const builtFees = buildTargetedFees(packageId, subjectIds);
+
+            // 1. Save enquiry
             const response = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
                 method: 'PUT',
                 body: {
                     packageId: packageId ?? null,
                     subjectIds,
-                    targetedFees: buildTargetedFees(subjectIds),
+                    targetedFees: builtFees,
                 },
             });
 
             setEnquiry(prev => prev ? ({ ...prev, ...(response || {}), packageId: packageId ?? null, subjectIds }) : prev);
-            setSuccessMessage('Package and subject selection updated successfully');
+
+            // 2. Create or update billing record
+            try {
+                if (billingData?.id) {
+                    // Update existing billing — keep amountPaid/balance, just refresh packageCost
+                    const existingPaid = parseFloat(billingData.amountPaid) || 0;
+                    const newBalance = Math.max(0, totalFee - existingPaid);
+                    const updated = await apiRequest<any>(`/api/billings/${billingData.id}`, {
+                        method: 'PUT',
+                        body: {
+                            enquiryId: enquiry.id,
+                            packageCost: totalFee,
+                            discount: billingData.discount ?? 0,
+                            gst: billingData.gst ?? 0,
+                            gstAmount: billingData.gstAmount ?? 0,
+                            amountPaid: existingPaid,
+                            balance: newBalance,
+                        },
+                    });
+                    setBillingData(updated);
+                } else {
+                    // Create new billing record
+                    const created = await apiRequest<any>('/api/billings', {
+                        method: 'POST',
+                        body: {
+                            enquiryId: enquiry.id,
+                            packageCost: totalFee,
+                            discount: 0,
+                            gst: 0,
+                            gstAmount: 0,
+                            amountPaid: 0,
+                            balance: totalFee,
+                        },
+                    });
+                    setBillingData(created);
+                }
+            } catch (billingErr) {
+                console.error('Billing save failed:', billingErr);
+                // Don't block the main success — fee data is saved on the enquiry
+            }
+
+            setSuccessMessage('Fees saved successfully');
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
@@ -354,7 +411,7 @@ export default function CandidateDetails() {
 
             // Refresh billing
             try {
-                const updatedBillingData = await apiRequest<any>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
+                const updatedBillingData = await apiRequest<any>(`/api/billings/${enquiry.id}`, { method: 'GET' });
                 setBillingData(updatedBillingData);
             } catch (err) {
                 console.error('Failed to refresh billing data:', err);
@@ -706,7 +763,25 @@ export default function CandidateDetails() {
         );
     }
 
+    // ── Invoice data (computed before JSX) ──────────────────────────────────
+    const invoiceItems: { name: string; fee: number }[] = enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
+        ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
+        : enquiry.packageId
+            ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
+            : (enquiry.subjectIds || []).map(sid => ({
+                name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
+                fee: getSubjectFee(sid),
+            }));
+
+    const invoiceDate = billingData?.createdAt
+        ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+    const invoiceNumber = `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
+    // ────────────────────────────────────────────────────────────────────────
+
     return (
+        <>
         <div className="min-h-screen bg-slate-50/50 -m-6 p-6">
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                 <div className="flex items-center gap-4">
@@ -1442,11 +1517,16 @@ export default function CandidateDetails() {
                                         </div>
                                     )}
 
+                                    {/* Subject section — shown for all cases */}
                                     <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                         <div className="mb-4">
-                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Subjects</p>
-                                            <p className="text-sm font-semibold text-slate-900">Assigned Subjects</p>
+                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Additional Subjects</p>
+                                            <p className="text-sm font-semibold text-slate-900">
+                                                {detailsForm.packageId ? 'Add extra subjects on top of the package' : 'Assigned Subjects'}
+                                            </p>
                                         </div>
+
+                                        {/* Add subject row — always visible */}
                                         <div className="grid gap-3 sm:grid-cols-[1fr_150px] items-end mb-4">
                                             <div>
                                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add Subject</label>
@@ -1470,64 +1550,100 @@ export default function CandidateDetails() {
                                                 Add Subject
                                             </button>
                                         </div>
-                                        {enquiry?.targetedFees && Object.keys(enquiry.targetedFees).length > 0 && (
-                                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 mb-4">
-                                                <p className="text-sm font-semibold text-slate-900 mb-3">Existing targeted fees</p>
-                                                <div className="grid gap-2">
-                                                    {Object.entries(enquiry.targetedFees).map(([name, fee]) => (
-                                                        <div key={name} className="flex justify-between text-sm text-slate-700">
-                                                            <span>{name}</span>
-                                                            <span>₹{fee}</span>
+
+                                        {/* Existing targeted fees — when package present, show only the package fee entry */}
+                                        {enquiry?.targetedFees && Object.keys(enquiry.targetedFees).length > 0 && (() => {
+                                            const pkgName = detailsForm.packageId
+                                                ? packages.find(p => p.id === detailsForm.packageId)?.name
+                                                : null;
+                                            const entriesToShow = detailsForm.packageId
+                                                ? Object.entries(enquiry.targetedFees).filter(([name]) =>
+                                                    pkgName ? name === pkgName : true
+                                                )
+                                                : Object.entries(enquiry.targetedFees);
+                                            if (entriesToShow.length === 0) return null;
+                                            return (
+                                                <div className="rounded-3xl border border-slate-200 bg-white p-4 mb-4">
+                                                    <p className="text-sm font-semibold text-slate-900 mb-3">Existing targeted fees</p>
+                                                    <div className="grid gap-2">
+                                                        {entriesToShow.map(([name, fee]) => (
+                                                            <div key={name} className="flex justify-between text-sm text-slate-700">
+                                                                <span>{name}</span>
+                                                                <span>₹{fee}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })()}
+
+                                        {/* Subject fee rows — when package present, only show subjects NOT in the package */}
+                                        {(() => {
+                                            const packageSubjectIds: number[] = detailsForm.packageId
+                                                ? (() => {
+                                                    const pkg = packages.find(p => p.id === detailsForm.packageId);
+                                                    const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
+                                                    return (pkgSubjects as { id: number }[]).map(s => s.id);
+                                                })()
+                                                : [];
+                                            const extraSubjectIds = (detailsForm.subjectIds || []).filter(
+                                                id => !packageSubjectIds.includes(id)
+                                            );
+                                            if (!extraSubjectIds.length) {
+                                                return (
+                                                    <div className="text-sm text-slate-600">
+                                                        {detailsForm.packageId
+                                                            ? 'No extra subjects added yet.'
+                                                            : 'No subjects selected.'}
+                                                    </div>
+                                                );
+                                            }
+                                            return (
+                                                <div className="space-y-3">
+                                                    {extraSubjectIds.map(subjectId => (
+                                                        <div key={subjectId} className="grid gap-3 sm:grid-cols-[1fr_180px] items-center rounded-3xl border border-slate-200 bg-white p-4">
+                                                            <div className="flex items-center justify-between gap-3">
+                                                                <p className="text-sm font-medium text-slate-800">{subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`}</p>
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => handleRemoveSubject(subjectId)}
+                                                                    className="text-rose-600 hover:text-rose-700 text-sm font-medium"
+                                                                >
+                                                                    Remove
+                                                                </button>
+                                                            </div>
+                                                            <div>
+                                                                <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                                <input
+                                                                    type="number"
+                                                                    min="0"
+                                                                    value={feesBySubject[subjectId] || ''}
+                                                                    onChange={(e) => {
+                                                                        const value = e.target.value;
+                                                                        setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
+                                                                    }}
+                                                                    className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    placeholder="Enter subject fee"
+                                                                />
+                                                            </div>
                                                         </div>
                                                     ))}
                                                 </div>
-                                            </div>
-                                        )}
-
-                                        {detailsForm.subjectIds?.length ? (
-                                            <div className="space-y-3">
-                                                {detailsForm.subjectIds.map(subjectId => (
-                                                    <div key={subjectId} className="grid gap-3 sm:grid-cols-[1fr_180px] items-center rounded-3xl border border-slate-200 bg-white p-4">
-                                                        <div className="flex items-center justify-between gap-3">
-                                                            <p className="text-sm font-medium text-slate-800">{subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`}</p>
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => handleRemoveSubject(subjectId)}
-                                                                className="text-rose-600 hover:text-rose-700 text-sm font-medium"
-                                                            >
-                                                                Remove
-                                                            </button>
-                                                        </div>
-                                                        <div>
-                                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
-                                                            <input
-                                                                type="number"
-                                                                min="0"
-                                                                value={feesBySubject[subjectId] || ''}
-                                                                onChange={(e) => {
-                                                                    const value = e.target.value;
-                                                                    setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
-                                                                }}
-                                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                placeholder="Enter subject fee"
-                                                            />
-                                                        </div>
-                                                    </div>
-                                                ))}
-                                            </div>
-                                        ) : (
-                                            <div className="text-sm text-slate-600">No subjects selected.</div>
-                                        )}
+                                            );
+                                        })()}
                                     </div>
 
-                                    <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
-                                        <div className="flex justify-between gap-3">
-                                            <span className="font-medium">Total entered fees</span>
-                                            <span className="font-semibold text-slate-900">₹{(
-                                                (detailsForm.packageId ? getSelectedPackageFee(detailsForm.packageId) : 0) +
-                                                (detailsForm.subjectIds || []).reduce((sum, id) => sum + getSubjectFee(id), 0)
+                                    {/* Total — when package present, only count the package fee */}
+                                    <div className="rounded-3xl border border-indigo-100 bg-indigo-50 p-4 text-sm text-slate-700">
+                                        <div className="flex justify-between gap-3 mb-1">
+                                            <span className="font-medium text-slate-700">Total entered fees</span>
+                                            <span className="font-bold text-indigo-700 text-base">₹{(
+                                                detailsForm.packageId
+                                                    ? getSelectedPackageFee(detailsForm.packageId)
+                                                    : (detailsForm.subjectIds || []).reduce((sum, id) => sum + getSubjectFee(id), 0)
                                             ).toFixed(2)}</span>
                                         </div>
+                                        <p className="text-xs text-slate-500">This is the total that will be saved as the billing package cost.</p>
                                     </div>
 
                                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -1536,10 +1652,35 @@ export default function CandidateDetails() {
                                             onClick={() => savePackageSubjectUpdate(detailsForm.packageId ?? null, detailsForm.subjectIds || [])}
                                             className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                                         >
-                                            Save subjects
+                                            Save fees
                                         </button>
-                                        <p className="text-sm text-slate-500">Saving will update the candidate fields and persist selected subjects.</p>
+                                        <p className="text-sm text-slate-500">Saves fee config and creates a billing record.</p>
                                     </div>
+
+                                    {/* Saved billing summary */}
+                                    {billingData && (
+                                        <div className="rounded-3xl border border-green-200 bg-green-50 p-4 space-y-2">
+                                            <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2">Saved Billing Summary</p>
+                                            <div className="flex justify-between text-sm text-slate-700">
+                                                <span>Package Cost</span>
+                                                <span className="font-semibold">₹{parseFloat(billingData.packageCost || 0).toFixed(2)}</span>
+                                            </div>
+                                            {parseFloat(billingData.discount || 0) > 0 && (
+                                                <div className="flex justify-between text-sm text-slate-700">
+                                                    <span>Discount</span>
+                                                    <span className="font-semibold text-rose-600">- ₹{parseFloat(billingData.discount).toFixed(2)}</span>
+                                                </div>
+                                            )}
+                                            <div className="flex justify-between text-sm text-slate-700">
+                                                <span>Amount Paid</span>
+                                                <span className="font-semibold text-green-700">₹{parseFloat(billingData.amountPaid || 0).toFixed(2)}</span>
+                                            </div>
+                                            <div className="flex justify-between text-sm border-t border-green-200 pt-2">
+                                                <span className="font-medium text-slate-700">Balance Due</span>
+                                                <span className="font-bold text-slate-900">₹{parseFloat(billingData.balance || 0).toFixed(2)}</span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -1686,6 +1827,20 @@ export default function CandidateDetails() {
                                                         {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
                                                     </p>
                                                 </div>
+
+                                                {/* Download Invoice button */}
+                                                {billingData && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowInvoice(true)}
+                                                        className="inline-flex items-center gap-2 rounded-3xl border border-indigo-300 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
+                                                    >
+                                                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                        </svg>
+                                                        Download Tax Invoice
+                                                    </button>
+                                                )}
                                             </>
                                         ) : (
                                             <div className="text-sm text-slate-600 py-4 text-center">
@@ -1760,5 +1915,23 @@ export default function CandidateDetails() {
                 )}
             </div>
         </div>
+
+        {showInvoice && (
+            <InvoiceModal
+                isOpen={showInvoice}
+                onClose={() => setShowInvoice(false)}
+                candidateName={enquiry.name}
+                candidateEmail={enquiry.email}
+                candidatePhone={enquiry.phone}
+                candidateLocation={enquiry.current_location}
+                invoiceNumber={invoiceNumber}
+                invoiceDate={invoiceDate}
+                items={invoiceItems}
+                discount={parseFloat(billingData?.discount || '0')}
+                amountPaid={parseFloat(billingData?.amountPaid || '0')}
+                balance={parseFloat(billingData?.balance || '0')}
+            />
+        )}
+        </>
     );
 }
