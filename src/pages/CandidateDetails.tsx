@@ -90,6 +90,8 @@ export default function CandidateDetails() {
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
     const [billingData, setBillingData] = useState<any>(null);
     const [showInvoice, setShowInvoice] = useState(false);
+    const [paymentMode, setPaymentMode] = useState<string>('UPI');
+    const [transactionId, setTransactionId] = useState<string>('');
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -357,6 +359,8 @@ export default function CandidateDetails() {
                     gstAmount: billingData.gstAmount,
                     amountPaid: newAmountPaid,
                     balance: newBalance,
+                    paymentMode: paymentMode,
+                    transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -380,6 +384,8 @@ export default function CandidateDetails() {
                     gstAmount: paymentDetails.gstAmount,
                     amountPaid: paymentAmount,
                     balance: newBalance,
+                    paymentMode: paymentMode,
+                    transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                 };
 
                 await apiRequest('/api/billings', {
@@ -1797,31 +1803,69 @@ export default function CandidateDetails() {
                                                 </div>
 
                                                 {/* Payment Input */}
-                                                <div className="pt-4 space-y-3">
-                                                    <label className="block text-sm font-medium text-slate-700">
-                                                        Payment Amount (₹1 - ₹{calculatePaymentDetails(enquiry).balance}):
-                                                    </label>
-                                                    <div className="flex gap-3">
-                                                        <input
-                                                            type="number"
-                                                            min="1"
-                                                            max={calculatePaymentDetails(enquiry).balance}
-                                                            value={paymentAmount || ''}
-                                                            onChange={(e) => setPaymentAmount(Number(e.target.value))}
-                                                            placeholder="Enter payment amount"
-                                                            className="flex-1 px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                                                        />
-                                                        <button
-                                                            onClick={handlePayment}
-                                                            disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance}
-                                                            className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
-                                                        >
-                                                            {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
-                                                        </button>
+                                                <div className="pt-4 space-y-4">
+                                                    <div className="space-y-3">
+                                                        <label className="block text-sm font-medium text-slate-700">
+                                                            Mode of Payment:
+                                                        </label>
+                                                        <div className="flex gap-4">
+                                                            {['UPI', 'CARD', 'CASH'].map((mode) => (
+                                                                <label key={mode} className="flex items-center gap-2 cursor-pointer">
+                                                                    <input
+                                                                        type="radio"
+                                                                        name="paymentMode"
+                                                                        value={mode}
+                                                                        checked={paymentMode === mode}
+                                                                        onChange={(e) => setPaymentMode(e.target.value)}
+                                                                        className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
+                                                                    />
+                                                                    <span className="text-sm text-slate-700">{mode === 'CARD' ? 'Card' : mode === 'CASH' ? 'Cash' : 'UPI'}</span>
+                                                                </label>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                    <p className="text-xs text-slate-500">
-                                                        {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
-                                                    </p>
+
+                                                    {(paymentMode === 'UPI' || paymentMode === 'CARD') && (
+                                                        <div className="space-y-2">
+                                                            <label className="block text-sm font-medium text-slate-700">
+                                                                Transaction ID:
+                                                            </label>
+                                                            <input
+                                                                type="text"
+                                                                value={transactionId}
+                                                                onChange={(e) => setTransactionId(e.target.value)}
+                                                                placeholder={paymentMode === 'UPI' ? "Enter UPI Transaction ID" : "Enter Card Transaction ID"}
+                                                                className="w-full px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            />
+                                                        </div>
+                                                    )}
+
+                                                    <div className="space-y-2">
+                                                        <label className="block text-sm font-medium text-slate-700">
+                                                            Payment Amount (₹1 - ₹{calculatePaymentDetails(enquiry).balance}):
+                                                        </label>
+                                                        <div className="flex gap-3">
+                                                            <input
+                                                                type="number"
+                                                                min="1"
+                                                                max={calculatePaymentDetails(enquiry).balance}
+                                                                value={paymentAmount || ''}
+                                                                onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                                                                placeholder="Enter payment amount"
+                                                                className="flex-1 px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                            />
+                                                            <button
+                                                                onClick={handlePayment}
+                                                                disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim())}
+                                                                className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
+                                                            >
+                                                                {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
+                                                            </button>
+                                                        </div>
+                                                        <p className="text-xs text-slate-500">
+                                                            {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
+                                                        </p>
+                                                    </div>
                                                 </div>
 
                                                 {/* Download Invoice button */}
