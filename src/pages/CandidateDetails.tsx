@@ -89,7 +89,6 @@ export default function CandidateDetails() {
     const [discountAmount, setDiscountAmount] = useState<number>(0);
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
     const [billingData, setBillingData] = useState<any>(null);
-    const [loadingBilling, setLoadingBilling] = useState(false);
     const [showInvoice, setShowInvoice] = useState(false);
 
     const role = localStorage.getItem('userRole');
@@ -650,15 +649,12 @@ export default function CandidateDetails() {
     useEffect(() => {
         const fetchBillingData = async () => {
             if (!enquiry) return;
-            setLoadingBilling(true);
             try {
                 const response = await apiRequest<any>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
                 setBillingData(response);
             } catch (err) {
                 console.error('Failed to fetch billing data:', err);
                 setBillingData(null);
-            } finally {
-                setLoadingBilling(false);
             }
         };
 

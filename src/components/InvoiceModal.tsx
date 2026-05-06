@@ -106,7 +106,6 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
     };
 
     const statusLabel = balance <= 0 ? 'PAID' : 'PARTIALLY PAID';
-    const statusClass = balance <= 0 ? 'paid' : 'partial';
 
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', padding: '32px 16px' }}>
