@@ -1405,7 +1405,7 @@ export default function CandidateDetails() {
                     )}
                 </section>
 
-                {!isDemoCandidate && (
+                {!isDemoCandidate && enquiry?.candidateStatus !== 'class' && enquiry?.candidateStatus !== 'class qualified' && (
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                         <button
                             type="button"
