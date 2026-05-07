@@ -48,6 +48,7 @@ export interface Enquiry {
     candidateStatus: string; // The "Deal Stage"
     targetedFees?: Record<string, number>;
     demoStatus?: string; // New field requested
+    isSentBack?: boolean;
     billing?: Billing;
     callLogs?: CallLogEntry[];
     createdAt: string;
