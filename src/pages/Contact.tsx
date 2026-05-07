@@ -468,11 +468,10 @@ export default function Contact() {
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
-                                    statusFilter === status
+                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${statusFilter === status
                                         ? 'border-indigo-600 text-indigo-600 bg-white'
                                         : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
-                                }`}
+                                    }`}
                             >
                                 {status === 'enquiry stage' ? 'Enquiry List' : status === 'qualified demo' ? 'Qualified Demo' : status === 'class qualified' ? 'Class Qualified' : status}
                             </button>
@@ -502,11 +501,10 @@ export default function Contact() {
                         <button
                             onClick={exportToXLSX}
                             disabled={filteredEnquiries.length === 0}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${
-                                filteredEnquiries.length === 0
+                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${filteredEnquiries.length === 0
                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                     : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-md'
-                            }`}
+                                }`}
                             title={filteredEnquiries.length === 0 ? 'No data to export' : 'Export filtered data as XLSX'}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -524,9 +522,10 @@ export default function Contact() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate <span className="text-rose-500">*</span></th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%] align-top">Contact <span className="text-rose-500">*</span></th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[17%] align-top">Contact <span className="text-rose-500">*</span></th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Training Prefs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Training Prefs</th>
                                 {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Add Logs</th>}
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Profession</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Date</th>
@@ -535,7 +534,7 @@ export default function Contact() {
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={8 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={9 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -566,6 +565,15 @@ export default function Contact() {
                                                 {enquiry.candidateStatus}
                                             </span>
                                             <div className="text-xs text-slate-400 mt-1.5 break-all">Ref: {enquiry.referral}</div>
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            {enquiry.isSentBack ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                                    true
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">-</span>
+                                            )}
                                         </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 flex items-start gap-1.5 break-all">
@@ -759,8 +767,8 @@ export default function Contact() {
                                                 key={pageNum}
                                                 onClick={() => setCurrentPage(pageNum)}
                                                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
                                                     }`}
                                             >
                                                 {pageNum}
