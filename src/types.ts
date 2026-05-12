@@ -109,3 +109,13 @@ export interface PlacementApplication {
     jobPost: JobPost;
     enquiry: EnquiryBasic;
 }
+
+export interface BillingPaymentHistory {
+    id: number;
+    billingId: number;
+    amountPaid: string | number;
+    paymentMode?: string;
+    transaction_id?: string;
+    createdAt: string;
+    updatedAt: string;
+}

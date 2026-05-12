@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import type { Enquiry, Package, Subject } from '../types';
 import InvoiceModal from '../components/InvoiceModal';
+import PaymentHistoryAccordion from '../components/PaymentHistoryAccordion';
 
 interface LogEntry {
     id: number;
@@ -92,6 +93,8 @@ export default function CandidateDetails() {
     const [showInvoice, setShowInvoice] = useState(false);
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
+    const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
+    const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -266,13 +269,13 @@ export default function CandidateDetails() {
                 // Don't block the main success — fee data is saved on the enquiry
             }
 
-            setSuccessMessage('Fees saved successfully');
+            setModalMessage({ type: 'success', message: 'Fees saved successfully' });
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
-                setUpdateError(err.message || 'Failed to update package and subject selection.');
+                setModalMessage({ type: 'error', message: err.message || 'Failed to update package and subject selection.' });
             } else {
-                setUpdateError('Failed to update package and subject selection.');
+                setModalMessage({ type: 'error', message: 'Failed to update package and subject selection.' });
             }
         }
     };
@@ -468,14 +471,19 @@ export default function CandidateDetails() {
             const message = enquiry.candidateStatus === 'demo'
                 ? `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}. Candidate moved to Class List.`
                 : `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}.`;
-            setSuccessMessage(message);
+            setModalMessage({ type: 'success', message });
+            
+            // Trigger payment history refresh
+            setPaymentHistoryRefreshTrigger(prev => prev + 1);
 
         } catch (err) {
             console.error('Payment processing failed:', err);
-            setUpdateError(err instanceof Error
-                ? err.message || 'Failed to process payment. Please try again.'
-                : 'Failed to process payment. Please try again.'
-            );
+            setModalMessage({
+                type: 'error',
+                message: err instanceof Error
+                    ? err.message || 'Failed to process payment. Please try again.'
+                    : 'Failed to process payment. Please try again.'
+            });
         } finally {
             setProcessingPayment(false);
         }
@@ -587,7 +595,7 @@ export default function CandidateDetails() {
             setEnquiry({ ...enquiry, ...payload, ...(response || {}) });
             setIsEditingDetails(false);
             setUpdateError(null); // Clear any errors on success
-            setSuccessMessage('Candidate details updated successfully');
+            setModalMessage({ type: 'success', message: 'Candidate details updated successfully' });
         } catch (err) {
             console.error('Failed to update candidate details:', err);
 
@@ -727,9 +735,9 @@ export default function CandidateDetails() {
                 setEnquiry(response.enquiry);
                 setSelectedStatus(response.enquiry.candidateStatus || selectedStatus);
                 if (response.enquiry.candidateStatus === 'demo' && isCounsellor) {
-                    setSuccessMessage('Moved to demo successfully');
+                    setModalMessage({ type: 'success', message: 'Moved to demo successfully' });
                 } else {
-                    setSuccessMessage('Status updated successfully');
+                    setModalMessage({ type: 'success', message: 'Status updated successfully' });
                 }
             }
         } catch (err) {
@@ -770,7 +778,7 @@ export default function CandidateDetails() {
             if (response?.log) {
                 setLogs(prev => [response.log, ...prev]);
                 setLogForm({ title: '', description: '' });
-                setSuccessMessage('Call log added successfully');
+                setModalMessage({ type: 'success', message: 'Call log added successfully' });
             }
         } catch (err) {
             console.error('Failed to add log:', err);
@@ -842,7 +850,7 @@ export default function CandidateDetails() {
                 setEnquiry(prev => prev ? { ...prev, isSentBack: true, candidateStatus: 'enquiry stage' } : prev);
                 setSelectedStatus('enquiry stage');
             }
-            setSuccessMessage('Candidate sent back to counsellor successfully');
+            setModalMessage({ type: 'success', message: 'Candidate sent back to counsellor successfully' });
         } catch (err) {
             console.error('Failed to send back candidate:', err);
             setError('Failed to send back candidate. Please try again.');
@@ -889,20 +897,6 @@ export default function CandidateDetails() {
                         </div>
                     </div>
                 </div>
-
-                {successMessage && (
-                    <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                        <div className="flex items-center justify-between gap-3">
-                            <span>{successMessage}</span>
-                            <button
-                                onClick={() => setSuccessMessage(null)}
-                                className="text-green-700 font-semibold hover:text-green-900"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 <div className="space-y-4">
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -2031,6 +2025,16 @@ export default function CandidateDetails() {
                         </>
                     )}
 
+                    {/* Payment History Accordion - Separate Section for ACCOUNTS role */}
+                    {isAccounts && billingData && (
+                        <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                            <PaymentHistoryAccordion 
+                                billingId={billingData.id} 
+                                refreshTrigger={paymentHistoryRefreshTrigger}
+                            />
+                        </section>
+                    )}
+
                     {isAccounts && canMoveCandidate && (
                         <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                             <button
@@ -2108,6 +2112,82 @@ export default function CandidateDetails() {
                     amountPaid={parseFloat(billingData?.amountPaid || '0')}
                     balance={parseFloat(billingData?.balance || '0')}
                 />
+            )}
+
+            {/* Message Modal */}
+            {modalMessage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden ${
+                        modalMessage.type === 'success'
+                            ? 'bg-gradient-to-br from-green-50 to-green-100'
+                            : 'bg-gradient-to-br from-red-50 to-red-100'
+                    }`}>
+                        {/* Header */}
+                        <div className={`px-6 py-4 border-b ${
+                            modalMessage.type === 'success'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-red-200 bg-red-50'
+                        }`}>
+                            <div className="flex items-center gap-3">
+                                {modalMessage.type === 'success' ? (
+                                    <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                                <h2 className={`text-lg font-semibold ${
+                                    modalMessage.type === 'success'
+                                        ? 'text-green-900'
+                                        : 'text-red-900'
+                                }`}>
+                                    {modalMessage.type === 'success' ? 'Success' : 'Error'}
+                                </h2>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 py-6">
+                            <p className={`text-sm leading-relaxed ${
+                                modalMessage.type === 'success'
+                                    ? 'text-green-800'
+                                    : 'text-red-800'
+                            }`}>
+                                {modalMessage.message}
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className={`px-6 py-4 border-t flex gap-3 justify-end ${
+                            modalMessage.type === 'success'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-red-200 bg-red-50'
+                        }`}>
+                            <button
+                                onClick={() => setModalMessage(null)}
+                                className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                                    modalMessage.type === 'success'
+                                        ? 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
+                                        : 'bg-white text-red-700 hover:bg-red-50 border border-red-200'
+                                }`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => setModalMessage(null)}
+                                className={`px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
+                                    modalMessage.type === 'success'
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );
