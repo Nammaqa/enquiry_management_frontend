@@ -59,6 +59,8 @@ export default function CandidateDetails() {
         return '/enquiries';
     };
 
+    const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
+
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
     const [loading, setLoading] = useState(!location.state?.enquiry);
     const [error, setError] = useState<string | null>(null);
@@ -66,7 +68,6 @@ export default function CandidateDetails() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [savingStatus, setSavingStatus] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [packages, setPackages] = useState<Package[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [expandedSections, setExpandedSections] = useState({
@@ -715,6 +716,14 @@ export default function CandidateDetails() {
         fetchBillingData();
     }, [enquiry]);
 
+    const getStatusLabel = (status: string) => {
+        if (status === 'enquiry stage') return 'Enquiry Stage';
+        if (status === 'qualified demo') return 'Demo';
+        if (status === 'class') return 'Class';
+        if (status === 'class qualified') return 'Placement';
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
     const handleStageUpdate = async () => {
         if (!enquiry || selectedStatus === enquiry.candidateStatus) return;
 
@@ -733,12 +742,12 @@ export default function CandidateDetails() {
 
             if (response?.enquiry) {
                 setEnquiry(response.enquiry);
-                setSelectedStatus(response.enquiry.candidateStatus || selectedStatus);
-                if (response.enquiry.candidateStatus === 'demo' && isCounsellor) {
-                    setModalMessage({ type: 'success', message: 'Moved to demo successfully' });
-                } else {
-                    setModalMessage({ type: 'success', message: 'Status updated successfully' });
-                }
+                const newStatus = response.enquiry.candidateStatus || selectedStatus;
+                setSelectedStatus(newStatus);
+                setModalMessage({
+                    type: 'success',
+                    message: `Moved to ${getStatusLabel(newStatus)} successfully`,
+                });
             }
         } catch (err) {
             console.error('Failed to update status:', err);
@@ -830,33 +839,6 @@ export default function CandidateDetails() {
     const invoiceNumber = `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
     // ────────────────────────────────────────────────────────────────────────
 
-    const handleSendBack = async () => {
-        if (!enquiry || !window.confirm('Are you sure you want to send this candidate back to the counsellor?')) return;
-
-        try {
-            const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
-                method: 'POST',
-                body: {
-                    enquiryId: enquiry.id,
-                    newStatus: 'enquiry stage',
-                },
-            });
-
-            if (response?.enquiry) {
-                setEnquiry(response.enquiry);
-                // Also update the selected status in case it's being tracked
-                setSelectedStatus('enquiry stage');
-            } else {
-                setEnquiry(prev => prev ? { ...prev, isSentBack: true, candidateStatus: 'enquiry stage' } : prev);
-                setSelectedStatus('enquiry stage');
-            }
-            setModalMessage({ type: 'success', message: 'Candidate sent back to counsellor successfully' });
-        } catch (err) {
-            console.error('Failed to send back candidate:', err);
-            setError('Failed to send back candidate. Please try again.');
-        }
-    };
-
     return (
         <>
             <div className="min-h-screen bg-slate-50/50 -m-6 p-6">
@@ -875,26 +857,11 @@ export default function CandidateDetails() {
                             <p className="text-sm text-slate-500">{enquiry.email} • {enquiry.phone}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {!isAccounts && enquiry.candidateStatus === 'demo' && !enquiry.isSentBack && (
-                            <button
-                                onClick={handleSendBack}
-                                className="rounded-3xl bg-amber-100 hover:bg-amber-200 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors shadow-sm"
-                            >
-                                Send Back
-                            </button>
-                        )}
-                        {enquiry.isSentBack && (
-                            <div className="rounded-3xl bg-rose-100 px-4 py-2 text-sm text-rose-800 font-semibold shadow-sm">
-                                true
-                            </div>
-                        )}
-                        <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                            Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
-                        </div>
-                        <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                            Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
-                        </div>
+                    <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
+                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                    </div>
+                    <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
+                        Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
                     </div>
                 </div>
 
@@ -919,15 +886,21 @@ export default function CandidateDetails() {
                             <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="text-sm text-slate-500">
-                                        {isDemoCandidate ? 'Read-only details for demo candidates.' : 'Fields marked with * are mandatory and editable.'}
+                                        {isDemoCandidate
+                                            ? 'Read-only details for demo candidates.'
+                                            : isAccounts
+                                                ? 'Accounts role has view-only access.'
+                                                : isClassListOrigin
+                                                    ? 'Editing is disabled when viewing from the Class List.'
+                                                    : 'Fields marked with * are mandatory and editable.'}
                                     </div>
-                                    {!isDemoCandidate && !isEditingDetails && (
+                                    {!isDemoCandidate && !isAccounts && !isEditingDetails && (
                                         <button
                                             type="button"
                                             onClick={() => {
+                                                if (isClassListOrigin) return;
                                                 setIsEditingDetails(true);
                                                 setUpdateError(null); // Clear any previous update errors when starting to edit
-                                                setSuccessMessage(null); // Clear any previous success messages when starting to edit
                                                 loadPackageSubjectOptions();
                                             }}
                                             className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
@@ -1277,7 +1250,6 @@ export default function CandidateDetails() {
                                             onClick={() => {
                                                 setIsEditingDetails(false);
                                                 setUpdateError(null); // Clear any update errors when canceling
-                                                setSuccessMessage(null); // Clear any success messages when canceling
                                                 if (enquiry) {
                                                     const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
                                                     setDetailsForm({
@@ -2027,12 +1999,10 @@ export default function CandidateDetails() {
 
                     {/* Payment History Accordion - Separate Section for ACCOUNTS role */}
                     {isAccounts && billingData && (
-                        <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
-                            <PaymentHistoryAccordion 
-                                billingId={billingData.id} 
-                                refreshTrigger={paymentHistoryRefreshTrigger}
-                            />
-                        </section>
+                        <PaymentHistoryAccordion 
+                            billingId={billingData.id} 
+                            refreshTrigger={paymentHistoryRefreshTrigger}
+                        />
                     )}
 
                     {isAccounts && canMoveCandidate && (

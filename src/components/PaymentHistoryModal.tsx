@@ -45,8 +45,11 @@ export default function PaymentHistoryModal({
 
     if (!isOpen) return null;
 
+    const parsePaidAmount = (amount: string | number) =>
+        typeof amount === 'number' ? amount : parseFloat(amount || '0');
+
     const totalPaid = paymentHistory.reduce((sum, payment) => {
-        return sum + parseFloat(payment.amountPaid);
+        return sum + parsePaidAmount(payment.amountPaid);
     }, 0);
 
     return (
@@ -162,7 +165,7 @@ export default function PaymentHistoryModal({
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
-                                                        ₹{parseFloat(payment.amountPaid).toFixed(2)}
+                                                        ₹{parsePaidAmount(payment.amountPaid).toFixed(2)}
                                                     </span>
                                                 </td>
                                                 <td className="px-4 py-3">

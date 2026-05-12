@@ -74,38 +74,29 @@ export default function PaymentHistoryAccordion({
     };
 
     return (
-        <div className="border border-slate-200 rounded-lg overflow-hidden">
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
             {/* Accordion Header */}
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full px-6 py-4 bg-gradient-to-r from-slate-50 to-slate-100 hover:from-slate-100 hover:to-slate-150 flex items-center justify-between transition-all"
+                className="w-full flex items-center justify-between px-6 py-5 text-left"
             >
-                <div className="flex items-center gap-3">
-                    <svg
-                        className={`w-5 h-5 text-slate-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                    >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                    <div className="text-left">
-                        <h3 className="text-sm font-semibold text-slate-900">💳 Payment History</h3>
-                        <p className="text-xs text-slate-500 mt-0.5">View all transactions and download invoices</p>
-                    </div>
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Payment History</h3>
+                    <p className="text-sm text-slate-500 mt-1">View all transactions and download invoices</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-3">
                     {!loading && paymentHistory.length > 0 && (
                         <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
                             {paymentHistory.length} payment{paymentHistory.length !== 1 ? 's' : ''}
                         </span>
                     )}
+                    <span className="text-2xl font-bold text-slate-400">{isExpanded ? '-' : '+'}</span>
                 </div>
             </button>
 
             {/* Accordion Content */}
             {isExpanded && (
-                <div className="border-t border-slate-200 px-6 py-4 bg-white">
+                <div className="px-6 pb-6 border-t border-slate-200 bg-white">
                     {loading && paymentHistory.length === 0 ? (
                         <div className="flex items-center justify-center py-8">
                             <div className="text-center">
@@ -128,8 +119,8 @@ export default function PaymentHistoryAccordion({
                     ) : (
                         <div className="space-y-3">
                             {paymentHistory.map((payment, index) => (
-                                <div key={payment.id || index} className="border border-slate-200 rounded-lg p-4 hover:border-indigo-300 hover:bg-indigo-50 transition-all">
-                                    <div className="flex items-start justify-between mb-3">
+                                <div key={payment.id || index} className="rounded-3xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:bg-indigo-50 transition-all">
+                                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-3">
                                         <div className="flex-1">
                                             <div className="flex items-center gap-2 mb-2">
                                                 <span className="text-sm font-semibold text-slate-900">
