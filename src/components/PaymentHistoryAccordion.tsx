@@ -1,0 +1,175 @@
+import { useState, useEffect } from 'react';
+import { apiRequest } from '../utils/api';
+import type { BillingPaymentHistory } from '../types';
+
+interface PaymentHistoryAccordionProps {
+    billingId?: number;
+    onInvoiceView?: (payment: BillingPaymentHistory) => void;
+    refreshTrigger?: number; // Trigger to refresh payment history (e.g., after payment)
+}
+
+export default function PaymentHistoryAccordion({
+    billingId,
+    onInvoiceView,
+    refreshTrigger = 0,
+}: PaymentHistoryAccordionProps) {
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [paymentHistory, setPaymentHistory] = useState<BillingPaymentHistory[]>([]);
+    const [loading, setLoading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    // Auto-fetch when expanded or when refreshTrigger changes
+    useEffect(() => {
+        if (isExpanded || (isExpanded && refreshTrigger > 0)) {
+            fetchPaymentHistory();
+        }
+    }, [isExpanded, refreshTrigger]);
+
+    const fetchPaymentHistory = async () => {
+        if (!billingId) return;
+
+        setLoading(true);
+        setError(null);
+        try {
+            const response = await apiRequest<BillingPaymentHistory[] | { paymentHistory: BillingPaymentHistory[] }>(
+                `/api/billings/${billingId}/payment-history`,
+                { method: 'GET' }
+            );
+            const historyData = Array.isArray(response) ? response : (response as any)?.paymentHistory || [];
+            setPaymentHistory(historyData);
+        } catch (err) {
+            console.error('Error fetching payment history:', err);
+            setError('Failed to load payment history');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const formatDate = (dateString: string) => {
+        return new Date(dateString).toLocaleDateString('en-US', {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+        });
+    };
+
+    const formatCurrency = (amount: string | number) => {
+        const num = typeof amount === 'string' ? parseFloat(amount) : amount;
+        return new Intl.NumberFormat('en-IN', {
+            style: 'currency',
+            currency: 'INR',
+        }).format(num);
+    };
+
+    const downloadInvoice = (payment: BillingPaymentHistory) => {
+        // This can be extended to generate an actual invoice
+        // For now, it can trigger the InvoiceModal through the callback
+        if (onInvoiceView) {
+            onInvoiceView(payment);
+        } else {
+            alert(`Invoice for Transaction ID: ${payment.transaction_id || 'N/A'} - Date: ${formatDate(payment.createdAt)}`);
+        }
+    };
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+            {/* Accordion Header */}
+            <button
+                onClick={() => setIsExpanded(!isExpanded)}
+                className="w-full flex items-center justify-between px-6 py-5 text-left"
+            >
+                <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Payment History</h3>
+                    <p className="text-sm text-slate-500 mt-1">View all transactions and download invoices</p>
+                </div>
+                <div className="flex items-center gap-3">
+                    {!loading && paymentHistory.length > 0 && (
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                            {paymentHistory.length} payment{paymentHistory.length !== 1 ? 's' : ''}
+                        </span>
+                    )}
+                    <span className="text-2xl font-bold text-slate-400">{isExpanded ? '-' : '+'}</span>
+                </div>
+            </button>
+
+            {/* Accordion Content */}
+            {isExpanded && (
+                <div className="px-6 pb-6 border-t border-slate-200 bg-white">
+                    {loading && paymentHistory.length === 0 ? (
+                        <div className="flex items-center justify-center py-8">
+                            <div className="text-center">
+                                <div className="inline-block w-8 h-8 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mb-3"></div>
+                                <p className="text-sm text-slate-500">Loading payment history...</p>
+                            </div>
+                        </div>
+                    ) : error ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-sm text-red-700">
+                            {error}
+                        </div>
+                    ) : paymentHistory.length === 0 ? (
+                        <div className="bg-slate-50 border border-dashed border-slate-300 rounded-lg p-6 text-center">
+                            <svg className="w-12 h-12 text-slate-300 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p className="text-slate-600 font-medium">No payments recorded yet</p>
+                            <p className="text-xs text-slate-500 mt-1">Payment history will appear here once transactions are made</p>
+                        </div>
+                    ) : (
+                        <div className="space-y-3">
+                            {paymentHistory.map((payment, index) => (
+                                <div key={payment.id || index} className="rounded-3xl border border-slate-200 bg-white p-4 hover:border-indigo-300 hover:bg-indigo-50 transition-all">
+                                    <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between mb-3">
+                                        <div className="flex-1">
+                                            <div className="flex items-center gap-2 mb-2">
+                                                <span className="text-sm font-semibold text-slate-900">
+                                                    Amount: {formatCurrency(payment.amountPaid)}
+                                                </span>
+                                                <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                                                    payment.paymentMode === 'UPI'
+                                                        ? 'bg-purple-100 text-purple-700'
+                                                        : payment.paymentMode === 'CARD'
+                                                        ? 'bg-blue-100 text-blue-700'
+                                                        : payment.paymentMode === 'CASH'
+                                                        ? 'bg-green-100 text-green-700'
+                                                        : 'bg-slate-100 text-slate-700'
+                                                }`}>
+                                                    {payment.paymentMode || 'Unknown'}
+                                                </span>
+                                            </div>
+                                            <p className="text-xs text-slate-600">
+                                                📅 {formatDate(payment.createdAt)}
+                                            </p>
+                                        </div>
+                                        <button
+                                            onClick={() => downloadInvoice(payment)}
+                                            title="Download invoice"
+                                            className="px-3 py-2 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg flex items-center gap-1.5 transition-colors"
+                                        >
+                                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                                            </svg>
+                                            Invoice
+                                        </button>
+                                    </div>
+                                    
+                                    {payment.transaction_id && (
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <p className="text-xs text-slate-600">
+                                                <span className="font-medium">Transaction ID:</span>
+                                                <span className="text-slate-900 ml-2 font-mono text-[11px] bg-slate-100 px-2 py-1 rounded">
+                                                    {payment.transaction_id}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+}

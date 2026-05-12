@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate } from 'react-router';
 import { apiRequest } from '../utils/api';
 import type { Enquiry, Package, Subject } from '../types';
 import InvoiceModal from '../components/InvoiceModal';
+import PaymentHistoryAccordion from '../components/PaymentHistoryAccordion';
 
 interface LogEntry {
     id: number;
@@ -58,6 +59,8 @@ export default function CandidateDetails() {
         return '/enquiries';
     };
 
+    const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
+
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
     const [loading, setLoading] = useState(!location.state?.enquiry);
     const [error, setError] = useState<string | null>(null);
@@ -65,7 +68,6 @@ export default function CandidateDetails() {
     const [logs, setLogs] = useState<LogEntry[]>([]);
     const [savingStatus, setSavingStatus] = useState(false);
     const [updateError, setUpdateError] = useState<string | null>(null);
-    const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [packages, setPackages] = useState<Package[]>([]);
     const [subjects, setSubjects] = useState<Subject[]>([]);
     const [expandedSections, setExpandedSections] = useState({
@@ -92,6 +94,8 @@ export default function CandidateDetails() {
     const [showInvoice, setShowInvoice] = useState(false);
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
+    const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
+    const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -266,13 +270,13 @@ export default function CandidateDetails() {
                 // Don't block the main success — fee data is saved on the enquiry
             }
 
-            setSuccessMessage('Fees saved successfully');
+            setModalMessage({ type: 'success', message: 'Fees saved successfully' });
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
-                setUpdateError(err.message || 'Failed to update package and subject selection.');
+                setModalMessage({ type: 'error', message: err.message || 'Failed to update package and subject selection.' });
             } else {
-                setUpdateError('Failed to update package and subject selection.');
+                setModalMessage({ type: 'error', message: 'Failed to update package and subject selection.' });
             }
         }
     };
@@ -468,14 +472,19 @@ export default function CandidateDetails() {
             const message = enquiry.candidateStatus === 'demo'
                 ? `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}. Candidate moved to Class List.`
                 : `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}.`;
-            setSuccessMessage(message);
+            setModalMessage({ type: 'success', message });
+            
+            // Trigger payment history refresh
+            setPaymentHistoryRefreshTrigger(prev => prev + 1);
 
         } catch (err) {
             console.error('Payment processing failed:', err);
-            setUpdateError(err instanceof Error
-                ? err.message || 'Failed to process payment. Please try again.'
-                : 'Failed to process payment. Please try again.'
-            );
+            setModalMessage({
+                type: 'error',
+                message: err instanceof Error
+                    ? err.message || 'Failed to process payment. Please try again.'
+                    : 'Failed to process payment. Please try again.'
+            });
         } finally {
             setProcessingPayment(false);
         }
@@ -587,7 +596,7 @@ export default function CandidateDetails() {
             setEnquiry({ ...enquiry, ...payload, ...(response || {}) });
             setIsEditingDetails(false);
             setUpdateError(null); // Clear any errors on success
-            setSuccessMessage('Candidate details updated successfully');
+            setModalMessage({ type: 'success', message: 'Candidate details updated successfully' });
         } catch (err) {
             console.error('Failed to update candidate details:', err);
 
@@ -707,6 +716,14 @@ export default function CandidateDetails() {
         fetchBillingData();
     }, [enquiry]);
 
+    const getStatusLabel = (status: string) => {
+        if (status === 'enquiry stage') return 'Enquiry Stage';
+        if (status === 'qualified demo') return 'Demo';
+        if (status === 'class') return 'Class';
+        if (status === 'class qualified') return 'Placement';
+        return status.charAt(0).toUpperCase() + status.slice(1);
+    };
+
     const handleStageUpdate = async () => {
         if (!enquiry || selectedStatus === enquiry.candidateStatus) return;
 
@@ -725,12 +742,12 @@ export default function CandidateDetails() {
 
             if (response?.enquiry) {
                 setEnquiry(response.enquiry);
-                setSelectedStatus(response.enquiry.candidateStatus || selectedStatus);
-                if (response.enquiry.candidateStatus === 'demo' && isCounsellor) {
-                    setSuccessMessage('Moved to demo successfully');
-                } else {
-                    setSuccessMessage('Status updated successfully');
-                }
+                const newStatus = response.enquiry.candidateStatus || selectedStatus;
+                setSelectedStatus(newStatus);
+                setModalMessage({
+                    type: 'success',
+                    message: `Moved to ${getStatusLabel(newStatus)} successfully`,
+                });
             }
         } catch (err) {
             console.error('Failed to update status:', err);
@@ -770,7 +787,7 @@ export default function CandidateDetails() {
             if (response?.log) {
                 setLogs(prev => [response.log, ...prev]);
                 setLogForm({ title: '', description: '' });
-                setSuccessMessage('Call log added successfully');
+                setModalMessage({ type: 'success', message: 'Call log added successfully' });
             }
         } catch (err) {
             console.error('Failed to add log:', err);
@@ -822,33 +839,6 @@ export default function CandidateDetails() {
     const invoiceNumber = `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
     // ────────────────────────────────────────────────────────────────────────
 
-    const handleSendBack = async () => {
-        if (!enquiry || !window.confirm('Are you sure you want to send this candidate back to the counsellor?')) return;
-
-        try {
-            const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
-                method: 'POST',
-                body: {
-                    enquiryId: enquiry.id,
-                    newStatus: 'enquiry stage',
-                },
-            });
-
-            if (response?.enquiry) {
-                setEnquiry(response.enquiry);
-                // Also update the selected status in case it's being tracked
-                setSelectedStatus('enquiry stage');
-            } else {
-                setEnquiry(prev => prev ? { ...prev, isSentBack: true, candidateStatus: 'enquiry stage' } : prev);
-                setSelectedStatus('enquiry stage');
-            }
-            setSuccessMessage('Candidate sent back to counsellor successfully');
-        } catch (err) {
-            console.error('Failed to send back candidate:', err);
-            setError('Failed to send back candidate. Please try again.');
-        }
-    };
-
     return (
         <>
             <div className="min-h-screen bg-slate-50/50 -m-6 p-6">
@@ -867,42 +857,13 @@ export default function CandidateDetails() {
                             <p className="text-sm text-slate-500">{enquiry.email} • {enquiry.phone}</p>
                         </div>
                     </div>
-                    <div className="flex items-center gap-3">
-                        {!isAccounts && enquiry.candidateStatus === 'demo' && !enquiry.isSentBack && (
-                            <button
-                                onClick={handleSendBack}
-                                className="rounded-3xl bg-amber-100 hover:bg-amber-200 px-4 py-2 text-sm font-semibold text-amber-800 transition-colors shadow-sm"
-                            >
-                                Send Back
-                            </button>
-                        )}
-                        {enquiry.isSentBack && (
-                            <div className="rounded-3xl bg-rose-100 px-4 py-2 text-sm text-rose-800 font-semibold shadow-sm">
-                                true
-                            </div>
-                        )}
-                        <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                            Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
-                        </div>
-                        <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                            Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
-                        </div>
+                    <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
+                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                    </div>
+                    <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
+                        Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
                     </div>
                 </div>
-
-                {successMessage && (
-                    <div className="mb-4 rounded-3xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">
-                        <div className="flex items-center justify-between gap-3">
-                            <span>{successMessage}</span>
-                            <button
-                                onClick={() => setSuccessMessage(null)}
-                                className="text-green-700 font-semibold hover:text-green-900"
-                            >
-                                Close
-                            </button>
-                        </div>
-                    </div>
-                )}
 
                 <div className="space-y-4">
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -925,15 +886,21 @@ export default function CandidateDetails() {
                             <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
                                 <div className="flex items-center justify-between gap-3">
                                     <div className="text-sm text-slate-500">
-                                        {isDemoCandidate ? 'Read-only details for demo candidates.' : 'Fields marked with * are mandatory and editable.'}
+                                        {isDemoCandidate
+                                            ? 'Read-only details for demo candidates.'
+                                            : isAccounts
+                                                ? 'Accounts role has view-only access.'
+                                                : isClassListOrigin
+                                                    ? 'Editing is disabled when viewing from the Class List.'
+                                                    : 'Fields marked with * are mandatory and editable.'}
                                     </div>
-                                    {!isDemoCandidate && !isEditingDetails && (
+                                    {!isDemoCandidate && !isAccounts && !isEditingDetails && (
                                         <button
                                             type="button"
                                             onClick={() => {
+                                                if (isClassListOrigin) return;
                                                 setIsEditingDetails(true);
                                                 setUpdateError(null); // Clear any previous update errors when starting to edit
-                                                setSuccessMessage(null); // Clear any previous success messages when starting to edit
                                                 loadPackageSubjectOptions();
                                             }}
                                             className="rounded-full border border-slate-300 bg-slate-50 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 transition-colors"
@@ -1283,7 +1250,6 @@ export default function CandidateDetails() {
                                             onClick={() => {
                                                 setIsEditingDetails(false);
                                                 setUpdateError(null); // Clear any update errors when canceling
-                                                setSuccessMessage(null); // Clear any success messages when canceling
                                                 if (enquiry) {
                                                     const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
                                                     setDetailsForm({
@@ -2031,6 +1997,14 @@ export default function CandidateDetails() {
                         </>
                     )}
 
+                    {/* Payment History Accordion - Separate Section for ACCOUNTS role */}
+                    {isAccounts && billingData && (
+                        <PaymentHistoryAccordion 
+                            billingId={billingData.id} 
+                            refreshTrigger={paymentHistoryRefreshTrigger}
+                        />
+                    )}
+
                     {isAccounts && canMoveCandidate && (
                         <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
                             <button
@@ -2108,6 +2082,82 @@ export default function CandidateDetails() {
                     amountPaid={parseFloat(billingData?.amountPaid || '0')}
                     balance={parseFloat(billingData?.balance || '0')}
                 />
+            )}
+
+            {/* Message Modal */}
+            {modalMessage && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className={`w-full max-w-md rounded-2xl shadow-2xl overflow-hidden ${
+                        modalMessage.type === 'success'
+                            ? 'bg-gradient-to-br from-green-50 to-green-100'
+                            : 'bg-gradient-to-br from-red-50 to-red-100'
+                    }`}>
+                        {/* Header */}
+                        <div className={`px-6 py-4 border-b ${
+                            modalMessage.type === 'success'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-red-200 bg-red-50'
+                        }`}>
+                            <div className="flex items-center gap-3">
+                                {modalMessage.type === 'success' ? (
+                                    <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                                    </svg>
+                                ) : (
+                                    <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
+                                        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+                                    </svg>
+                                )}
+                                <h2 className={`text-lg font-semibold ${
+                                    modalMessage.type === 'success'
+                                        ? 'text-green-900'
+                                        : 'text-red-900'
+                                }`}>
+                                    {modalMessage.type === 'success' ? 'Success' : 'Error'}
+                                </h2>
+                            </div>
+                        </div>
+
+                        {/* Content */}
+                        <div className="px-6 py-6">
+                            <p className={`text-sm leading-relaxed ${
+                                modalMessage.type === 'success'
+                                    ? 'text-green-800'
+                                    : 'text-red-800'
+                            }`}>
+                                {modalMessage.message}
+                            </p>
+                        </div>
+
+                        {/* Footer */}
+                        <div className={`px-6 py-4 border-t flex gap-3 justify-end ${
+                            modalMessage.type === 'success'
+                                ? 'border-green-200 bg-green-50'
+                                : 'border-red-200 bg-red-50'
+                        }`}>
+                            <button
+                                onClick={() => setModalMessage(null)}
+                                className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${
+                                    modalMessage.type === 'success'
+                                        ? 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
+                                        : 'bg-white text-red-700 hover:bg-red-50 border border-red-200'
+                                }`}
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={() => setModalMessage(null)}
+                                className={`px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
+                                    modalMessage.type === 'success'
+                                        ? 'bg-green-600 hover:bg-green-700'
+                                        : 'bg-red-600 hover:bg-red-700'
+                                }`}
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     );
