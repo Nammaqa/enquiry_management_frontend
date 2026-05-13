@@ -1309,63 +1309,6 @@ export default function CandidateDetails() {
                         </button>
                         {expandedSections.logs && (
                             <div className="px-6 pb-6 space-y-6 border-t border-slate-200">
-                                {!isDemoCandidate && (
-                                    <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                        <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
-
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Call Title</label>
-                                            <input
-                                                type="text"
-                                                value={logForm.title}
-                                                onChange={(e) => setLogForm(prev => ({ ...prev, title: e.target.value }))}
-                                                placeholder="Enter call title"
-                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all"
-                                                disabled={submittingLog}
-                                            />
-                                        </div>
-
-                                        <div>
-                                            <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add a note about the call</label>
-                                            <textarea
-                                                value={logForm.description}
-                                                onChange={(e) => setLogForm(prev => ({ ...prev, description: e.target.value }))}
-                                                placeholder="Enter call details and notes..."
-                                                rows={4}
-                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none transition-all resize-none"
-                                                disabled={submittingLog}
-                                            />
-                                        </div>
-
-                                        {logError && (
-                                            <div className="rounded-3xl border border-rose-200 bg-rose-50 p-3">
-                                                <p className="text-xs text-rose-700 font-medium">{logError}</p>
-                                            </div>
-                                        )}
-
-                                        <div className="flex justify-end gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => {
-                                                    setLogForm({ title: '', description: '' });
-                                                    setLogError(null);
-                                                }}
-                                                disabled={submittingLog}
-                                                className="rounded-full border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
-                                            >
-                                                Clear
-                                            </button>
-                                            <button
-                                                type="submit"
-                                                disabled={submittingLog}
-                                                className="inline-flex items-center justify-center rounded-full bg-indigo-600 px-5 py-2 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:bg-indigo-400 disabled:cursor-not-allowed"
-                                            >
-                                                {submittingLog ? 'Saving...' : 'Save Log'}
-                                            </button>
-                                        </div>
-                                    </form>
-                                )}
-
                                 {(isAccounts || !isDemoCandidate) && (
                                     <form onSubmit={handleAddLog} className="space-y-4 rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                         <h3 className="font-semibold text-slate-900 text-sm">Add a Call Log</h3>
