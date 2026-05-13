@@ -22,28 +22,6 @@ interface InvoiceModalProps {
     totalAmount?: number;
 }
 
-function numToWords(n: number): string {
-    const ones = ['', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine',
-        'Ten', 'Eleven', 'Twelve', 'Thirteen', 'Fourteen', 'Fifteen', 'Sixteen', 'Seventeen', 'Eighteen', 'Nineteen'];
-    const tens = ['', '', 'Twenty', 'Thirty', 'Forty', 'Fifty', 'Sixty', 'Seventy', 'Eighty', 'Ninety'];
-    if (n === 0) return 'Zero';
-    const chunk = (x: number): string => {
-        let r = '';
-        if (x >= 100) { r += ones[Math.floor(x / 100)] + ' Hundred '; x %= 100; }
-        if (x >= 20) { r += tens[Math.floor(x / 10)] + ' '; x %= 10; }
-        if (x > 0) r += ones[x] + ' ';
-        return r;
-    };
-    let r = '';
-    const cr = Math.floor(n / 10000000); n %= 10000000;
-    const lk = Math.floor(n / 100000); n %= 100000;
-    const th = Math.floor(n / 1000); n %= 1000;
-    if (cr) r += chunk(cr) + 'Crore ';
-    if (lk) r += chunk(lk) + 'Lakh ';
-    if (th) r += chunk(th) + 'Thousand ';
-    if (n) r += chunk(n);
-    return r.trim() + ' Only';
-}
 
 export default function InvoiceModal({
     isOpen, onClose,
