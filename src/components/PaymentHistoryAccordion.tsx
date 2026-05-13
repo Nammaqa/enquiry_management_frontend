@@ -164,6 +164,23 @@ export default function PaymentHistoryAccordion({
                                             </p>
                                         </div>
                                     )}
+
+                                    {(payment.balanceAtTime !== undefined || payment.balanceAfterPayment !== undefined || payment.totalPaidSoFar !== undefined) && (
+                                        <div className="mt-3 grid gap-2 sm:grid-cols-3 text-xs text-slate-600 border-t border-slate-200 pt-3">
+                                            <div>
+                                                <div className="font-medium text-slate-900">Balance before</div>
+                                                <div>{formatCurrency(payment.balanceAtTime ?? 0)}</div>
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-slate-900">Balance after</div>
+                                                <div>{formatCurrency(payment.balanceAfterPayment ?? 0)}</div>
+                                            </div>
+                                            <div>
+                                                <div className="font-medium text-slate-900">Total paid so far</div>
+                                                <div>{formatCurrency(payment.totalPaidSoFar ?? 0)}</div>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

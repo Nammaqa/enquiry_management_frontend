@@ -127,6 +127,15 @@ export default function PaymentHistoryModal({
                                                 Amount
                                             </th>
                                             <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Balance Before
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Balance After
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Total Paid So Far
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
                                                 Payment Mode
                                             </th>
                                             <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
@@ -167,6 +176,33 @@ export default function PaymentHistoryModal({
                                                     <span className="inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-800 text-sm font-semibold">
                                                         ₹{parsePaidAmount(payment.amountPaid).toFixed(2)}
                                                     </span>
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.balanceAtTime !== undefined ? (
+                                                        <span className="text-sm text-slate-900">
+                                                            ₹{parsePaidAmount(payment.balanceAtTime).toFixed(2)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.balanceAfterPayment !== undefined ? (
+                                                        <span className="text-sm text-slate-900">
+                                                            ₹{parsePaidAmount(payment.balanceAfterPayment).toFixed(2)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.totalPaidSoFar !== undefined ? (
+                                                        <span className="text-sm text-slate-900">
+                                                            ₹{parsePaidAmount(payment.totalPaidSoFar).toFixed(2)}
+                                                        </span>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3">
                                                     {payment.paymentMode ? (
