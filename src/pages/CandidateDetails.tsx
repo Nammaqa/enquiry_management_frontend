@@ -852,12 +852,14 @@ export default function CandidateDetails() {
         ? `TXN-${String(selectedPaymentForInvoice.id).padStart(6, '0')}`
         : `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
 
-    // For payment history, the total is the paid amount (already includes tax)
+    // For payment history, use the running totals returned by the API
     const currentInvoiceAmount = selectedPaymentForInvoice
-        ? Number(selectedPaymentForInvoice.amountPaid)
+        ? Number(selectedPaymentForInvoice.totalPaidSoFar ?? selectedPaymentForInvoice.amountPaid)
         : parseFloat(billingData?.amountPaid || '0');
 
-    const currentInvoiceBalance = parseFloat(billingData?.balance || '0');
+    const currentInvoiceBalance = selectedPaymentForInvoice
+        ? Number((selectedPaymentForInvoice.balanceAfterPayment ?? billingData?.balance) || '0')
+        : parseFloat(billingData?.balance || '0');
 
     const currentInvoiceDiscount = parseFloat(billingData?.discount || '0');
 
