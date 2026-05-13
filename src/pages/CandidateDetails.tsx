@@ -92,6 +92,7 @@ export default function CandidateDetails() {
     const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
     const [billingData, setBillingData] = useState<any>(null);
     const [showInvoice, setShowInvoice] = useState(false);
+    const [selectedPaymentForInvoice, setSelectedPaymentForInvoice] = useState<any>(null);
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
@@ -798,6 +799,12 @@ export default function CandidateDetails() {
         }
     };
 
+    const handlePaymentInvoiceView = (payment: any) => {
+        // Store the payment and show invoice modal
+        setSelectedPaymentForInvoice(payment);
+        setShowInvoice(true);
+    };
+
 
 
     if (loading) {
@@ -823,20 +830,40 @@ export default function CandidateDetails() {
     }
 
     // ── Invoice data (computed before JSX) ──────────────────────────────────
-    const invoiceItems: { name: string; fee: number }[] = enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
-        ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
-        : enquiry.packageId
-            ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
-            : (enquiry.subjectIds || []).map(sid => ({
-                name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
-                fee: getSubjectFee(sid),
-            }));
+    // For payment history, create a single line item with the paid amount
+    const invoiceItems: { name: string; fee: number }[] = selectedPaymentForInvoice
+        ? [{ name: 'Training Package Payment', fee: Number(selectedPaymentForInvoice.amountPaid) }]
+        : enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
+            ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
+            : enquiry.packageId
+                ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
+                : (enquiry.subjectIds || []).map(sid => ({
+                    name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
+                    fee: getSubjectFee(sid),
+                }));
 
-    const invoiceDate = billingData?.createdAt
-        ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-        : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    const invoiceDate = selectedPaymentForInvoice?.createdAt
+        ? new Date(selectedPaymentForInvoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+        : billingData?.createdAt
+            ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+            : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    const invoiceNumber = `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
+    const invoiceNumber = selectedPaymentForInvoice?.id
+        ? `TXN-${String(selectedPaymentForInvoice.id).padStart(6, '0')}`
+        : `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
+
+    // For payment history, the total is the paid amount (already includes tax)
+    const currentInvoiceAmount = selectedPaymentForInvoice
+        ? Number(selectedPaymentForInvoice.amountPaid)
+        : parseFloat(billingData?.amountPaid || '0');
+
+    const currentInvoiceBalance = parseFloat(billingData?.balance || '0');
+
+    const currentInvoiceDiscount = parseFloat(billingData?.discount || '0');
+
+    const currentInvoiceTotal = billingData
+        ? parseFloat(billingData.packageCost || '0')
+        : currentInvoiceAmount;
     // ────────────────────────────────────────────────────────────────────────
 
     return (
@@ -1943,7 +1970,8 @@ export default function CandidateDetails() {
                     {/* Payment History Accordion - Separate Section for ACCOUNTS role */}
                     {isAccounts && billingData && (
                         <PaymentHistoryAccordion 
-                            billingId={billingData.id} 
+                            billingId={billingData.id}
+                            onInvoiceView={handlePaymentInvoiceView}
                             refreshTrigger={paymentHistoryRefreshTrigger}
                         />
                     )}
@@ -2013,7 +2041,10 @@ export default function CandidateDetails() {
             {showInvoice && (
                 <InvoiceModal
                     isOpen={showInvoice}
-                    onClose={() => setShowInvoice(false)}
+                    onClose={() => {
+                        setShowInvoice(false);
+                        setSelectedPaymentForInvoice(null);
+                    }}
                     candidateName={enquiry.name}
                     candidateEmail={enquiry.email}
                     candidatePhone={enquiry.phone}
@@ -2021,9 +2052,10 @@ export default function CandidateDetails() {
                     invoiceNumber={invoiceNumber}
                     invoiceDate={invoiceDate}
                     items={invoiceItems}
-                    discount={parseFloat(billingData?.discount || '0')}
-                    amountPaid={parseFloat(billingData?.amountPaid || '0')}
-                    balance={parseFloat(billingData?.balance || '0')}
+                    discount={currentInvoiceDiscount}
+                    amountPaid={currentInvoiceAmount}
+                    balance={currentInvoiceBalance}
+                    totalAmount={currentInvoiceTotal}
                 />
             )}
 
