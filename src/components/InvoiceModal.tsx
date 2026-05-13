@@ -61,21 +61,14 @@ export default function InvoiceModal({
     // Total amount is either passed down or derived from the line item values.
     const subTotal = items.reduce((s, i) => s + i.fee, 0);
     const invoiceTotalAmount = typeof totalAmount === 'number' ? totalAmount : subTotal;
-    const gstRate = 18;
-    const inclusiveGst = isPaymentHistory ? 0 : Math.round(invoiceTotalAmount * (gstRate / (100 + gstRate)) * 100) / 100;
     const totalPackageCost = invoiceTotalAmount;
-    const displayTotalAmount = invoiceTotalAmount;
 
-    let itemsWithTax: Array<InvoiceItem & { cgst: number; sgst: number; amount: number }> = items.map(item => {
-        const itemCgst = isPaymentHistory ? 0 : Math.round(item.fee * (gstRate / (100 + gstRate)) * 100) / 100;
-        const itemSgst = isPaymentHistory ? 0 : itemCgst;
-        return {
-            ...item,
-            cgst: itemCgst,
-            sgst: itemSgst,
-            amount: item.fee,
-        };
-    });
+    let itemsWithTax: Array<InvoiceItem & { cgst: number; sgst: number; amount: number }> = items.map(item => ({
+        ...item,
+        cgst: 0,
+        sgst: 0,
+        amount: item.fee,
+    }));
 
     const handleDownload = () => {
         const html = printRef.current?.innerHTML ?? '';
@@ -248,26 +241,20 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 36 }}>
                     <div style={{ width: 320 }}>
                         {[
-                            { label: 'Total Package Cost', value: `₹${totalPackageCost.toFixed(2)}` },
-                            { label: `Inclusive GST (${gstRate}%)`, value: `₹${inclusiveGst.toFixed(2)}` },
-                            { label: 'Total Amount', value: `₹${displayTotalAmount.toFixed(2)}` },
+                            { label: 'Package Total Amount', value: `₹${totalPackageCost.toFixed(2)}` },
                         ].map(r => (
-                            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12, borderBottom: '1px solid #f1f5f9' }}>
+                            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
                                 <span style={{ color: '#475569' }}>{r.label}</span>
-                                <span style={{ fontWeight: 600, color: (r as any).red ? '#dc2626' : '#1e293b' }}>{r.value}</span>
+                                <span style={{ fontWeight: 700, color: '#1e293b' }}>{r.value}</span>
                             </div>
                         ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 8 }}>
                             <span style={{ fontWeight: 700 }}>Amount Paid</span>
                             <span style={{ fontWeight: 800, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 4 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 6 }}>
                             <span style={{ fontWeight: 700 }}>Balance Amount</span>
                             <span style={{ fontWeight: 800, color: balance > 0 ? '#dc2626' : '#16a34a' }}>₹{balance.toFixed(2)}</span>
-                        </div>
-                        <div style={{ background: '#f8fafc', borderRadius: 6, padding: '8px 10px', fontSize: 11, marginTop: 10, display: 'flex', gap: 6 }}>
-                            <span style={{ fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Amount in Words:</span>
-                            <span style={{ fontStyle: 'italic', color: '#1e293b' }}>Indian Rupee {numToWords(Math.round(amountPaid))}</span>
                         </div>
                     </div>
                 </div>
