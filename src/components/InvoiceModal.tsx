@@ -19,6 +19,7 @@ interface InvoiceModalProps {
     discount: number;
     amountPaid: number;
     balance: number;
+    totalAmount?: number;
 }
 
 function numToWords(n: number): string {
@@ -48,17 +49,33 @@ export default function InvoiceModal({
     isOpen, onClose,
     candidateName, candidateEmail, candidatePhone, candidateLocation,
     invoiceNumber, invoiceDate,
-    items, discount, amountPaid, balance,
+    items, amountPaid, balance, totalAmount,
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
 
     if (!isOpen) return null;
 
+    // Check if this is a payment history invoice (transaction receipt)
+    const isPaymentHistory = invoiceNumber.startsWith('TXN-');
+
+    // Total amount is either passed down or derived from the line item values.
     const subTotal = items.reduce((s, i) => s + i.fee, 0);
-    const discounted = subTotal - discount;
-    const cgst = Math.round(discounted * 9) / 100;
-    const sgst = Math.round(discounted * 9) / 100;
-    const total = Math.round((discounted + cgst + sgst) * 100) / 100;
+    const invoiceTotalAmount = typeof totalAmount === 'number' ? totalAmount : subTotal;
+    const gstRate = 18;
+    const inclusiveGst = isPaymentHistory ? 0 : Math.round(invoiceTotalAmount * (gstRate / (100 + gstRate)) * 100) / 100;
+    const totalPackageCost = invoiceTotalAmount;
+    const displayTotalAmount = invoiceTotalAmount;
+
+    let itemsWithTax: Array<InvoiceItem & { cgst: number; sgst: number; amount: number }> = items.map(item => {
+        const itemCgst = isPaymentHistory ? 0 : Math.round(item.fee * (gstRate / (100 + gstRate)) * 100) / 100;
+        const itemSgst = isPaymentHistory ? 0 : itemCgst;
+        return {
+            ...item,
+            cgst: itemCgst,
+            sgst: itemSgst,
+            amount: item.fee,
+        };
+    });
 
     const handleDownload = () => {
         const html = printRef.current?.innerHTML ?? '';
@@ -67,7 +84,9 @@ export default function InvoiceModal({
         win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invoiceNumber}</title>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-body{font-family:Arial,sans-serif;font-size:12px;color:#1e293b;padding:40px}
+html,body{background:#fff;color:#1e293b;}
+body{font-family:Arial,sans-serif;font-size:12px;padding:24px;}
+.page{background:#fff;width:100%;max-width:900px;margin:0 auto;padding:32px;border-radius:0;box-shadow:none;}
 .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
 .logo-text{font-size:24px;font-weight:900;letter-spacing:-0.5px}
 .logo-qa{color:#f97316}.logo-namma{color:#4f46e5}
@@ -90,6 +109,8 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
 .tot-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #f1f5f9}
 .tot-row.bold{font-weight:700;font-size:13px;border-top:2px solid #1e293b;border-bottom:none;padding-top:8px}
 .words-box{background:#f8fafc;border-radius:6px;padding:10px;font-size:11px;display:flex;gap:6px;margin-top:10px}
+.terms{font-size:10.8px;color:#475569;line-height:1.7;border-top:1px solid #e2e8f0;padding-top:18px;margin-top:18px}
+.terms h3{font-size:12px;font-weight:700;margin-bottom:8px}
 .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0}
 .bank-info p{font-size:11.5px;line-height:1.9;color:#334155}
 .bank-title{font-size:12px;font-weight:700;margin-bottom:8px}
@@ -98,8 +119,9 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
 .sig-label{font-size:10px;color:#64748b;border-top:1px solid #94a3b8;padding-top:4px}
 .status-badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:10px;font-weight:600}
 .paid{background:#dcfce7;color:#15803d}.partial{background:#fef9c3;color:#92400e}
-@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-</style></head><body>${html}</body></html>`);
+@media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}} 
+@page{margin:20mm;}
+</style></head><body><div class="page">${html}</div></body></html>`);
         win.document.close();
         win.focus();
         setTimeout(() => win.print(), 500);
@@ -134,12 +156,13 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                             near Deepa Complex, Papreddy Palya, 2nd Stage,<br />
                             Naagarabhaavi, Bengaluru, Karnataka 560072<br />
                             Phone: 076764 01716<br />
-                            contact@nammaqa.com · www.nammaqa.com
+                            contact@nammaqa.com · www.nammaqa.com<br />
+                            GSTIN: 29ABCDE1234F2Z5
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>TAX INVOICE</div>
-                        <div style={{ fontSize: 12, color: '#64748b' }}>Invoice# <strong style={{ color: '#1e293b' }}>{invoiceNumber}</strong></div>
+                        <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'TAX INVOICE'}</div>
+                        <div style={{ fontSize: 12, color: '#64748b' }}>{isPaymentHistory ? 'Transaction# ' : 'Invoice# '}<strong style={{ color: '#1e293b' }}>{invoiceNumber}</strong></div>
                     </div>
                 </div>
 
@@ -189,27 +212,35 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
-                            {['#', 'Item & Description', 'Qty', 'Rate', 'CGST (9%)', 'SGST (9%)', 'Amount'].map((h, i) => (
-                                <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
-                            ))}
+                            {isPaymentHistory ? (
+                                ['#', 'Item & Description', 'Qty', 'Amount'].map((h, i) => (
+                                    <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
+                                ))
+                            ) : (
+                                ['#', 'Item & Description', 'Qty', 'Rate', 'CGST (9%)', 'SGST (9%)', 'Amount'].map((h, i) => (
+                                    <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
+                                ))
+                            )}
                         </tr>
                     </thead>
                     <tbody>
-                        {items.map((item, idx) => {
-                            const ic = Math.round(item.fee * 9) / 100;
-                            const is_ = Math.round(item.fee * 9) / 100;
-                            return (
-                                <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                    <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{idx + 1}</td>
-                                    <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500 }}>{item.name}</td>
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>1.00</td>
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>₹{item.fee.toFixed(2)}</td>
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{ic.toFixed(2)}</td>
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{is_.toFixed(2)}</td>
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.fee.toFixed(2)}</td>
-                                </tr>
-                            );
-                        })}
+                        {itemsWithTax.map((item, idx) => (
+                            <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
+                                <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{idx + 1}</td>
+                                <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500 }}>{item.name}</td>
+                                <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>1.00</td>
+                                {isPaymentHistory ? (
+                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.amount.toFixed(2)}</td>
+                                ) : (
+                                    <>
+                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>₹{item.fee.toFixed(2)}</td>
+                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{item.cgst.toFixed(2)}</td>
+                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{item.sgst.toFixed(2)}</td>
+                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.amount.toFixed(2)}</td>
+                                    </>
+                                )}
+                            </tr>
+                        ))}
                     </tbody>
                 </table>
 
@@ -217,10 +248,9 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 36 }}>
                     <div style={{ width: 320 }}>
                         {[
-                            { label: 'Sub Total', value: `₹${subTotal.toFixed(2)}` },
-                            ...(discount > 0 ? [{ label: 'Discount', value: `-₹${discount.toFixed(2)}`, red: true }] : []),
-                            { label: 'CGST @ 9%', value: `₹${cgst.toFixed(2)}` },
-                            { label: 'SGST @ 9%', value: `₹${sgst.toFixed(2)}` },
+                            { label: 'Total Package Cost', value: `₹${totalPackageCost.toFixed(2)}` },
+                            { label: `Inclusive GST (${gstRate}%)`, value: `₹${inclusiveGst.toFixed(2)}` },
+                            { label: 'Total Amount', value: `₹${displayTotalAmount.toFixed(2)}` },
                         ].map(r => (
                             <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12, borderBottom: '1px solid #f1f5f9' }}>
                                 <span style={{ color: '#475569' }}>{r.label}</span>
@@ -228,26 +258,32 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                             </div>
                         ))}
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 4 }}>
-                            <span style={{ fontWeight: 700 }}>Total</span>
-                            <span style={{ fontWeight: 800, color: '#4f46e5' }}>₹{total.toFixed(2)}</span>
-                        </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12 }}>
-                            <span style={{ color: '#475569' }}>Amount Paid</span>
-                            <span style={{ fontWeight: 600, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>
+                            <span style={{ fontWeight: 700 }}>Amount Paid</span>
+                            <span style={{ fontWeight: 800, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 4 }}>
-                            <span style={{ fontWeight: 700 }}>Balance Due</span>
+                            <span style={{ fontWeight: 700 }}>Balance Amount</span>
                             <span style={{ fontWeight: 800, color: balance > 0 ? '#dc2626' : '#16a34a' }}>₹{balance.toFixed(2)}</span>
                         </div>
                         <div style={{ background: '#f8fafc', borderRadius: 6, padding: '8px 10px', fontSize: 11, marginTop: 10, display: 'flex', gap: 6 }}>
-                            <span style={{ fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Total In Words:</span>
-                            <span style={{ fontStyle: 'italic', color: '#1e293b' }}>Indian Rupee {numToWords(Math.round(total))}</span>
+                            <span style={{ fontWeight: 600, color: '#475569', whiteSpace: 'nowrap' }}>Amount in Words:</span>
+                            <span style={{ fontStyle: 'italic', color: '#1e293b' }}>Indian Rupee {numToWords(Math.round(amountPaid))}</span>
                         </div>
                     </div>
                 </div>
 
                 <div style={{ fontSize: 13, color: '#475569', marginBottom: 24 }}>Thanks for your business.</div>
                 <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', marginBottom: 24 }} />
+
+                <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.7, marginBottom: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Terms & Conditions</div>
+                    <ul style={{ paddingLeft: 18, margin: 0 }}>
+                        <li>Payment is due immediately on receipt of this invoice.</li>
+                        <li>Courses once scheduled cannot be cancelled without prior notice.</li>
+                        <li>Any dispute shall be subject to Bengaluru jurisdiction only.</li>
+                        <li>All services are delivered as per the training agreement.</li>
+                    </ul>
+                </div>
 
                 {/* Footer */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
