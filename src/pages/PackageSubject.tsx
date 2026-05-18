@@ -232,6 +232,10 @@ export default function PackageSubject() {
             return;
         }
 
+        if (isDuplicateSubjectName(subjectForm.name, editingSubject?.id)) {
+            setError(`Subject name "${subjectForm.name.trim()}" already exists. Please choose a unique subject name.`);
+            return;
+        }
 
         if (formLoading) return; // Prevent multiple simultaneous saves
 
@@ -325,6 +329,16 @@ if (subjectForm.prerequisites) {
         }
     };
 
+    const isDuplicateSubjectName = (name: string, excludeId?: number) => {
+        const normalizedName = name.trim().toLowerCase();
+        return subjects.some(subject => subject.name.trim().toLowerCase() === normalizedName && subject.id !== excludeId);
+    };
+
+    const isDuplicatePackageName = (name: string, excludeId?: number) => {
+        const normalizedName = name.trim().toLowerCase();
+        return packages.some(pkg => pkg.name.trim().toLowerCase() === normalizedName && pkg.id !== excludeId);
+    };
+
     const deleteSubject = async (id: number) => {
         const subjectToDelete = subjects.find(s => s.id === id);
         if (!subjectToDelete) return;
@@ -396,6 +410,11 @@ if (subjectForm.prerequisites) {
     const savePackage = async () => {
         if (!packageForm.name || !packageForm.code) {
             setError('Package name and code are required');
+            return;
+        }
+
+        if (isDuplicatePackageName(packageForm.name, editingPackage?.id)) {
+            setError(`Package name "${packageForm.name.trim()}" already exists. Please choose a unique package name.`);
             return;
         }
 
