@@ -144,8 +144,8 @@ export default function PackageSubject() {
     const [editingPackage, setEditingPackage] = useState<Package | null>(null);
 
     // Form states
-    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: ''});
-    const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
+    const [subjectForm, setSubjectForm] = useState({ name: '', code: '', domain: '', mode: '', type: '', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: ''});
+    const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: '', mode: '', type: '', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
     const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
@@ -207,9 +207,9 @@ export default function PackageSubject() {
             setSubjectForm({
                 name: subject.name,
                 code: subject.code,
-                domain: subject.domain || 'Testing',
-                mode: subject.mode || 'Online',
-                type: subject.type || 'starter',
+                domain: subject.domain || '',
+                mode: subject.mode || '',
+                type: subject.type || '',
                 description: subject.description || '',
                 duration: subject.duration?.toString() || '',
                 image: subject.image || '',
@@ -219,7 +219,7 @@ export default function PackageSubject() {
             });
         } else {
             setEditingSubject(null);
-            setSubjectForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '' });
+            setSubjectForm({ name: '', code: '', domain: '', mode: '', type: '', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '' });
         }
         setError(null);
         setSuccessMessage(null);
@@ -229,6 +229,11 @@ export default function PackageSubject() {
     const saveSubject = async () => {
         if (!subjectForm.name || !subjectForm.code) {
             setError('⚠️ Subject name and code are mandatory fields');
+            return;
+        }
+
+        if (!subjectForm.domain || !subjectForm.mode || !subjectForm.type) {
+            setError('⚠️ Please select Domain, Mode, and Type for the subject');
             return;
         }
 
@@ -399,7 +404,7 @@ if (subjectForm.prerequisites) {
             });
         } else {
             setEditingPackage(null);
-            setPackageForm({ name: '', code: '', domain: 'Testing', mode: 'Online', type: 'starter', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
+            setPackageForm({ name: '', code: '', domain: '', mode: '', type: '', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] });
         }
         setSubjectSearchQuery(''); // Reset search when opening modal
         setError(null);
@@ -410,6 +415,11 @@ if (subjectForm.prerequisites) {
     const savePackage = async () => {
         if (!packageForm.name || !packageForm.code) {
             setError('Package name and code are required');
+            return;
+        }
+
+        if (!packageForm.domain || !packageForm.mode || !packageForm.type) {
+            setError('⚠️ Please select Domain, Mode, and Type for the package');
             return;
         }
 
@@ -1095,6 +1105,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setSubjectForm({ ...subjectForm, domain: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Domain</option>
                                         {domains.map((domainOption) => (
                                             <option key={domainOption.code} value={domainOption.name}>
                                                 {domainOption.name}
@@ -1111,6 +1122,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setSubjectForm({ ...subjectForm, mode: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Mode</option>
                                         <option value="Online">Online</option>
                                         <option value="Offline">Offline</option>
                                     </select>
@@ -1124,6 +1136,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setSubjectForm({ ...subjectForm, type: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Type</option>
                                         <option value="starter">Starter</option>
                                         <option value="advance">Advance</option>
                                         <option value="expert">Expert</option>
@@ -1349,6 +1362,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setPackageForm({ ...packageForm, domain: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Domain</option>
                                         {domains.map((domainOption) => (
                                             <option key={domainOption.code} value={domainOption.name}>
                                                 {domainOption.name}
@@ -1365,6 +1379,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setPackageForm({ ...packageForm, mode: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Mode</option>
                                         <option value="Online">Online</option>
                                         <option value="Offline">Offline</option>
                                     </select>
@@ -1378,6 +1393,7 @@ if (subjectForm.prerequisites) {
                                         onChange={(e) => setPackageForm({ ...packageForm, type: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="" disabled hidden>Select Type</option>
                                         <option value="starter">Starter</option>
                                         <option value="advance">Advance</option>
                                         <option value="expert">Expert</option>
