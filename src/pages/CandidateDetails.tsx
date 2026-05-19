@@ -166,6 +166,13 @@ export default function CandidateDetails() {
         return pkg ? pkg.name : `Package ${packageId}`;
     };
 
+    const getPackageSubjectIds = (packageId: number | null) => {
+        if (!packageId) return [];
+        const pkg = packages.find(p => p.id === packageId);
+        const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
+        return (pkgSubjects as { id: number }[]).map(s => s.id);
+    };
+
     const buildTargetedFees = (packageId: number | null, subjectIds: number[]) => {
         const fees: Record<string, number> = {};
 
@@ -176,14 +183,7 @@ export default function CandidateDetails() {
         }
 
         // 2. Identify subjects that are NOT part of the package (extra subjects)
-        const packageSubjectIds: number[] = packageId
-            ? (() => {
-                const pkg = packages.find(p => p.id === packageId);
-                const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
-                return (pkgSubjects as { id: number }[]).map(s => s.id);
-            })()
-            : [];
-
+        const packageSubjectIds = getPackageSubjectIds(packageId);
         const extraSubjectIds = subjectIds.filter(id => !packageSubjectIds.includes(id));
 
         // 3. Add individual extra subject fees
@@ -195,7 +195,18 @@ export default function CandidateDetails() {
         return fees;
     };
 
-    const savePackageSubjectUpdate = async (packageId: number | null, subjectIds: number[]) => {
+    const getPackageSaveMessage = (packageId: number | null) => {
+        if (!packageId) return 'Fees updated successfully';
+        if (!enquiry?.packageId) return 'Package added successfully';
+        if (enquiry.packageId !== packageId) return 'Package updated successfully';
+        return 'Fees updated successfully';
+    };
+
+    const savePackageSubjectUpdate = async (
+        packageId: number | null,
+        subjectIds: number[],
+        successMessage: string = getPackageSaveMessage(packageId)
+    ) => {
         if (!enquiry) return;
 
         setUpdateError(null);
@@ -203,14 +214,7 @@ export default function CandidateDetails() {
         // Compute total fee for billing
         let totalFee = packageId ? getSelectedPackageFee(packageId) : 0;
 
-        const packageSubjectIds: number[] = packageId
-            ? (() => {
-                const pkg = packages.find(p => p.id === packageId);
-                const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
-                return (pkgSubjects as { id: number }[]).map(s => s.id);
-            })()
-            : [];
-
+        const packageSubjectIds = getPackageSubjectIds(packageId);
         const extraSubjectIds = subjectIds.filter(id => !packageSubjectIds.includes(id));
         totalFee += extraSubjectIds.reduce((sum, id) => sum + getSubjectFee(id), 0);
 
@@ -231,8 +235,11 @@ export default function CandidateDetails() {
 
             // 2. Create or update billing record
             try {
+                const packageType = packageId ? getPackageName(packageId) : 'Custom';
+                const subjectIdsForBilling = subjectIds.length > 0 ? subjectIds : null;
+
                 if (billingData?.id) {
-                    // Update existing billing — keep amountPaid/balance, just refresh packageCost
+                    // Update existing billing — keep amountPaid/balance, refresh packageCost and fee breakdown
                     const existingPaid = parseFloat(billingData.amountPaid) || 0;
                     const newBalance = Math.max(0, totalFee - existingPaid);
                     await apiRequest<any>(`/api/billings/${billingData.id}`, {
@@ -245,6 +252,9 @@ export default function CandidateDetails() {
                             gstAmount: billingData.gstAmount ?? 0,
                             amountPaid: existingPaid,
                             balance: newBalance,
+                            packageType,
+                            subjectIds: subjectIdsForBilling,
+                            subjectWiseBreakdown: builtFees,
                         },
                     });
                 } else {
@@ -259,6 +269,9 @@ export default function CandidateDetails() {
                             gstAmount: 0,
                             amountPaid: 0,
                             balance: totalFee,
+                            packageType,
+                            subjectIds: subjectIdsForBilling,
+                            subjectWiseBreakdown: builtFees,
                         },
                     });
                 }
@@ -271,7 +284,7 @@ export default function CandidateDetails() {
                 // Don't block the main success — fee data is saved on the enquiry
             }
 
-            setModalMessage({ type: 'success', message: 'Fees saved successfully' });
+            setModalMessage({ type: 'success', message: successMessage });
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
@@ -294,7 +307,7 @@ export default function CandidateDetails() {
         setFeesBySubject(prev => ({ ...prev, [newSubjectToAdd]: '' }));
         setNewSubjectToAdd(null);
 
-        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds);
+        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds, 'Subject added successfully');
     };
 
     const handleRemoveSubject = async (subjectId: number) => {
@@ -309,10 +322,14 @@ export default function CandidateDetails() {
             return next;
         });
 
-        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds);
+        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds, 'Subject removed successfully');
     };
 
-    const availableAdditionalSubjects = subjects.filter(subject => !(detailsForm.subjectIds || []).includes(subject.id));
+    const availableAdditionalSubjects = subjects.filter(subject => {
+        const alreadyAdded = (detailsForm.subjectIds || []).includes(subject.id);
+        const includedInPackage = getPackageSubjectIds(detailsForm.packageId ?? null).includes(subject.id);
+        return !alreadyAdded && !includedInPackage;
+    });
 
     const getSubjectNames = (subjectIds: number[] | undefined) => {
         if (!subjectIds?.length) return '-';
@@ -1551,7 +1568,7 @@ export default function CandidateDetails() {
                                                                             setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: value }));
                                                                         }
                                                                     }}
-                                                                    className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                    className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                     placeholder="Enter package fee"
                                                                 />
                                                             );
@@ -1691,7 +1708,7 @@ export default function CandidateDetails() {
                                                                                     const value = e.target.value;
                                                                                     setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
                                                                                 }}
-                                                                                className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                                className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                                 placeholder="Enter subject fee"
                                                                             />
                                                                         );
@@ -1726,7 +1743,11 @@ export default function CandidateDetails() {
                                         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                                             <button
                                                 type="button"
-                                                onClick={() => savePackageSubjectUpdate(detailsForm.packageId ?? null, detailsForm.subjectIds || [])}
+                                                onClick={() => savePackageSubjectUpdate(
+                                                    detailsForm.packageId ?? null,
+                                                    detailsForm.subjectIds || [],
+                                                    getPackageSaveMessage(detailsForm.packageId ?? null)
+                                                )}
                                                 className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
                                             >
                                                 Save fees
@@ -2107,21 +2128,11 @@ export default function CandidateDetails() {
                         </div>
 
                         {/* Footer */}
-                        <div className={`px-6 py-4 border-t flex gap-3 justify-end ${
+                        <div className={`px-6 py-4 border-t flex justify-end ${
                             modalMessage.type === 'success'
                                 ? 'border-green-200 bg-green-50'
                                 : 'border-red-200 bg-red-50'
                         }`}>
-                            <button
-                                onClick={() => setModalMessage(null)}
-                                className={`px-4 py-2.5 rounded-lg font-medium transition-colors ${
-                                    modalMessage.type === 'success'
-                                        ? 'bg-white text-green-700 hover:bg-green-50 border border-green-200'
-                                        : 'bg-white text-red-700 hover:bg-red-50 border border-red-200'
-                                }`}
-                            >
-                                Cancel
-                            </button>
                             <button
                                 onClick={() => setModalMessage(null)}
                                 className={`px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
