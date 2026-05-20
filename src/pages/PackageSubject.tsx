@@ -1098,7 +1098,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Domain
+                                        Domain <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={subjectForm.domain}
@@ -1115,7 +1115,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Mode
+                                        Mode <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={subjectForm.mode}
@@ -1129,7 +1129,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Type
+                                        Type <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={subjectForm.type}
