@@ -82,6 +82,8 @@ export default function CandidateDetails() {
     const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
     const [feesByPackage, setFeesByPackage] = useState<Record<number, string>>({});
     const [feesBySubject, setFeesBySubject] = useState<Record<number, string>>({});
+    const [savingFees, setSavingFees] = useState(false);
+    const [feesChanged, setFeesChanged] = useState(false);
     const [newSubjectToAdd, setNewSubjectToAdd] = useState<number | null>(null);
     const [logForm, setLogForm] = useState({ title: '', description: '' });
     const [submittingLog, setSubmittingLog] = useState(false);
@@ -210,6 +212,7 @@ export default function CandidateDetails() {
         if (!enquiry) return;
 
         setUpdateError(null);
+        setSavingFees(true);
 
         // Compute total fee for billing
         let totalFee = packageId ? getSelectedPackageFee(packageId) : 0;
@@ -235,7 +238,8 @@ export default function CandidateDetails() {
 
             // 2. Create or update billing record
             try {
-                const packageType = packageId ? getPackageName(packageId) : 'Custom';
+                // API expects packageType to be either 'package' or 'individual'
+                const packageType = packageId ? 'package' : 'individual';
                 const subjectIdsForBilling = subjectIds.length > 0 ? subjectIds : null;
 
                 if (billingData?.id) {
@@ -285,6 +289,7 @@ export default function CandidateDetails() {
             }
 
             setModalMessage({ type: 'success', message: successMessage });
+            setFeesChanged(false);
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
@@ -292,6 +297,8 @@ export default function CandidateDetails() {
             } else {
                 setModalMessage({ type: 'error', message: 'Failed to update package and subject selection.' });
             }
+        } finally {
+            setSavingFees(false);
         }
     };
 
@@ -361,9 +368,9 @@ export default function CandidateDetails() {
                 return sum + getSubjectFee(subjectId);
             }, 0);
         }
-        const discount = applyDiscount ? discountAmount : 0;
+        const discount = applyDiscount ? discountAmount : (billingData ? (Number(billingData.discount) || 0) : 0);
         const discountedAmount = packageCost - discount;
-        const gstRate = 18;
+        const gstRate = billingData ? (Number(billingData.gst) || 18) : 18;
         const totalCost = discountedAmount;
         const gstAmount = totalCost - (totalCost / (1 + gstRate / 100));
         const baseCost = totalCost / (1 + gstRate / 100);
@@ -413,12 +420,14 @@ export default function CandidateDetails() {
                 const existingBalance = parseFloat(billingData.balance) || 0;
                 const newBalance = Math.max(0, Math.round((existingBalance - paymentAmount) * 100) / 100);
 
+                // Use the latest calculated discount/gst values (from UI) rather than stale billingData
+                const currentPaymentCalc = calculatePaymentDetails(enquiry);
                 billingPayload = {
                     enquiryId: enquiry.id,
-                    packageCost: billingData.packageCost,   // keep original values
-                    discount: billingData.discount,
-                    gst: billingData.gst,
-                    gstAmount: billingData.gstAmount,
+                    packageCost: billingData.packageCost,   // keep original package cost
+                    discount: currentPaymentCalc.discount,
+                    gst: currentPaymentCalc.gstRate,
+                    gstAmount: currentPaymentCalc.gstAmount,
                     amountPaid: newAmountPaid,
                     balance: newBalance,
                     paymentMode: paymentMode,
@@ -478,8 +487,36 @@ export default function CandidateDetails() {
 
             // Refresh billing
             try {
-                const updatedBillingData = await apiRequest<any>(`/api/billings/${enquiry.id}`, { method: 'GET' });
+                const updatedBillingData = await apiRequest<any>(`/api/billings/enquiry/${enquiry.id}`, { method: 'GET' });
                 setBillingData(updatedBillingData);
+                // Post the payment entry to payment-history endpoint
+                try {
+                    let billingId: any = updatedBillingData?.id || billingData?.id;
+                    // If the billing endpoint returned an array, pick the first item's id
+                    if (!billingId && Array.isArray(updatedBillingData) && updatedBillingData.length > 0) {
+                        billingId = updatedBillingData[0]?.id;
+                    }
+
+                    const payload = {
+                        amountPaid: paymentAmount,
+                        paymentMode: paymentMode,
+                        transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
+                    };
+
+                    console.log('Attempting to post payment-history', { billingId, payload });
+
+                    if (billingId) {
+                        const phResp = await apiRequest(`/api/billings/${billingId}/payment-history`, {
+                            method: 'POST',
+                            body: payload,
+                        });
+                        console.log('payment-history response', phResp);
+                    } else {
+                        console.warn('No billingId available; skipping payment-history POST', { updatedBillingData, billingData });
+                    }
+                } catch (phErr) {
+                    console.warn('Failed to post payment history:', phErr);
+                }
             } catch (err) {
                 console.error('Failed to refresh billing data:', err);
             }
@@ -1524,48 +1561,63 @@ export default function CandidateDetails() {
                                 <div className="px-6 pb-6 border-t border-slate-200">
                                     <div className="space-y-4">
                                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
                                                 <div className="flex-1">
                                                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-2">Package</p>
-                                                    <select
-                                                        value={detailsForm.packageId || ''}
-                                                        onChange={(e) => {
-                                                            const newPackageId = e.target.value ? Number(e.target.value) : null;
-                                                            setDetailsForm(prev => ({ ...prev, packageId: newPackageId }));
-                                                        }}
-                                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                    >
-                                                        <option value="">Select a Package</option>
-                                                        {packages.map(pkg => (
-                                                            <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
-                                                        ))}
-                                                    </select>
+                                                    <div className="flex gap-3 items-end">
+                                                        <select
+                                                            value={detailsForm.packageId || ''}
+                                                            onChange={(e) => {
+                                                                const newPackageId = e.target.value ? Number(e.target.value) : null;
+                                                                setDetailsForm(prev => ({ ...prev, packageId: newPackageId }));
+                                                            }}
+                                                            className="flex-1 rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        >
+                                                            <option value="">Select a Package</option>
+                                                            {packages.map(pkg => (
+                                                                <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
+                                                            ))}
+                                                        </select>
+                                                        {detailsForm.packageId !== enquiry?.packageId && (
+                                                            <button
+                                                                type="button"
+                                                                onClick={() => savePackageSubjectUpdate(
+                                                                    detailsForm.packageId ?? null,
+                                                                    detailsForm.subjectIds || [],
+                                                                    getPackageSaveMessage(detailsForm.packageId ?? null)
+                                                                )}
+                                                                disabled={savingFees}
+                                                                className="inline-flex items-center justify-center rounded-3xl border border-indigo-600 text-indigo-600 bg-white px-4 py-3 text-sm font-semibold hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
+                                                            >
+                                                                {savingFees ? 'Saving...' : 'Update package'}
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                 </div>
                                                 {detailsForm.packageId && (
                                                     <div className="flex-1 min-w-[160px]">
                                                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
                                                         {(() => {
                                                             const pkgName = getPackageName(detailsForm.packageId);
-                                                            const previouslyAddedFee = enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
+                                                            const isOriginalPackage = detailsForm.packageId === enquiry?.packageId;
+                                                            const savedFee = isOriginalPackage && enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
 
-                                                            if (previouslyAddedFee !== undefined) {
-                                                                return (
-                                                                    <div className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm">
-                                                                        <span className="font-medium text-slate-700">Previously Added:</span>
-                                                                        <span className="font-bold text-indigo-700">₹{previouslyAddedFee}</span>
-                                                                    </div>
-                                                                );
-                                                            }
+                                                            const inputValue = detailsForm.packageId
+                                                                ? (feesByPackage[detailsForm.packageId] !== undefined
+                                                                    ? feesByPackage[detailsForm.packageId]
+                                                                    : (savedFee !== undefined ? String(savedFee) : ''))
+                                                                : '';
 
                                                             return (
                                                                 <input
                                                                     type="number"
                                                                     min="0"
-                                                                    value={feesByPackage[detailsForm.packageId] || ''}
+                                                                    value={inputValue}
                                                                     onChange={(e) => {
                                                                         const value = e.target.value;
                                                                         if (detailsForm.packageId) {
                                                                             setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: value }));
+                                                                            setFeesChanged(true);
                                                                         }
                                                                     }}
                                                                     className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -1707,6 +1759,7 @@ export default function CandidateDetails() {
                                                                                 onChange={(e) => {
                                                                                     const value = e.target.value;
                                                                                     setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
+                                                                                    setFeesChanged(true);
                                                                                 }}
                                                                                 className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                                                 placeholder="Enter subject fee"
@@ -1740,20 +1793,29 @@ export default function CandidateDetails() {
                                             <p className="text-xs text-slate-500">This is the total that will be saved as the billing package cost.</p>
                                         </div>
 
-                                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                                            <button
-                                                type="button"
-                                                onClick={() => savePackageSubjectUpdate(
-                                                    detailsForm.packageId ?? null,
-                                                    detailsForm.subjectIds || [],
-                                                    getPackageSaveMessage(detailsForm.packageId ?? null)
-                                                )}
-                                                className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors"
-                                            >
-                                                Save fees
-                                            </button>
-                                            <p className="text-sm text-slate-500">Saves fee config and creates a billing record.</p>
-                                        </div>
+                                        {feesChanged && (
+                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        if (detailsForm.packageId !== enquiry?.packageId) {
+                                                            setModalMessage({ type: 'error', message: 'Please save package first' });
+                                                            return;
+                                                        }
+                                                        savePackageSubjectUpdate(
+                                                            detailsForm.packageId ?? null,
+                                                            detailsForm.subjectIds || [],
+                                                            'Fees updated successfully'
+                                                        );
+                                                    }}
+                                                    disabled={savingFees}
+                                                    className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors"
+                                                >
+                                                    {savingFees ? 'Saving...' : 'Save fees'}
+                                                </button>
+                                                <p className="text-sm text-slate-500">Saves fee config and creates a billing record.</p>
+                                            </div>
+                                        )}
 
                                         {/* Saved billing summary */}
                                         {billingData && (
@@ -1805,6 +1867,7 @@ export default function CandidateDetails() {
                                 {expandedSections.payment && (
                                     <div className="px-6 pb-6 border-t border-slate-200">
                                         <div className="rounded-3xl border border-slate-200 bg-white p-5 space-y-6">
+                                            {/* top warning removed — moved closer to payment input */}
                                             {enquiry && ((isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0) || calculatePaymentDetails(enquiry).packageCost > 0) ? (
                                                 <>
                                                     {isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0 ? (
@@ -1834,20 +1897,22 @@ export default function CandidateDetails() {
                                                         </>
                                                     )}
                                                     <div className="space-y-3">
-                                                        <div className="flex items-center gap-3">
-                                                            <input
-                                                                type="checkbox"
-                                                                id="applyDiscount"
-                                                                checked={applyDiscount}
-                                                                onChange={(e) => setApplyDiscount(e.target.checked)}
-                                                                className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                                            />
-                                                            <label htmlFor="applyDiscount" className="text-sm font-medium text-slate-700">
-                                                                Apply Discount
-                                                            </label>
-                                                        </div>
+                                                        {!(billingData && Number(billingData.discount || 0) > 0) && (
+                                                            <div className="flex items-center gap-3">
+                                                                <input
+                                                                    type="checkbox"
+                                                                    id="applyDiscount"
+                                                                    checked={applyDiscount}
+                                                                    onChange={(e) => setApplyDiscount(e.target.checked)}
+                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
+                                                                />
+                                                                <label htmlFor="applyDiscount" className="text-sm font-medium text-slate-700">
+                                                                    Apply Discount
+                                                                </label>
+                                                            </div>
+                                                        )}
 
-                                                        {applyDiscount && (
+                                                        {applyDiscount && !(billingData && Number(billingData.discount || 0) > 0) && (
                                                             <div>
                                                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Discount Amount (₹)</label>
                                                                 <input
@@ -1958,7 +2023,7 @@ export default function CandidateDetails() {
                                                                     {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
                                                                 </button>
                                                             </div>
-                                                            <p className="text-xs text-slate-500">
+                                                            <p className="text-xs text-rose-600">
                                                                 {enquiry?.candidateStatus === 'class' ? 'Payment will be recorded for this candidate.' : 'Payment will automatically move the candidate to Class List.'}
                                                             </p>
                                                         </div>
@@ -1966,16 +2031,28 @@ export default function CandidateDetails() {
 
                                                     {/* Download Invoice button */}
                                                     {billingData && (
-                                                        <button
-                                                            type="button"
-                                                            onClick={() => setShowInvoice(true)}
-                                                            className="inline-flex items-center gap-2 rounded-3xl border border-indigo-300 bg-indigo-50 px-5 py-2.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 transition-colors"
-                                                        >
-                                                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                                                            </svg>
-                                                            Download Tax Invoice
-                                                        </button>
+                                                        (() => {
+                                                            const paid = Number(billingData.amountPaid || 0);
+                                                            const disabled = paid <= 0;
+                                                            return (
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => { if (!disabled) setShowInvoice(true); }}
+                                                                    disabled={disabled}
+                                                                    className={
+                                                                        `inline-flex items-center gap-2 rounded-3xl border px-5 py-2.5 text-sm font-semibold transition-colors ` +
+                                                                        (disabled
+                                                                            ? 'border-slate-200 bg-slate-100 text-slate-400 cursor-not-allowed'
+                                                                            : 'border-indigo-300 bg-indigo-50 text-indigo-700 hover:bg-indigo-100')
+                                                                    }
+                                                                >
+                                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                                                    </svg>
+                                                                    Download Tax Invoice
+                                                                </button>
+                                                            );
+                                                        })()
                                                     )}
                                                 </>
                                             ) : (
