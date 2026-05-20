@@ -2008,10 +2008,25 @@ export default function CandidateDetails() {
                                                             <div className="flex gap-3">
                                                                 <input
                                                                     type="number"
+                                                                    inputMode="decimal"
+                                                                    step="0.01"
                                                                     min="1"
                                                                     max={calculatePaymentDetails(enquiry).balance}
                                                                     value={paymentAmount || ''}
-                                                                    onChange={(e) => setPaymentAmount(Number(e.target.value))}
+                                                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                        const raw = e.target.value;
+                                                                        const cleaned = raw.replace(/[^0-9.]/g, '');
+                                                                        setPaymentAmount(cleaned === '' ? 0 : Number(cleaned));
+                                                                    }}
+                                                                    onKeyDown={(e: React.KeyboardEvent<HTMLInputElement>) => {
+                                                                        if (e.key === 'e' || e.key === 'E' || e.key === '+' || e.key === '-') {
+                                                                            e.preventDefault();
+                                                                        }
+                                                                    }}
+                                                                    onPaste={(e: React.ClipboardEvent<HTMLInputElement>) => {
+                                                                        const paste = e.clipboardData.getData('text');
+                                                                        if (!/^[0-9.]+$/.test(paste)) e.preventDefault();
+                                                                    }}
                                                                     placeholder="Enter payment amount"
                                                                     className="flex-1 px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
                                                                 />
