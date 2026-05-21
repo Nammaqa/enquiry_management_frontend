@@ -991,11 +991,10 @@ export default function CandidateDetails() {
                                                     ? 'Editing is disabled when viewing from the Class List.'
                                                     : 'Fields marked with * are mandatory and editable.'}
                                     </div>
-                                    {!isDemoCandidate && !isAccounts && !isEditingDetails && (
+                                    {!isDemoCandidate && !isAccounts && !isEditingDetails && !isClassListOrigin && (
                                         <button
                                             type="button"
                                             onClick={() => {
-                                                if (isClassListOrigin) return;
                                                 setIsEditingDetails(true);
                                                 setUpdateError(null); // Clear any previous update errors when starting to edit
                                                 loadPackageSubjectOptions();
@@ -1652,14 +1651,15 @@ export default function CandidateDetails() {
 
                                                             return (
                                                                 <input
-                                                                    type="number"
-                                                                    min="0"
+                                                                    type="text"
+                                                                    inputMode="numeric"
                                                                     value={inputValue}
                                                                     disabled={!isOriginalPackage}
                                                                     onChange={(e) => {
-                                                                        const value = e.target.value;
+                                                                        const raw = e.target.value;
+                                                                        const cleaned = raw.replace(/[^0-9.]/g, '');
                                                                         if (detailsForm.packageId) {
-                                                                            setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: value }));
+                                                                            setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: cleaned }));
                                                                             setFeesChanged(true);
                                                                         }
                                                                     }}
@@ -1802,12 +1802,13 @@ export default function CandidateDetails() {
 
                                                                         return (
                                                                             <input
-                                                                                type="number"
-                                                                                min="0"
+                                                                                type="text"
+                                                                                inputMode="numeric"
                                                                                 value={inputValue}
                                                                                 onChange={(e) => {
-                                                                                    const value = e.target.value;
-                                                                                    setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
+                                                                                    const raw = e.target.value;
+                                                                                    const cleaned = raw.replace(/[^0-9.]/g, '');
+                                                                                    setFeesBySubject(prev => ({ ...prev, [subjectId]: cleaned }));
                                                                                     setFeesChanged(true);
                                                                                 }}
                                                                                 className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
@@ -1965,11 +1966,14 @@ export default function CandidateDetails() {
                                                             <div>
                                                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Discount Amount (₹)</label>
                                                                 <input
-                                                                    type="number"
-                                                                    min="0"
-                                                                    max={calculatePaymentDetails(enquiry).packageCost}
+                                                                    type="text"
+                                                                    inputMode="numeric"
                                                                     value={discountAmount || ''}
-                                                                    onChange={(e) => setDiscountAmount(Number(e.target.value))}
+                                                                    onChange={(e) => {
+                                                                        const raw = e.target.value;
+                                                                        const cleaned = raw.replace(/[^0-9.]/g, '');
+                                                                        setDiscountAmount(cleaned === '' ? 0 : Number(cleaned));
+                                                                    }}
                                                                     placeholder="Enter discount amount"
                                                                     className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
                                                                 />
@@ -2056,11 +2060,8 @@ export default function CandidateDetails() {
                                                             </label>
                                                             <div className="flex gap-3">
                                                                 <input
-                                                                    type="number"
+                                                                    type="text"
                                                                     inputMode="decimal"
-                                                                    step="0.01"
-                                                                    min="1"
-                                                                    max={calculatePaymentDetails(enquiry).balance}
                                                                     value={paymentAmount || ''}
                                                                     onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                                                                         const raw = e.target.value;
