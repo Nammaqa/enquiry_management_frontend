@@ -59,6 +59,19 @@ export default function CandidateDetails() {
         return '/enquiries';
     };
 
+    const calculateNewSubjectIds = (oldPkgId: number | null | undefined, newPkgId: number | null, currentSubjects: number[], allPackages: Package[]) => {
+        const oldPkg = allPackages.find(p => String(p.id) === String(oldPkgId));
+        const oldPkgSubjects = oldPkg ? (((oldPkg as any).subjects as Subject[] | undefined) ?? (oldPkg as any).Subjects) : [];
+        const oldPkgSubjectIds = oldPkgSubjects?.map((s: any) => s.id) ?? [];
+        
+        const newPkg = allPackages.find(p => String(p.id) === String(newPkgId));
+        const newPkgSubjects = newPkg ? (((newPkg as any).subjects as Subject[] | undefined) ?? (newPkg as any).Subjects) : [];
+        const newPkgSubjectIds = newPkgSubjects?.map((s: any) => s.id) ?? [];
+
+        const additionalSubjects = currentSubjects.filter(id => !oldPkgSubjectIds.includes(id));
+        return Array.from(new Set([...newPkgSubjectIds, ...additionalSubjects]));
+    };
+
     const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
 
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
@@ -1090,11 +1103,10 @@ export default function CandidateDetails() {
                                                                     value={pkg.id}
                                                                     checked={detailsForm.packageId === pkg.id}
                                                                     onChange={() => {
-                                                                        const packageSubjects = ((pkg as any).subjects as Subject[] | undefined) ?? pkg.Subjects;
                                                                         setDetailsForm(prev => ({
                                                                             ...prev,
                                                                             packageId: pkg.id,
-                                                                            subjectIds: packageSubjects?.map(s => s.id) ?? [],
+                                                                            subjectIds: calculateNewSubjectIds(prev.packageId, pkg.id, prev.subjectIds || [], packages),
                                                                         }));
                                                                     }}
                                                                     className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
@@ -1110,7 +1122,11 @@ export default function CandidateDetails() {
                                                                 name="package"
                                                                 value="null"
                                                                 checked={detailsForm.packageId === null}
-                                                                onChange={() => setDetailsForm(prev => ({ ...prev, packageId: null, subjectIds: [] }))}
+                                                                onChange={() => setDetailsForm(prev => ({
+                                                                    ...prev,
+                                                                    packageId: null,
+                                                                    subjectIds: calculateNewSubjectIds(prev.packageId, null, prev.subjectIds || [], packages),
+                                                                }))}
                                                                 className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                                                             />
                                                             <span className="text-sm font-medium text-slate-700">Others</span>
@@ -1125,24 +1141,36 @@ export default function CandidateDetails() {
                                                     <div className="text-sm text-slate-500">Loading subjects…</div>
                                                 ) : (
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-                                                        {subjects.map(subject => (
-                                                            <label key={subject.id} className="flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-4 py-3 cursor-pointer transition-all hover:border-indigo-200">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    checked={detailsForm.subjectIds?.includes(subject.id) || false}
-                                                                    disabled={!isEditingDetails}
-                                                                    onChange={(e) => {
-                                                                        const currentIds = detailsForm.subjectIds || [];
-                                                                        const newIds = e.target.checked
-                                                                            ? [...currentIds, subject.id]
-                                                                            : currentIds.filter(id => id !== subject.id);
-                                                                        setDetailsForm(prev => ({ ...prev, subjectIds: newIds }));
-                                                                    }}
-                                                                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                                                                />
-                                                                <span className="text-sm text-slate-700">{subject.name}</span>
-                                                            </label>
-                                                        ))}
+                                                        {(() => {
+                                                            const pkg = packages.find(p => p.id === detailsForm.packageId);
+                                                            const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
+                                                            const packageSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
+                                                            
+                                                            return subjects.map(subject => {
+                                                                const isPackageSubject = packageSubjectIds.includes(subject.id);
+                                                                return (
+                                                                    <label key={subject.id} className={`flex items-center gap-2 rounded-3xl border border-slate-200 bg-white px-4 py-3 transition-all ${isPackageSubject ? 'bg-slate-50 border-indigo-100 opacity-90 cursor-not-allowed' : (isEditingDetails ? 'cursor-pointer hover:border-indigo-200' : 'cursor-default opacity-80')}`}>
+                                                                        <input
+                                                                            type="checkbox"
+                                                                            checked={isPackageSubject || (detailsForm.subjectIds?.includes(subject.id) || false)}
+                                                                            disabled={!isEditingDetails || isPackageSubject}
+                                                                            onChange={(e) => {
+                                                                                const currentIds = detailsForm.subjectIds || [];
+                                                                                const newIds = e.target.checked
+                                                                                    ? [...currentIds, subject.id]
+                                                                                    : currentIds.filter(id => id !== subject.id);
+                                                                                setDetailsForm(prev => ({ ...prev, subjectIds: newIds }));
+                                                                            }}
+                                                                            className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-70"
+                                                                        />
+                                                                        <span className="text-sm text-slate-700 flex flex-col">
+                                                                            <span>{subject.name}</span>
+                                                                            {isPackageSubject && <span className="text-[10px] text-indigo-600 font-medium leading-tight mt-0.5">Included in package</span>}
+                                                                        </span>
+                                                                    </label>
+                                                                );
+                                                            });
+                                                        })()}
                                                     </div>
                                                 )}
                                             </div>
@@ -1570,7 +1598,12 @@ export default function CandidateDetails() {
                                                             value={detailsForm.packageId || ''}
                                                             onChange={(e) => {
                                                                 const newPackageId = e.target.value ? Number(e.target.value) : null;
-                                                                setDetailsForm(prev => ({ ...prev, packageId: newPackageId }));
+                                                                setDetailsForm(prev => ({
+                                                                    ...prev,
+                                                                    packageId: newPackageId,
+                                                                    subjectIds: calculateNewSubjectIds(prev.packageId, newPackageId, prev.subjectIds || [], packages),
+                                                                }));
+                                                                setFeesChanged(true);
                                                             }}
                                                             className="flex-1 rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
                                                         >
@@ -1609,11 +1642,20 @@ export default function CandidateDetails() {
                                                                     : (savedFee !== undefined ? String(savedFee) : ''))
                                                                 : '';
 
+                                                            if (savedFee !== undefined && savedFee > 0) {
+                                                                return (
+                                                                    <div className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm h-[46px]">
+                                                                        <span className="font-bold text-indigo-700">₹{savedFee}</span>
+                                                                    </div>
+                                                                );
+                                                            }
+
                                                             return (
                                                                 <input
                                                                     type="number"
                                                                     min="0"
                                                                     value={inputValue}
+                                                                    disabled={!isOriginalPackage}
                                                                     onChange={(e) => {
                                                                         const value = e.target.value;
                                                                         if (detailsForm.packageId) {
@@ -1621,8 +1663,9 @@ export default function CandidateDetails() {
                                                                             setFeesChanged(true);
                                                                         }
                                                                     }}
-                                                                    className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
-                                                                    placeholder="Enter package fee"
+                                                                    className={`no-spinner w-full rounded-3xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${!isOriginalPackage ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
+                                                                    placeholder={!isOriginalPackage ? "Update package first" : "Enter package fee"}
+                                                                    title={!isOriginalPackage ? "Please click 'Update package' before entering the fee" : ""}
                                                                 />
                                                             );
                                                         })()}
@@ -1745,7 +1788,11 @@ export default function CandidateDetails() {
                                                                         const subjectName = subjects.find(s => s.id === subjectId)?.name;
                                                                         const previouslyAddedFee = subjectName && enquiry?.targetedFees && subjectName in enquiry.targetedFees ? enquiry.targetedFees[subjectName] : undefined;
 
-                                                                        if (previouslyAddedFee !== undefined) {
+                                                                        const inputValue = feesBySubject[subjectId] !== undefined 
+                                                                            ? feesBySubject[subjectId] 
+                                                                            : (previouslyAddedFee !== undefined ? String(previouslyAddedFee) : '');
+
+                                                                        if (previouslyAddedFee !== undefined && previouslyAddedFee > 0) {
                                                                             return (
                                                                                 <div className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm h-[46px]">
                                                                                     <span className="font-bold text-indigo-700">₹{previouslyAddedFee}</span>
@@ -1757,7 +1804,7 @@ export default function CandidateDetails() {
                                                                             <input
                                                                                 type="number"
                                                                                 min="0"
-                                                                                value={feesBySubject[subjectId] !== undefined ? feesBySubject[subjectId] : ''}
+                                                                                value={inputValue}
                                                                                 onChange={(e) => {
                                                                                     const value = e.target.value;
                                                                                     setFeesBySubject(prev => ({ ...prev, [subjectId]: value }));
