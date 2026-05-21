@@ -1689,7 +1689,8 @@ export default function CandidateDetails() {
                                                         </div>
                                                     </div>
                                                 );
-                                            })()}
+                                            })()}   
+
 
                                             {/* Subject fee rows — when package present, only show subjects NOT in the package */}
                                             {(() => {
@@ -2244,3 +2245,5 @@ export default function CandidateDetails() {
     );
     
 }
+
+//test
