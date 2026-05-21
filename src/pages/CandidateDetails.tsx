@@ -522,6 +522,7 @@ export default function CandidateDetails() {
             }
 
             setPaymentAmount(0);
+            setTransactionId('');
             const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
             const newTotalPaid = previouslyPaid + paymentAmount;
             const message = enquiry.candidateStatus === 'demo'

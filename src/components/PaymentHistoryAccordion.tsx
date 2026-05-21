@@ -18,12 +18,10 @@ export default function PaymentHistoryAccordion({
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
-    // Auto-fetch when expanded or when refreshTrigger changes
+    // Auto-fetch when component mounts or refreshTrigger changes
     useEffect(() => {
-        if (isExpanded || (isExpanded && refreshTrigger > 0)) {
-            fetchPaymentHistory();
-        }
-    }, [isExpanded, refreshTrigger]);
+        fetchPaymentHistory();
+    }, [billingId, refreshTrigger]);
 
     const fetchPaymentHistory = async () => {
         if (!billingId) return;
@@ -86,7 +84,7 @@ export default function PaymentHistoryAccordion({
                 </div>
                 <div className="flex items-center gap-3">
                     {!loading && paymentHistory.length > 0 && (
-                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-100 text-indigo-700">
+                        <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-700">
                             {paymentHistory.length} payment{paymentHistory.length !== 1 ? 's' : ''}
                         </span>
                     )}
