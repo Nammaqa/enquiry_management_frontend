@@ -111,7 +111,7 @@ export default function CandidateDetails() {
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
-    const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+    const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string; onClose?: () => void } | null>(null);
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -121,7 +121,7 @@ export default function CandidateDetails() {
     const statusOptions = isCounsellor
         ? ['enquiry stage', 'demo']
         : isAccounts && isDemoCandidate
-            ? ['enquiry stage']
+            ? ['enquiry stage', 'demo']
             : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
 
     useEffect(() => {
@@ -801,22 +801,45 @@ export default function CandidateDetails() {
         setEnquiry(prev => prev ? { ...prev, candidateStatus: selectedStatus } : prev);
 
         try {
-            const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
-                method: 'POST',
-                body: {
-                    enquiryId: enquiry.id,
-                    newStatus: selectedStatus,
-                },
-            });
-
-            if (response?.enquiry) {
-                setEnquiry(response.enquiry);
-                const newStatus = response.enquiry.candidateStatus || selectedStatus;
-                setSelectedStatus(newStatus);
-                setModalMessage({
-                    type: 'success',
-                    message: `Moved to ${getStatusLabel(newStatus)} successfully`,
+            let updatedEnquiry: Enquiry | undefined;
+            try {
+                const response = await apiRequest<{ message: string; enquiry: Enquiry }>('/api/enquiries/change-status', {
+                    method: 'POST',
+                    body: {
+                        enquiryId: enquiry.id,
+                        newStatus: selectedStatus,
+                    },
                 });
+                updatedEnquiry = response?.enquiry;
+            } catch (err) {
+                console.warn('change-status failed, trying fallback PUT', err);
+            }
+
+            // Force PUT fallback if the backend ignored the backward movement or if the first request failed
+            if (!updatedEnquiry || updatedEnquiry.candidateStatus !== selectedStatus) {
+                updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, {
+                    method: 'PUT',
+                    body: { candidateStatus: selectedStatus },
+                });
+            }
+
+            if (updatedEnquiry) {
+                setEnquiry(updatedEnquiry);
+                const newStatus = updatedEnquiry.candidateStatus || selectedStatus;
+                setSelectedStatus(newStatus);
+                
+                if (isAccounts && newStatus === 'enquiry stage') {
+                    setModalMessage({
+                        type: 'success',
+                        message: `Moved to ${getStatusLabel(newStatus)} successfully`,
+                        onClose: () => navigate('/demo-list', { replace: true })
+                    });
+                } else {
+                    setModalMessage({
+                        type: 'success',
+                        message: `Moved to ${getStatusLabel(newStatus)} successfully`,
+                    });
+                }
             }
         } catch (err) {
             console.error('Failed to update status:', err);
@@ -2166,7 +2189,7 @@ export default function CandidateDetails() {
                                                 onChange={(e) => setSelectedStatus(e.target.value)}
                                                 className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
                                             >
-                                                {statusOptions.filter(status => status !== enquiry?.candidateStatus).map(status => (
+                                                {statusOptions.map(status => (
                                                     <option key={status} value={status}>
                                                         {status === 'enquiry stage'
                                                             ? 'Enquiry Stage'
@@ -2276,7 +2299,10 @@ export default function CandidateDetails() {
                                 : 'border-red-200 bg-red-50'
                         }`}>
                             <button
-                                onClick={() => setModalMessage(null)}
+                                onClick={() => {
+                                    if (modalMessage.onClose) modalMessage.onClose();
+                                    setModalMessage(null);
+                                }}
                                 className={`px-4 py-2.5 rounded-lg font-medium text-white transition-colors ${
                                     modalMessage.type === 'success'
                                         ? 'bg-green-600 hover:bg-green-700'

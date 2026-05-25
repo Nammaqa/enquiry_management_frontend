@@ -265,6 +265,27 @@ export default function Batches() {
             return;
         }
 
+        if (batchForm.name.toLowerCase().trim() === batchForm.code.toLowerCase().trim()) {
+            setError('Batch Name and Batch Code cannot be the same');
+            return;
+        }
+
+        const isDuplicateName = batches.some(b => 
+            b.name.toLowerCase().trim() === batchForm.name.toLowerCase().trim() && b.id !== editingBatch?.id
+        );
+        if (isDuplicateName) {
+            setError('Batch Name must be unique');
+            return;
+        }
+
+        const isDuplicateCode = batches.some(b => 
+            b.code.toLowerCase().trim() === batchForm.code.toLowerCase().trim() && b.id !== editingBatch?.id
+        );
+        if (isDuplicateCode) {
+            setError('Batch Code must be unique');
+            return;
+        }
+
         setFormLoading(true);
         setError(null);
 

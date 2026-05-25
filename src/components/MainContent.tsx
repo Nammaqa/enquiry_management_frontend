@@ -144,6 +144,7 @@ export default function MainContent({ children }: { children: React.ReactNode })
     }, []);
 
     const jobsAllowedRoles = ['ADMIN','HR', 'COUNSELLOR'];
+    const placementsAllowedRoles = ['ADMIN', 'HR'];
     const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
     const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
     const counsellorOnlyRoles = ['COUNSELLOR']; // Only counsellors see demo and class lists
@@ -172,7 +173,11 @@ export default function MainContent({ children }: { children: React.ReactNode })
                 : []),
             ...(jobsAllowedRoles.includes(fullRoleName)
                 ? [
-                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
+                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' }
+                ]
+                : []),
+            ...(placementsAllowedRoles.includes(fullRoleName)
+                ? [
                     { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
                 ]
                 : []),
