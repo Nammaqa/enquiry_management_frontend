@@ -132,7 +132,7 @@ export default function CandidateDetails() {
 
     useEffect(() => {
         if (selectedStatus && !statusOptions.includes(selectedStatus)) {
-            setSelectedStatus(statusOptions[0] || '');
+            setSelectedStatus('');
         }
     }, [statusOptions, selectedStatus]);
 
@@ -562,7 +562,7 @@ export default function CandidateDetails() {
     useEffect(() => {
         if (enquiry) {
             const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
-            setSelectedStatus(enquiry.candidateStatus || 'enquiry stage');
+            setSelectedStatus('');
             // Clean phone and name data on initial load
             const cleanedName = (enquiry.name || '').replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
             const cleanedPhone = (enquiry.phone || '').replace(/\D/g, '').slice(0, 10);
@@ -719,7 +719,7 @@ export default function CandidateDetails() {
 
     useEffect(() => {
         if (enquiry) {
-            setSelectedStatus(enquiry.candidateStatus || 'enquiry stage');
+            setSelectedStatus('');
         }
     }, [enquiry]);
 
@@ -1560,6 +1560,7 @@ export default function CandidateDetails() {
                                                     onChange={(e) => setSelectedStatus(e.target.value)}
                                                     className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
                                                 >
+                                                    <option value="" disabled>Select Option</option>
                                                     {statusOptions.map(status => (
                                                         <option key={status} value={status}>
                                                             {status}
@@ -1580,7 +1581,7 @@ export default function CandidateDetails() {
                                             <div className="flex justify-end">
                                                 <button
                                                     onClick={handleStageUpdate}
-                                                    disabled={savingStatus || selectedStatus === enquiry.candidateStatus}
+                                                    disabled={savingStatus || selectedStatus === '' || selectedStatus === enquiry?.candidateStatus}
                                                     className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                                 >
                                                     {savingStatus ? 'Saving...' : 'Save Status'}
@@ -2189,6 +2190,7 @@ export default function CandidateDetails() {
                                                 onChange={(e) => setSelectedStatus(e.target.value)}
                                                 className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 focus:outline-none appearance-none"
                                             >
+                                                <option value="" disabled>Select Option</option>
                                                 {statusOptions.map(status => (
                                                     <option key={status} value={status}>
                                                         {status === 'enquiry stage'
@@ -2212,7 +2214,7 @@ export default function CandidateDetails() {
                                         <div className="flex justify-end">
                                             <button
                                                 onClick={handleStageUpdate}
-                                                disabled={savingStatus || selectedStatus === enquiry?.candidateStatus}
+                                                disabled={savingStatus || selectedStatus === '' || selectedStatus === enquiry?.candidateStatus}
                                                 className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:cursor-not-allowed disabled:opacity-60"
                                             >
                                                 {savingStatus ? 'Saving...' : 'Save Status'}
