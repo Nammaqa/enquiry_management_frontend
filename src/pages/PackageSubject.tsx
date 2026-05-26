@@ -151,7 +151,14 @@ export default function PackageSubject() {
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
     const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
     const [currentPackagePage, setCurrentPackagePage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(10);
+    const [itemsPerPage, setItemsPerPage] = useState(() => {
+        const saved = sessionStorage.getItem('packageSubjectItemsPerPage');
+        return saved ? Number(saved) : 10;
+    });
+
+    useEffect(() => {
+        sessionStorage.setItem('packageSubjectItemsPerPage', itemsPerPage.toString());
+    }, [itemsPerPage]);
 
     // Fetch data on mount and tab change
     useEffect(() => {

@@ -59,19 +59,6 @@ export default function CandidateDetails() {
         return '/enquiries';
     };
 
-    const calculateNewSubjectIds = (oldPkgId: number | null | undefined, newPkgId: number | null, currentSubjects: number[], allPackages: Package[]) => {
-        const oldPkg = allPackages.find(p => String(p.id) === String(oldPkgId));
-        const oldPkgSubjects = oldPkg ? (((oldPkg as any).subjects as Subject[] | undefined) ?? (oldPkg as any).Subjects) : [];
-        const oldPkgSubjectIds = oldPkgSubjects?.map((s: any) => s.id) ?? [];
-        
-        const newPkg = allPackages.find(p => String(p.id) === String(newPkgId));
-        const newPkgSubjects = newPkg ? (((newPkg as any).subjects as Subject[] | undefined) ?? (newPkg as any).Subjects) : [];
-        const newPkgSubjectIds = newPkgSubjects?.map((s: any) => s.id) ?? [];
-
-        const additionalSubjects = currentSubjects.filter(id => !oldPkgSubjectIds.includes(id));
-        return Array.from(new Set([...newPkgSubjectIds, ...additionalSubjects]));
-    };
-
     const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
 
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
@@ -92,11 +79,12 @@ export default function CandidateDetails() {
         movement: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
+    const [isEditingFees, setIsEditingFees] = useState(false);
     const [detailsForm, setDetailsForm] = useState<DetailsFormData>({});
+    const [manuallyAddedSubjectIds, setManuallyAddedSubjectIds] = useState<number[]>([]);
     const [feesByPackage, setFeesByPackage] = useState<Record<number, string>>({});
     const [feesBySubject, setFeesBySubject] = useState<Record<number, string>>({});
     const [savingFees, setSavingFees] = useState(false);
-    const [feesChanged, setFeesChanged] = useState(false);
     const [newSubjectToAdd, setNewSubjectToAdd] = useState<number | null>(null);
     const [logForm, setLogForm] = useState({ title: '', description: '' });
     const [submittingLog, setSubmittingLog] = useState(false);
@@ -104,7 +92,7 @@ export default function CandidateDetails() {
     const [paymentAmount, setPaymentAmount] = useState<number>(0);
     const [processingPayment, setProcessingPayment] = useState(false);
     const [discountAmount, setDiscountAmount] = useState<number>(0);
-    const [applyDiscount, setApplyDiscount] = useState<boolean>(false);
+    const [addingDiscountState, setAddingDiscountState] = useState(false);
     const [billingData, setBillingData] = useState<any>(null);
     const [showInvoice, setShowInvoice] = useState(false);
     const [selectedPaymentForInvoice, setSelectedPaymentForInvoice] = useState<any>(null);
@@ -123,6 +111,16 @@ export default function CandidateDetails() {
         : isAccounts && isDemoCandidate
             ? ['enquiry stage', 'demo']
             : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+
+    useEffect(() => {
+        if (enquiry && packages.length > 0) {
+            const pkg = packages.find(p => p.id === enquiry.packageId);
+            const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
+            const pkgSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
+            const manual = (enquiry.subjectIds || []).filter(id => !pkgSubjectIds.includes(id));
+            setManuallyAddedSubjectIds(manual);
+        }
+    }, [enquiry, packages]);
 
     useEffect(() => {
         if (isDemoCandidate && isEditingDetails) {
@@ -302,7 +300,6 @@ export default function CandidateDetails() {
             }
 
             setModalMessage({ type: 'success', message: successMessage });
-            setFeesChanged(false);
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
@@ -320,6 +317,9 @@ export default function CandidateDetails() {
         if (detailsForm.subjectIds?.includes(newSubjectToAdd)) return;
 
         const updatedSubjectIds = [...(detailsForm.subjectIds || []), newSubjectToAdd];
+        
+        setManuallyAddedSubjectIds(prev => [...prev, newSubjectToAdd]);
+        
         setDetailsForm(prev => ({
             ...prev,
             subjectIds: updatedSubjectIds,
@@ -332,6 +332,9 @@ export default function CandidateDetails() {
 
     const handleRemoveSubject = async (subjectId: number) => {
         const updatedSubjectIds = (detailsForm.subjectIds || []).filter(id => id !== subjectId);
+        
+        setManuallyAddedSubjectIds(prev => prev.filter(id => id !== subjectId));
+
         setDetailsForm(prev => ({
             ...prev,
             subjectIds: updatedSubjectIds,
@@ -381,7 +384,7 @@ export default function CandidateDetails() {
                 return sum + getSubjectFee(subjectId);
             }, 0);
         }
-        const discount = applyDiscount ? discountAmount : (billingData ? (Number(billingData.discount) || 0) : 0);
+        const discount = discountAmount > 0 ? discountAmount : (billingData ? (Number(billingData.discount) || 0) : 0);
         const discountedAmount = packageCost - discount;
         const gstRate = billingData ? (Number(billingData.gst) || 18) : 18;
         const totalCost = discountedAmount;
@@ -559,6 +562,71 @@ export default function CandidateDetails() {
         }
     };
 
+    const handleAddDiscount = async () => {
+        if (!enquiry || !discountAmount || discountAmount <= 0) return;
+        setAddingDiscountState(true);
+        try {
+            const paymentDetails = calculatePaymentDetails(enquiry);
+            let billingPayload: any;
+
+            if (billingData?.id) {
+                const existingPaid = parseFloat(billingData.amountPaid) || 0;
+                const newBalance = Math.max(0, Math.round((paymentDetails.totalCost - existingPaid) * 100) / 100);
+
+                billingPayload = {
+                    enquiryId: enquiry.id,
+                    packageCost: billingData.packageCost,
+                    discount: paymentDetails.discount,
+                    gst: paymentDetails.gstRate,
+                    gstAmount: paymentDetails.gstAmount,
+                    amountPaid: existingPaid,
+                    balance: newBalance,
+                    paymentMode: billingData.paymentMode || 'UPI',
+                    transaction_id: billingData.transaction_id || null,
+                };
+
+                await apiRequest(`/api/billings/${billingData.id}`, {
+                    method: 'PUT',
+                    body: billingPayload,
+                });
+            } else {
+                const newBalance = Math.max(0, Math.round((paymentDetails.totalCost) * 100) / 100);
+                billingPayload = {
+                    enquiryId: enquiry.id,
+                    packageCost: paymentDetails.packageCost,
+                    discount: paymentDetails.discount,
+                    gst: paymentDetails.gstRate,
+                    gstAmount: paymentDetails.gstAmount,
+                    amountPaid: 0,
+                    balance: newBalance,
+                    paymentMode: 'UPI',
+                    transaction_id: null,
+                };
+
+                await apiRequest('/api/billings', {
+                    method: 'POST',
+                    body: billingPayload,
+                });
+            }
+
+            const updatedEnquiry = await apiRequest<Enquiry>(`/api/enquiries/${enquiry.id}`, { method: 'GET' });
+            if (updatedEnquiry) {
+                setEnquiry(updatedEnquiry);
+                if (updatedEnquiry.billing) {
+                    setBillingData(updatedEnquiry.billing);
+                }
+            }
+            
+            setModalMessage({ type: 'success', message: 'Discount added successfully', onClose: () => setModalMessage(null) });
+            setDiscountAmount(0);
+        } catch (err: any) {
+            console.error('Error adding discount:', err);
+            setModalMessage({ type: 'error', message: err.message || 'Failed to add discount', onClose: () => setModalMessage(null) });
+        } finally {
+            setAddingDiscountState(false);
+        }
+    };
+
     useEffect(() => {
         if (enquiry) {
             const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
@@ -599,7 +667,7 @@ export default function CandidateDetails() {
             const subjectName = subjects.find(subject => subject.id === subjectId)?.name;
             if (!subjectName) return acc;
             const fee = feeLookup[subjectName.toLowerCase()];
-            if (fee !== undefined) acc[subjectId] = fee.toString();
+            if (fee !== undefined && fee !== 0) acc[subjectId] = fee.toString();
             return acc;
         }, {});
 
@@ -961,6 +1029,14 @@ export default function CandidateDetails() {
 
     return (
         <>
+            {savingFees && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-white/70 backdrop-blur-sm transition-all duration-300">
+                    <div className="flex flex-col items-center p-6 bg-white rounded-2xl shadow-xl">
+                        <div className="h-10 w-10 animate-spin rounded-full border-4 border-indigo-600 border-t-transparent"></div>
+                        <p className="mt-4 text-sm font-semibold text-slate-800">Reloading...</p>
+                    </div>
+                </div>
+            )}
             <div className="min-h-screen bg-slate-50/50 -m-6 p-6">
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
                     <div className="flex items-center gap-4">
@@ -1125,10 +1201,14 @@ export default function CandidateDetails() {
                                                                     value={pkg.id}
                                                                     checked={detailsForm.packageId === pkg.id}
                                                                     onChange={() => {
+                                                                        const newPkg = packages.find(p => p.id === pkg.id);
+                                                                        const newPkgSubjects = newPkg ? (((newPkg as any).subjects as Subject[] | undefined) ?? (newPkg as any).Subjects) : [];
+                                                                        const newPkgSubjectIds = newPkgSubjects?.map((s: any) => s.id) ?? [];
+
                                                                         setDetailsForm(prev => ({
                                                                             ...prev,
                                                                             packageId: pkg.id,
-                                                                            subjectIds: calculateNewSubjectIds(prev.packageId, pkg.id, prev.subjectIds || [], packages),
+                                                                            subjectIds: Array.from(new Set([...newPkgSubjectIds, ...manuallyAddedSubjectIds])),
                                                                         }));
                                                                     }}
                                                                     className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
@@ -1147,7 +1227,7 @@ export default function CandidateDetails() {
                                                                 onChange={() => setDetailsForm(prev => ({
                                                                     ...prev,
                                                                     packageId: null,
-                                                                    subjectIds: calculateNewSubjectIds(prev.packageId, null, prev.subjectIds || [], packages),
+                                                                    subjectIds: Array.from(new Set([...manuallyAddedSubjectIds])),
                                                                 }))}
                                                                 className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                                                             />
@@ -1181,6 +1261,12 @@ export default function CandidateDetails() {
                                                                                 const newIds = e.target.checked
                                                                                     ? [...currentIds, subject.id]
                                                                                     : currentIds.filter(id => id !== subject.id);
+                                                                                
+                                                                                setManuallyAddedSubjectIds(prev => {
+                                                                                    if (e.target.checked) return [...prev, subject.id];
+                                                                                    return prev.filter(id => id !== subject.id);
+                                                                                });
+                                                                                
                                                                                 setDetailsForm(prev => ({ ...prev, subjectIds: newIds }));
                                                                             }}
                                                                             className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-70"
@@ -1611,6 +1697,17 @@ export default function CandidateDetails() {
                             </button>
                             {expandedSections.fees && (
                                 <div className="px-6 pb-6 border-t border-slate-200">
+                                    {!isEditingFees && (
+                                        <div className="flex justify-end pt-4 mb-4">
+                                            <button
+                                                type="button"
+                                                onClick={() => setIsEditingFees(true)}
+                                                className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                            >
+                                                Edit Fees
+                                            </button>
+                                        </div>
+                                    )}
                                     <div className="space-y-4">
                                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
@@ -1619,23 +1716,28 @@ export default function CandidateDetails() {
                                                     <div className="flex gap-3 items-end">
                                                         <select
                                                             value={detailsForm.packageId || ''}
+                                                            disabled={!isEditingFees}
                                                             onChange={(e) => {
                                                                 const newPackageId = e.target.value ? Number(e.target.value) : null;
+                                                                
+                                                                const newPkg = packages.find(p => p.id === newPackageId);
+                                                                const newPkgSubjects = newPkg ? (((newPkg as any).subjects as Subject[] | undefined) ?? (newPkg as any).Subjects) : [];
+                                                                const newPkgSubjectIds = newPkgSubjects?.map((s: any) => s.id) ?? [];
+                                                                
                                                                 setDetailsForm(prev => ({
                                                                     ...prev,
                                                                     packageId: newPackageId,
-                                                                    subjectIds: calculateNewSubjectIds(prev.packageId, newPackageId, prev.subjectIds || [], packages),
+                                                                    subjectIds: Array.from(new Set([...newPkgSubjectIds, ...manuallyAddedSubjectIds])),
                                                                 }));
-                                                                setFeesChanged(true);
                                                             }}
-                                                            className="flex-1 rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                            className="flex-1 rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:opacity-70"
                                                         >
                                                             <option value="">Select a Package</option>
                                                             {packages.map(pkg => (
                                                                 <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
                                                             ))}
                                                         </select>
-                                                        {detailsForm.packageId !== enquiry?.packageId && (
+                                                        {detailsForm.packageId !== enquiry?.packageId && isEditingFees && (
                                                             <button
                                                                 type="button"
                                                                 onClick={() => savePackageSubjectUpdate(
@@ -1662,7 +1764,7 @@ export default function CandidateDetails() {
                                                             const inputValue = detailsForm.packageId
                                                                 ? (feesByPackage[detailsForm.packageId] !== undefined
                                                                     ? feesByPackage[detailsForm.packageId]
-                                                                    : (savedFee !== undefined ? String(savedFee) : ''))
+                                                                    : (savedFee !== undefined && savedFee !== 0 ? String(savedFee) : ''))
                                                                 : '';
 
                                                             if (savedFee !== undefined && savedFee > 0) {
@@ -1678,16 +1780,15 @@ export default function CandidateDetails() {
                                                                     type="text"
                                                                     inputMode="numeric"
                                                                     value={inputValue}
-                                                                    disabled={!isOriginalPackage}
+                                                                    disabled={!isOriginalPackage || !isEditingFees}
                                                                     onChange={(e) => {
                                                                         const raw = e.target.value;
                                                                         const cleaned = raw.replace(/[^0-9.]/g, '');
                                                                         if (detailsForm.packageId) {
                                                                             setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: cleaned }));
-                                                                            setFeesChanged(true);
                                                                         }
                                                                     }}
-                                                                    className={`no-spinner w-full rounded-3xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${!isOriginalPackage ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
+                                                                    className={`no-spinner w-full rounded-3xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${(!isOriginalPackage || !isEditingFees) ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
                                                                     placeholder={!isOriginalPackage ? "Update package first" : "Enter package fee"}
                                                                     title={!isOriginalPackage ? "Please click 'Update package' before entering the fee" : ""}
                                                                 />
@@ -1713,8 +1814,9 @@ export default function CandidateDetails() {
                                                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Add Subject</label>
                                                     <select
                                                         value={newSubjectToAdd ?? ''}
+                                                        disabled={!isEditingFees}
                                                         onChange={(e) => setNewSubjectToAdd(Number(e.target.value) || null)}
-                                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                        className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:opacity-70"
                                                     >
                                                         <option value="">Select subject</option>
                                                         {availableAdditionalSubjects.map(subject => (
@@ -1722,14 +1824,16 @@ export default function CandidateDetails() {
                                                         ))}
                                                     </select>
                                                 </div>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddSubject}
-                                                    disabled={!newSubjectToAdd}
-                                                    className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 transition-colors"
-                                                >
-                                                    Add Subject
-                                                </button>
+                                                {isEditingFees && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleAddSubject}
+                                                        disabled={!newSubjectToAdd}
+                                                        className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-4 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 transition-colors"
+                                                    >
+                                                        Add Subject
+                                                    </button>
+                                                )}
                                             </div>
 
                                             {/* Existing targeted fees — when package present, show only the package fee entry */}
@@ -1798,13 +1902,15 @@ export default function CandidateDetails() {
                                                             <div key={subjectId} className="grid gap-3 sm:grid-cols-[1fr_180px] items-center rounded-3xl border border-slate-200 bg-white p-4">
                                                                 <div className="flex items-center justify-between gap-3">
                                                                     <p className="text-sm font-medium text-slate-800">{subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`}</p>
-                                                                    <button
-                                                                        type="button"
-                                                                        onClick={() => handleRemoveSubject(subjectId)}
-                                                                        className="text-rose-600 hover:text-rose-700 text-sm font-medium"
-                                                                    >
-                                                                        Remove
-                                                                    </button>
+                                                                    {isEditingFees && (
+                                                                        <button
+                                                                            type="button"
+                                                                            onClick={() => handleRemoveSubject(subjectId)}
+                                                                            className="text-rose-600 hover:text-rose-700 text-sm font-medium"
+                                                                        >
+                                                                            Remove
+                                                                        </button>
+                                                                    )}
                                                                 </div>
                                                                 <div>
                                                                     <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
@@ -1814,7 +1920,7 @@ export default function CandidateDetails() {
 
                                                                         const inputValue = feesBySubject[subjectId] !== undefined 
                                                                             ? feesBySubject[subjectId] 
-                                                                            : (previouslyAddedFee !== undefined ? String(previouslyAddedFee) : '');
+                                                                            : (previouslyAddedFee !== undefined && previouslyAddedFee !== 0 ? String(previouslyAddedFee) : '');
 
                                                                         if (previouslyAddedFee !== undefined && previouslyAddedFee > 0) {
                                                                             return (
@@ -1829,13 +1935,13 @@ export default function CandidateDetails() {
                                                                                 type="text"
                                                                                 inputMode="numeric"
                                                                                 value={inputValue}
+                                                                                disabled={!isEditingFees}
                                                                                 onChange={(e) => {
                                                                                     const raw = e.target.value;
                                                                                     const cleaned = raw.replace(/[^0-9.]/g, '');
                                                                                     setFeesBySubject(prev => ({ ...prev, [subjectId]: cleaned }));
-                                                                                    setFeesChanged(true);
                                                                                 }}
-                                                                                className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500"
+                                                                                className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:opacity-70"
                                                                                 placeholder="Enter subject fee"
                                                                             />
                                                                         );
@@ -1867,8 +1973,8 @@ export default function CandidateDetails() {
                                             <p className="text-xs text-slate-500">This is the total that will be saved as the billing package cost.</p>
                                         </div>
 
-                                        {feesChanged && (
-                                            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                                        {isEditingFees && (
+                                            <div className="flex flex-wrap gap-3 pt-4">
                                                 <button
                                                     type="button"
                                                     onClick={() => {
@@ -1880,14 +1986,33 @@ export default function CandidateDetails() {
                                                             detailsForm.packageId ?? null,
                                                             detailsForm.subjectIds || [],
                                                             'Fees updated successfully'
-                                                        );
+                                                        ).then(() => {
+                                                            setIsEditingFees(false);
+                                                        });
                                                     }}
                                                     disabled={savingFees}
-                                                    className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 disabled:bg-slate-300 disabled:text-slate-500 disabled:cursor-not-allowed transition-colors"
+                                                    className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                                 >
                                                     {savingFees ? 'Saving...' : 'Save fees'}
                                                 </button>
-                                                <p className="text-sm text-slate-500">Saves fee config and creates a billing record.</p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => {
+                                                        setIsEditingFees(false);
+                                                        if (enquiry) {
+                                                            setDetailsForm(prev => ({
+                                                                ...prev,
+                                                                packageId: enquiry.packageId,
+                                                                subjectIds: enquiry.subjectIds || [],
+                                                            }));
+                                                            // Also reset any fee edits to what is on the server if needed...
+                                                            // But targetedFees logic is already handling this somewhat through getSelectedPackageFee.
+                                                        }
+                                                    }}
+                                                    className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                                >
+                                                    Cancel
+                                                </button>
                                             </div>
                                         )}
 
@@ -1972,35 +2097,30 @@ export default function CandidateDetails() {
                                                     )}
                                                     <div className="space-y-3">
                                                         {!(billingData && Number(billingData.discount || 0) > 0) && (
-                                                            <div className="flex items-center gap-3">
-                                                                <input
-                                                                    type="checkbox"
-                                                                    id="applyDiscount"
-                                                                    checked={applyDiscount}
-                                                                    onChange={(e) => setApplyDiscount(e.target.checked)}
-                                                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500"
-                                                                />
-                                                                <label htmlFor="applyDiscount" className="text-sm font-medium text-slate-700">
-                                                                    Apply Discount
-                                                                </label>
-                                                            </div>
-                                                        )}
-
-                                                        {applyDiscount && !(billingData && Number(billingData.discount || 0) > 0) && (
                                                             <div>
                                                                 <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Discount Amount (₹)</label>
-                                                                <input
-                                                                    type="text"
-                                                                    inputMode="numeric"
-                                                                    value={discountAmount || ''}
-                                                                    onChange={(e) => {
-                                                                        const raw = e.target.value;
-                                                                        const cleaned = raw.replace(/[^0-9.]/g, '');
-                                                                        setDiscountAmount(cleaned === '' ? 0 : Number(cleaned));
-                                                                    }}
-                                                                    placeholder="Enter discount amount"
-                                                                    className="w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
-                                                                />
+                                                                <div className="flex gap-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        inputMode="numeric"
+                                                                        value={discountAmount || ''}
+                                                                        onChange={(e) => {
+                                                                            const raw = e.target.value;
+                                                                            const cleaned = raw.replace(/[^0-9.]/g, '');
+                                                                            setDiscountAmount(cleaned === '' ? 0 : Number(cleaned));
+                                                                        }}
+                                                                        placeholder="Enter discount amount"
+                                                                        className="flex-1 rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 outline-none"
+                                                                    />
+                                                                    <button
+                                                                        type="button"
+                                                                        onClick={handleAddDiscount}
+                                                                        disabled={addingDiscountState || discountAmount <= 0}
+                                                                        className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors whitespace-nowrap"
+                                                                    >
+                                                                        {addingDiscountState ? 'Adding...' : 'Add Discount'}
+                                                                    </button>
+                                                                </div>
                                                             </div>
                                                         )}
                                                     </div>

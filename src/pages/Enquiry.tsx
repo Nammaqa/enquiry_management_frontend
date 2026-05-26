@@ -527,49 +527,48 @@ export default function Enquiry() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">Included Subjects</label>
-                        {(() => {
-                            const pkg = packages.find(p => p.id === formData.packageId);
-                            const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
-                            const packageSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
+                    {formData.packageId !== null && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-3">Included Subjects</label>
+                            {(() => {
+                                const pkg = packages.find(p => p.id === formData.packageId);
+                                const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
+                                const packageSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
 
-                            return (
-                                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                                    {subjects.map(subject => {
-                                        const isPackageSubject = packageSubjectIds.includes(subject.id);
-                                        return (
-                                            <label
-                                                key={subject.id}
-                                                className={`flex items-center space-x-2 text-sm text-slate-700 transition-colors ${isPackageSubject ? 'opacity-80 cursor-not-allowed' : 'hover:text-indigo-600 cursor-pointer'}`}
-                                            >
-                                                <input
-                                                    type="checkbox"
-                                                    checked={isPackageSubject || formData.subjectIds.includes(subject.id)}
-                                                    disabled={isPackageSubject}
-                                                    onChange={() => handleSubjectToggle(subject.id)}
-                                                    className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-70"
-                                                />
-                                                <span className="flex flex-col">
-                                                    <span>{subject.name}</span>
-                                                    {isPackageSubject && <span className="text-[10px] text-indigo-500 font-medium leading-tight">Included in package</span>}
-                                                </span>
-                                            </label>
-                                        );
-                                    })}
-                                </div>
-                            );
-                        })()}
-                        {formData.subjectIds.length === 0 && formData.packageId === PACKAGE_ID_OTHERS && (
-                            <p className="text-xs text-red-500 mt-2">Please select at least one subject.</p>
-                        )}
-                        {formData.subjectIds.length === 0 && formData.packageId !== PACKAGE_ID_OTHERS && formData.packageId !== null && (
-                            <p className="text-xs text-amber-500 mt-2">Subjects will be auto-selected based on the package.</p>
-                        )}
-                        {formData.subjectIds.length === 0 && formData.packageId === null && (
-                            <p className="text-xs text-amber-500 mt-2">No subjects selected. Please select a package or manually check subjects.</p>
-                        )}
-                    </div>
+                                return (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {subjects.map(subject => {
+                                            const isPackageSubject = packageSubjectIds.includes(subject.id);
+                                            return (
+                                                <label
+                                                    key={subject.id}
+                                                    className={`flex items-center space-x-2 text-sm text-slate-700 transition-colors ${isPackageSubject ? 'opacity-80 cursor-not-allowed' : 'hover:text-indigo-600 cursor-pointer'}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isPackageSubject || formData.subjectIds.includes(subject.id)}
+                                                        disabled={isPackageSubject}
+                                                        onChange={() => handleSubjectToggle(subject.id)}
+                                                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-70"
+                                                    />
+                                                    <span className="flex flex-col">
+                                                        <span>{subject.name}</span>
+                                                        {isPackageSubject && <span className="text-[10px] text-indigo-500 font-medium leading-tight">Included in package</span>}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                            {formData.subjectIds.length === 0 && formData.packageId === PACKAGE_ID_OTHERS && (
+                                <p className="text-xs text-red-500 mt-2">Please select at least one subject.</p>
+                            )}
+                            {formData.subjectIds.length === 0 && formData.packageId !== PACKAGE_ID_OTHERS && (
+                                <p className="text-xs text-amber-500 mt-2">Subjects will be auto-selected based on the package.</p>
+                            )}
+                        </div>
+                    )}
                 </div>
 
                 {/* 3. Training Preferences */}

@@ -50,6 +50,7 @@ export interface Enquiry {
     demoStatus?: string; // New field requested
     isSentBack?: boolean;
     billing?: Billing;
+    paymentStatus?: string; // New field for paid list
     callLogs?: CallLogEntry[];
     createdAt: string;
     updatedAt: string;

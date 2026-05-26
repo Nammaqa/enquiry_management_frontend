@@ -27,7 +27,7 @@ export default function InvoiceModal({
     isOpen, onClose,
     candidateName, candidateEmail, candidatePhone, candidateLocation,
     invoiceNumber, invoiceDate,
-    items, amountPaid, balance, totalAmount,
+    items, amountPaid, balance, totalAmount, discount
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
 
@@ -220,10 +220,11 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                     <div style={{ width: 320 }}>
                         {[
                             { label: 'Package Total Amount', value: `₹${totalPackageCost.toFixed(2)}` },
+                            ...(discount > 0 ? [{ label: 'Discount', value: `-₹${discount.toFixed(2)}`, color: '#16a34a' }] : []),
                         ].map(r => (
                             <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
                                 <span style={{ color: '#475569' }}>{r.label}</span>
-                                <span style={{ fontWeight: 700, color: '#1e293b' }}>{r.value}</span>
+                                <span style={{ fontWeight: 700, color: r.color || '#1e293b' }}>{r.value}</span>
                             </div>
                         ))}
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 8 }}>
