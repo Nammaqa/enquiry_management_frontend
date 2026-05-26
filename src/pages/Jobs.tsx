@@ -680,7 +680,7 @@ export default function Jobs() {
                         )}
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || (userRole === 'COUNSELLOR' && Object.keys(validate()).length > 0)}
                             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

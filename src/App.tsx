@@ -15,6 +15,7 @@ import Jobs from "./pages/Jobs";
 import StudentPlacementList from "./pages/StudentPlacementList";
 import DemoList from "./pages/DemoList";
 import ClassList from "./pages/ClassList";
+import PaidList from "./pages/PaidList";
 
 const router = createBrowserRouter([
   {
@@ -112,6 +113,14 @@ const router = createBrowserRouter([
     element: <ProtectedRoute>
       <MainContent>
         <ClassList />
+      </MainContent>
+    </ProtectedRoute>,
+  },
+  {
+    path: "/paid-list",
+    element: <ProtectedRoute>
+      <MainContent>
+        <PaidList />
       </MainContent>
     </ProtectedRoute>,
   },

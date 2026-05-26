@@ -98,6 +98,13 @@ const ClassIcon = () => (
     </svg>
 );
 
+const PaidIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <line x1="12" y1="1" x2="12" y2="23" />
+        <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+    </svg>
+);
+
 interface NavItemProps {
     icon: React.ReactNode;
     label: string;
@@ -144,6 +151,7 @@ export default function MainContent({ children }: { children: React.ReactNode })
     }, []);
 
     const jobsAllowedRoles = ['ADMIN','HR', 'COUNSELLOR'];
+    const placementsAllowedRoles = ['ADMIN', 'HR'];
     const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
     const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
     const counsellorOnlyRoles = ['COUNSELLOR']; // Only counsellors see demo and class lists
@@ -151,6 +159,7 @@ export default function MainContent({ children }: { children: React.ReactNode })
     const navItems = fullRoleName === 'ACCOUNTS'
         ? [
             { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
+            { icon: <PaidIcon />, label: 'Paid List', path: '/paid-list' },
             { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
             { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
         ]
@@ -172,7 +181,11 @@ export default function MainContent({ children }: { children: React.ReactNode })
                 : []),
             ...(jobsAllowedRoles.includes(fullRoleName)
                 ? [
-                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
+                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' }
+                ]
+                : []),
+            ...(placementsAllowedRoles.includes(fullRoleName)
+                ? [
                     { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
                 ]
                 : []),
@@ -217,6 +230,9 @@ export default function MainContent({ children }: { children: React.ReactNode })
         }
         if (activeItem?.label == 'Demo List') {
             return 'View all candidates in demo stage';
+        }
+        if (activeItem?.label == 'Paid List') {
+            return 'View all candidates who have fully paid';
         }
         if (activeItem?.label == 'Class List') {
             return 'View all candidates in class stage';
