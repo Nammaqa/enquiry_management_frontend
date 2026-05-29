@@ -40,8 +40,14 @@ export default function ClassList() {
                 apiRequest<Subject[]>('/api/subjects', { method: 'GET' })
             ]);
 
-            // Filter to only class status
-            const classEnquiries = enquiriesData.filter(e => e.candidateStatus === 'class');
+            // Filter to only class status and exclude fully paid candidates
+            const classEnquiries = enquiriesData.filter(e => {
+                if (e.candidateStatus !== 'class') return false;
+                
+                const isFullyPaid = e.billing && parseFloat(e.billing.balance) <= 0 && parseFloat(e.billing.packageCost) > 0;
+                
+                return !isFullyPaid;
+            });
 
             setEnquiries(classEnquiries);
             setPackages(packagesData);
