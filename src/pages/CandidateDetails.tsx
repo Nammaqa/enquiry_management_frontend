@@ -245,7 +245,7 @@ export default function CandidateDetails() {
                 },
             });
 
-            setEnquiry(prev => prev ? ({ ...prev, ...(response || {}), packageId: packageId ?? null, subjectIds }) : prev);
+            setEnquiry(prev => prev ? ({ ...prev, ...(response || {}), packageId: packageId ?? null, subjectIds, targetedFees: builtFees }) : prev);
 
             // 2. Create or update billing record
             try {
@@ -1767,7 +1767,7 @@ export default function CandidateDetails() {
                                                                     : (savedFee !== undefined && savedFee !== 0 ? String(savedFee) : ''))
                                                                 : '';
 
-                                                            if (savedFee !== undefined && savedFee > 0) {
+                                                            if (savedFee !== undefined && savedFee > 0 && !isEditingFees) {
                                                                 return (
                                                                     <div className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm h-[46px]">
                                                                         <span className="font-bold text-indigo-700">₹{savedFee}</span>
@@ -1922,7 +1922,7 @@ export default function CandidateDetails() {
                                                                             ? feesBySubject[subjectId] 
                                                                             : (previouslyAddedFee !== undefined && previouslyAddedFee !== 0 ? String(previouslyAddedFee) : '');
 
-                                                                        if (previouslyAddedFee !== undefined && previouslyAddedFee > 0) {
+                                                                        if (previouslyAddedFee !== undefined && previouslyAddedFee > 0 && !isEditingFees) {
                                                                             return (
                                                                                 <div className="flex items-center gap-2 px-4 py-3 bg-indigo-50 border border-indigo-100 rounded-3xl text-sm h-[46px]">
                                                                                     <span className="font-bold text-indigo-700">₹{previouslyAddedFee}</span>
