@@ -101,7 +101,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
     const statusLabel = balance <= 0 ? 'PAID' : 'PARTIALLY PAID';
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', padding: '32px 16px' }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
             {/* Action bar */}
             <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
                 <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -113,7 +113,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
             </div>
 
             {/* Invoice paper */}
-            <div ref={printRef} style={{ background: '#fff', width: '100%', maxWidth: 860, borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
+            <div ref={printRef} style={{ background: '#fff', width: '100%', maxWidth: 'none', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
 
                 {/* Header */}
                 <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
@@ -227,6 +227,18 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                                 <span style={{ fontWeight: 700, color: r.color || '#1e293b' }}>{r.value}</span>
                             </div>
                         ))}
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 13, borderTop: '2px solid #1e293b', marginTop: 8 }}>
+                            <span style={{ color: '#475569' }}>Base Amount (Paid)</span>
+                            <span style={{ fontWeight: 700 }}>₹{(amountPaid / 1.18).toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
+                            <span style={{ color: '#475569' }}>CGST (9%)</span>
+                            <span style={{ fontWeight: 700 }}>₹{((amountPaid / 1.18) * 0.09).toFixed(2)}</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
+                            <span style={{ color: '#475569' }}>SGST (9%)</span>
+                            <span style={{ fontWeight: 700 }}>₹{((amountPaid / 1.18) * 0.09).toFixed(2)}</span>
+                        </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 8 }}>
                             <span style={{ fontWeight: 700 }}>{isPaymentHistory ? 'Total amount paid' : 'Amount Paid'}</span>
                             <span style={{ fontWeight: 800, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>

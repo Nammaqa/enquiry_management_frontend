@@ -104,7 +104,7 @@ export default function Batches() {
     const [batchForm, setBatchForm] = useState({
         name: '',
         code: '',
-        status: 'yet to start' as 'yet to start' | 'In progress' | 'completed',
+        status: '' as 'yet to start' | 'In progress' | 'completed' | '',
         sessionLink: '',
         sessionStartDate: '',
         sessionEndDate: '',
@@ -242,7 +242,7 @@ export default function Batches() {
             setBatchForm({
                 name: '',
                 code: '',
-                status: 'yet to start',
+                status: '',
                 sessionLink: '',
                 sessionStartDate: '',
                 sessionEndDate: '',
@@ -260,8 +260,21 @@ export default function Batches() {
     // Save batch
     const saveBatch = async () => {
         // Validate required fields
-        if (!batchForm.name || !batchForm.code || !batchForm.sessionStartDate || !batchForm.sessionTime) {
-            setError('Batch Name, Code, Session Start Date, and Session Time are required');
+        if (!batchForm.name || !batchForm.code || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime) {
+            setError('Batch Name, Code, Status, Session Start Date, and Session Time are required');
+            return;
+        }
+
+        if (!editingBatch && batchForm.sessionStartDate) {
+            const todayStr = new Date().toISOString().split('T')[0];
+            if (batchForm.sessionStartDate < todayStr) {
+                setError('Session Start Date cannot be in the past when creating a new batch');
+                return;
+            }
+        }
+
+        if (batchForm.sessionEndDate && batchForm.sessionStartDate && batchForm.sessionEndDate < batchForm.sessionStartDate) {
+            setError('Session End Date cannot be before Session Start Date');
             return;
         }
 
@@ -331,6 +344,7 @@ export default function Batches() {
                     body: formData,
                     isFormData: true,
                 });
+                setSuccessMessage('Batch created successfully');
             }
             await fetchBatches();
             setIsModalOpen(false);
@@ -338,7 +352,7 @@ export default function Batches() {
             setBatchForm({
                 name: '',
                 code: '',
-                status: 'yet to start',
+                status: '',
                 sessionLink: '',
                 sessionStartDate: '',
                 sessionEndDate: '',
@@ -415,17 +429,28 @@ export default function Batches() {
                 </button>
             </div>
 
-            {/* Success Message */}
+            {/* Success Message Modal */}
             {successMessage && (
-                <div className="bg-emerald-50 border border-emerald-200 text-emerald-700 px-4 py-3 rounded-lg text-sm flex items-start justify-between gap-4">
-                    <span>{successMessage}</span>
-                    <button
-                        onClick={() => setSuccessMessage(null)}
-                        className="text-emerald-700 hover:text-emerald-900"
-                        aria-label="Close success message"
-                    >
-                        <CloseIcon />
-                    </button>
+                <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-xl shadow-xl w-full max-w-sm overflow-hidden text-center">
+                        <div className="p-6">
+                            <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-emerald-100 mb-4">
+                                <svg className="h-6 w-6 text-emerald-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                            <h3 className="text-lg font-semibold text-slate-800 mb-2">Success</h3>
+                            <p className="text-sm text-slate-600">{successMessage}</p>
+                        </div>
+                        <div className="bg-slate-50 px-6 py-4 border-t border-slate-200">
+                            <button
+                                onClick={() => setSuccessMessage(null)}
+                                className="w-full inline-flex justify-center rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 transition-colors"
+                            >
+                                OK
+                            </button>
+                        </div>
+                    </div>
                 </div>
             )}
             
@@ -695,7 +720,7 @@ export default function Batches() {
                                     <input
                                         type="text"
                                         value={batchForm.name}
-                                        onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value })}
+                                        onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Python Batch 2024"
                                     />
@@ -708,7 +733,7 @@ export default function Batches() {
                                     <input
                                         type="text"
                                         value={batchForm.code}
-                                        onChange={(e) => setBatchForm({ ...batchForm, code: e.target.value })}
+                                        onChange={(e) => setBatchForm({ ...batchForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., PY-2024-001"
                                     />
@@ -723,6 +748,7 @@ export default function Batches() {
                                         onChange={(e) => setBatchForm({ ...batchForm, status: e.target.value as any })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     >
+                                        <option value="">-- Select a Status --</option>
                                         {STATUS_OPTIONS.map(status => (
                                             <option key={status} value={status}>{status}</option>
                                         ))}
@@ -808,6 +834,7 @@ export default function Batches() {
                                     </label>
                                     <input
                                         type="date"
+                                        min={!editingBatch ? new Date().toISOString().split('T')[0] : undefined}
                                         value={batchForm.sessionStartDate}
                                         onChange={(e) => setBatchForm({ ...batchForm, sessionStartDate: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
@@ -820,6 +847,7 @@ export default function Batches() {
                                     </label>
                                     <input
                                         type="date"
+                                        min={batchForm.sessionStartDate || undefined}
                                         value={batchForm.sessionEndDate}
                                         onChange={(e) => setBatchForm({ ...batchForm, sessionEndDate: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"

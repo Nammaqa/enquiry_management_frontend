@@ -1084,7 +1084,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={subjectForm.name}
-                                        onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value })}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Mathematics"
@@ -1097,7 +1097,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={subjectForm.code}
-                                        onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., MATH101"
@@ -1341,7 +1341,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={packageForm.name}
-                                        onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+                                        onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Science Package"
@@ -1354,7 +1354,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={packageForm.code}
-                                        onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value })}
+                                        onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., SCI001"

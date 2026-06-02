@@ -275,6 +275,22 @@ export default function Enquiry() {
             setFieldErrors({ ...fieldErrors, phone: phoneError });
             return;
         }
+
+        // Validate email format and domain
+        const email = formData.candidateEmail.trim();
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            setFieldErrors({ ...fieldErrors, email: 'Invalid email format' });
+            alert('Please provide a valid email address.');
+            return;
+        }
+
+        const invalidDomains = ['test.com', 'example.com', 'dummy.com', 'fake.com', 'invalid.com', 'email.com', '123.com'];
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        if (emailDomain && invalidDomains.includes(emailDomain)) {
+            setFieldErrors({ ...fieldErrors, email: 'Please provide a genuine email address' });
+            return;
+        }
         
         // Check if phone already exists
         if (phoneExists) {
@@ -331,11 +347,21 @@ export default function Enquiry() {
             
             // Set field-specific errors
             const errors: { [key: string]: string } = {};
-            if (errorMessage.toLowerCase().includes('email')) {
-                errors.email = 'Email address already exists. Please use a different email.';
+            const lowerMsg = errorMessage.toLowerCase();
+            
+            if (lowerMsg.includes('email')) {
+                if (lowerMsg.includes('exist') || lowerMsg.includes('duplicate') || lowerMsg.includes('unique')) {
+                    errors.email = 'Email address already exists. Please use a different email.';
+                } else {
+                    errors.email = errorMessage;
+                }
             }
-            if (errorMessage.toLowerCase().includes('phone')) {
-                errors.phone = 'Phone number already exists. Please use a different phone number.';
+            if (lowerMsg.includes('phone')) {
+                if (lowerMsg.includes('exist') || lowerMsg.includes('duplicate') || lowerMsg.includes('unique')) {
+                    errors.phone = 'Phone number already exists. Please use a different phone number.';
+                } else {
+                    errors.phone = errorMessage;
+                }
             }
             if (Object.keys(errors).length === 0) {
                 setError(errorMessage);
@@ -457,7 +483,12 @@ export default function Enquiry() {
                                     required
                                     type="text"
                                     value={formData.candidateLocation}
-                                    onChange={e => setFormData({ ...formData, candidateLocation: e.target.value })}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                            setFormData({ ...formData, candidateLocation: val });
+                                        }
+                                    }}
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="City, Area"
                                 />
