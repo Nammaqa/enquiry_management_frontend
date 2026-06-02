@@ -133,8 +133,8 @@ export default function Jobs() {
         companyLogo: '',
         jobTitle: '',
         location: '',
-        workMode: 'Remote' as WorkMode,
-        jobType: 'Full-time' as JobType,
+        workMode: '' as WorkMode,
+        jobType: '' as JobType,
         about: '',
         jobDescription: '',
         preferredExperience: '',
@@ -254,9 +254,20 @@ export default function Jobs() {
 
     const validate = () => {
         const e: Partial<Record<keyof typeof form, string>> = {};
-        if (!form.companyName.trim()) e.companyName = 'Required';
-        if (!form.jobTitle.trim()) e.jobTitle = 'Required';
+        if (!form.companyName.trim()) {
+            e.companyName = 'Required';
+        } else if (form.companyName.trim().length < 4) {
+            e.companyName = 'Must be at least 4 characters';
+        }
+
+        if (!form.jobTitle.trim()) {
+            e.jobTitle = 'Required';
+        } else if (form.jobTitle.trim().length < 4) {
+            e.jobTitle = 'Must be at least 4 characters';
+        }
         if (!form.location.trim()) e.location = 'Required';
+        if (!form.workMode) e.workMode = 'Required';
+        if (!form.jobType) e.jobType = 'Required';
         if (!form.about.trim()) e.about = 'Required';
         if (!form.jobDescription.trim()) e.jobDescription = 'Required';
         if (!form.preferredExperience.trim()) e.preferredExperience = 'Required';
@@ -289,8 +300,8 @@ export default function Jobs() {
             companyLogo: '',
             jobTitle: '',
             location: '',
-            workMode: 'Remote',
-            jobType: 'Full-time',
+            workMode: '' as WorkMode,
+            jobType: '' as JobType,
             about: '',
             jobDescription: '',
             preferredExperience: '',
@@ -339,8 +350,8 @@ export default function Jobs() {
                         companyLogo: '',
                         jobTitle: '',
                         location: '',
-                        workMode: 'Remote',
-                        jobType: 'Full-time',
+                        workMode: '' as WorkMode,
+                        jobType: '' as JobType,
                         about: '',
                         jobDescription: '',
                         preferredExperience: '',
@@ -479,7 +490,12 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.companyName}
-                                onChange={e => set('companyName', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                        set('companyName', val);
+                                    }
+                                }}
                                 placeholder="e.g. Netflix"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.companyName ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
@@ -492,7 +508,12 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.jobTitle}
-                                onChange={e => set('jobTitle', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                        set('jobTitle', val);
+                                    }
+                                }}
                                 placeholder="e.g. AI/ML Engineer"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobTitle ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
@@ -509,35 +530,48 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.location}
-                                onChange={e => set('location', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                        set('location', val);
+                                    }
+                                }}
                                 placeholder="e.g. Bengaluru"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.location ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
                             {errors.location && <p className="text-xs text-rose-500 mt-1">{errors.location}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Work Mode</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Work Mode <span className="text-rose-500">*</span>
+                            </label>
                             <select
                                 value={form.workMode}
                                 onChange={e => set('workMode', e.target.value as WorkMode)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.workMode ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             >
+                                <option value="" disabled>Select Work Mode</option>
                                 {VALID_WORK_MODES.map(m => (
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
+                            {errors.workMode && <p className="text-xs text-rose-500 mt-1">{errors.workMode}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Job Type</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Job Type <span className="text-rose-500">*</span>
+                            </label>
                             <select
                                 value={form.jobType}
                                 onChange={e => set('jobType', e.target.value as JobType)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobType ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             >
+                                <option value="" disabled>Select Job Type</option>
                                 {VALID_JOB_TYPES.map(t => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>
+                            {errors.jobType && <p className="text-xs text-rose-500 mt-1">{errors.jobType}</p>}
                         </div>
                     </div>
 
@@ -754,7 +788,7 @@ export default function Jobs() {
                                                 {job.jobType}
                                             </span>
                                             <span className="text-slate-400">
-                                                Posted: {job.postedAt || (job.createdAt ? new Date(job.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now')}
+                                                Posted: {job.postedAt ? new Date(job.postedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : (job.createdAt ? new Date(job.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now')}
                                             </span>
                                         </div>
                                         {job.technicalSkills && job.technicalSkills.length > 0 && (

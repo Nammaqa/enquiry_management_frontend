@@ -1,5 +1,13 @@
 const API_URL = import.meta.env.VITE_API_URL;
 
+function showApiError(message: string) {
+    try {
+        alert(message);
+    } catch {
+        // ignore
+    }
+}
+
 export interface ApiRequestOptions {
     method?: 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
     body?: any;
@@ -60,10 +68,16 @@ export const apiRequest = async <T = any>(
                 window.location.href = '/login';
                 throw new Error('Unauthorized');
             }
-
             const errorData = await response.json().catch(() => ({}));
-            const errorMessage = errorData.message || `HTTP ${response.status}: ${response.statusText}`;
-            const error = new Error(errorMessage);
+            const errorMessage = errorData?.message || `HTTP ${response.status}: ${response.statusText}`;
+
+            // If this was a create enquiry request, show a popup with the error
+            try {
+                const isEnquiryCreate = endpoint.includes('/enquiries') && (config.method === 'POST' || options.method === 'POST');
+                if (isEnquiryCreate) showApiError(String(errorMessage));
+            } catch {}
+
+            const error = new Error(String(errorMessage));
             (error as any).status = response.status;
             throw error;
         }
@@ -72,7 +86,12 @@ export const apiRequest = async <T = any>(
     } catch (error) {
         clearTimeout(timeoutId);
         if (error instanceof Error && error.name === 'AbortError') {
-            throw new Error('Request timeout - please try again');
+            const msg = 'Request timeout - please try again';
+            try {
+                const isEnquiryCreate = endpoint.includes('/enquiries') && (config.method === 'POST' || options.method === 'POST');
+                if (isEnquiryCreate) showApiError(msg);
+            } catch {}
+            throw new Error(msg);
         }
         throw error;
     }

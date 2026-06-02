@@ -699,6 +699,39 @@ export default function CandidateDetails() {
 
         setUpdateError(null); // Clear any previous update errors
 
+        // Validate required fields
+        if (!detailsForm.name?.trim()) {
+            setUpdateError('Name is required');
+            return;
+        }
+        if (!detailsForm.email?.trim()) {
+            setUpdateError('Email is required');
+            return;
+        }
+        if (!detailsForm.phone?.trim()) {
+            setUpdateError('Phone is required');
+            return;
+        }
+        if (!detailsForm.current_location?.trim()) {
+            setUpdateError('Location is required');
+            return;
+        }
+
+        // Validate email format and domain
+        const email = detailsForm.email.trim();
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            setUpdateError('Invalid email format');
+            return;
+        }
+
+        const invalidDomains = ['test.com', 'example.com', 'dummy.com', 'fake.com', 'invalid.com', 'email.com', '123.com'];
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        if (invalidDomains.includes(emailDomain)) {
+            setUpdateError('Please provide a genuine email address');
+            return;
+        }
+
         // Validate phone number before updating
         const phoneError = validatePhoneNumber(detailsForm.phone || '');
         if (detailsForm.phone && phoneError) {
@@ -1150,7 +1183,12 @@ export default function CandidateDetails() {
                                             type="text"
                                             value={detailsForm.current_location || ''}
                                             disabled={!isEditingDetails}
-                                            onChange={(e) => setDetailsForm(prev => ({ ...prev, current_location: e.target.value }))}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                                    setDetailsForm(prev => ({ ...prev, current_location: val }));
+                                                }
+                                            }}
                                             className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
                                         />
 
