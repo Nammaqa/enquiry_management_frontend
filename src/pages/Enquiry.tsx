@@ -166,20 +166,6 @@ export default function Enquiry() {
 
     const handlePackageSelect = async (pkgId: number) => {
         setFormData(prev => ({ ...prev, packageId: pkgId }));
-
-        if (pkgId === PACKAGE_ID_OTHERS) {
-            setFormData(prev => ({ ...prev, subjectIds: [] }));
-            return;
-        }
-
-        // Find the selected package from the already loaded packages
-        const selectedPackage = packages.find(pkg => pkg.id === pkgId);
-        if (selectedPackage && selectedPackage.subjects) {
-            const includedSubjectIds = selectedPackage.subjects.map(s => s.id);
-            setFormData(prev => ({ ...prev, subjectIds: includedSubjectIds }));
-        } else {
-            setFormData(prev => ({ ...prev, subjectIds: [] }));
-        }
     };
 
     const handleSubjectToggle = (subjectId: number) => {
@@ -315,6 +301,15 @@ export default function Enquiry() {
         setSubmitting(true);
         setFieldErrors({});
         try {
+            let finalSubjectIds = [...formData.subjectIds];
+            if (formData.packageId !== null && formData.packageId !== PACKAGE_ID_OTHERS) {
+                const selectedPackage = packages.find(pkg => pkg.id === formData.packageId);
+                if (selectedPackage && selectedPackage.subjects) {
+                    const pkgSubjectIds = selectedPackage.subjects.map(s => s.id);
+                    finalSubjectIds = [...new Set([...finalSubjectIds, ...pkgSubjectIds])];
+                }
+            }
+
             const payload = {
                 name: formData.candidateName,
                 email: formData.candidateEmail,
@@ -322,7 +317,7 @@ export default function Enquiry() {
                 current_location: formData.candidateLocation,
                 collegeName: formData.collegeName,
                 packageId: formData.packageId === PACKAGE_ID_OTHERS ? null : formData.packageId,
-                subjectIds: formData.subjectIds,
+                subjectIds: finalSubjectIds,
                 trainingMode: formData.trainingMode,
                 trainingTime: formData.trainingTiming,
                 startTime: formData.startDate,
