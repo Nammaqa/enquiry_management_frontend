@@ -98,6 +98,7 @@ export default function CandidateDetails() {
     const [selectedPaymentForInvoice, setSelectedPaymentForInvoice] = useState<any>(null);
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
+    const [denomination, setDenomination] = useState<string>('');
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
     const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string; onClose?: () => void } | null>(null);
 
@@ -419,6 +420,31 @@ export default function CandidateDetails() {
             return;
         }
 
+        if (paymentMode === 'CASH' && denomination) {
+            let totalDenomination = 0;
+            const parts = denomination.split(/[,;+&]/);
+            
+            for (let part of parts) {
+                part = part.trim();
+                if (!part) continue;
+                
+                const match = part.match(/^(\d+)\s*[xX*]\s*(\d+)$/);
+                if (match) {
+                    const value = parseInt(match[1], 10);
+                    const count = parseInt(match[2], 10);
+                    totalDenomination += (value * count);
+                } else {
+                    alert(`Invalid denomination format: "${part}". Please use format like "500x2" or "100*6"`);
+                    return;
+                }
+            }
+
+            if (totalDenomination !== paymentAmount) {
+                alert(`Denomination total (₹${totalDenomination}) does not match the payment amount (₹${paymentAmount}).`);
+                return;
+            }
+        }
+
         setProcessingPayment(true);
         try {
             let billingPayload: object;
@@ -448,6 +474,7 @@ export default function CandidateDetails() {
                     balance: newBalance,
                     paymentMode: paymentMode,
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
+                    denomination: paymentMode === 'CASH' ? denomination : null,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -473,6 +500,7 @@ export default function CandidateDetails() {
                     balance: newBalance,
                     paymentMode: paymentMode,
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
+                    denomination: paymentMode === 'CASH' ? denomination : null,
                 };
 
                 await apiRequest('/api/billings', {
@@ -517,6 +545,7 @@ export default function CandidateDetails() {
                         amountPaid: paymentAmount,
                         paymentMode: paymentMode,
                         transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
+                        denomination: paymentMode === 'CASH' ? denomination : null,
                     };
 
                     console.log('Attempting to post payment-history', { billingId, payload });
@@ -539,6 +568,7 @@ export default function CandidateDetails() {
 
             setPaymentAmount(0);
             setTransactionId('');
+            setDenomination('');
             const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
             const newTotalPaid = previouslyPaid + paymentAmount;
             const message = enquiry.candidateStatus === 'demo'
@@ -583,6 +613,7 @@ export default function CandidateDetails() {
                     balance: newBalance,
                     paymentMode: billingData.paymentMode || 'UPI',
                     transaction_id: billingData.transaction_id || null,
+                    denomination: billingData.denomination || null,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -601,6 +632,7 @@ export default function CandidateDetails() {
                     balance: newBalance,
                     paymentMode: 'UPI',
                     transaction_id: null,
+                    denomination: null,
                 };
 
                 await apiRequest('/api/billings', {
@@ -2236,6 +2268,21 @@ export default function CandidateDetails() {
                                                             </div>
                                                         )}
 
+                                                        {paymentMode === 'CASH' && (
+                                                            <div className="space-y-2">
+                                                                <label className="block text-sm font-medium text-slate-700">
+                                                                    Denomination <span className="text-rose-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    type="text"
+                                                                    value={denomination}
+                                                                    onChange={(e) => setDenomination(e.target.value)}
+                                                                    placeholder="e.g. 500x2, 200x5"
+                                                                    className="w-full px-4 py-3 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                                                />
+                                                            </div>
+                                                        )}
+
                                                         <div className="space-y-2">
                                                             <label className="block text-sm font-medium text-slate-700">
                                                                 Payment Amount (₹1 - ₹{calculatePaymentDetails(enquiry).balance}):
@@ -2264,7 +2311,7 @@ export default function CandidateDetails() {
                                                                 />
                                                                 <button
                                                                     onClick={handlePayment}
-                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim())}
+                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim()) || (paymentMode === 'CASH' && !denomination.trim())}
                                                                     className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
                                                                 >
                                                                     {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}

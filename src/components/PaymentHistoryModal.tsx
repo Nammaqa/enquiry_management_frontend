@@ -141,6 +141,9 @@ export default function PaymentHistoryModal({
                                             <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
                                                 Transaction ID
                                             </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Denomination
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
@@ -217,6 +220,15 @@ export default function PaymentHistoryModal({
                                                     {payment.transaction_id ? (
                                                         <div className="text-sm text-slate-700 font-mono break-all">
                                                             {payment.transaction_id}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.denomination ? (
+                                                        <div className="text-sm text-slate-700 font-mono break-all">
+                                                            {payment.denomination}
                                                         </div>
                                                     ) : (
                                                         <span className="text-xs text-slate-400">—</span>

@@ -162,6 +162,17 @@ export default function PaymentHistoryAccordion({
                                             </p>
                                         </div>
                                     )}
+                                    
+                                    {payment.denomination && (
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <p className="text-xs text-slate-600">
+                                                <span className="font-medium">Denomination:</span>
+                                                <span className="text-slate-900 ml-2 font-mono text-[11px] bg-slate-100 px-2 py-1 rounded">
+                                                    {payment.denomination}
+                                                </span>
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>
