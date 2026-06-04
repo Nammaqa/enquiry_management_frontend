@@ -240,7 +240,7 @@ table{width:100%;border-collapse:collapse;margin-bottom:20px}
                             <span style={{ fontWeight: 700 }}>₹{((amountPaid / 1.18) * 0.09).toFixed(2)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 8 }}>
-                            <span style={{ fontWeight: 700 }}>{isPaymentHistory ? 'Total amount paid' : 'Amount Paid'}</span>
+                            <span style={{ fontWeight: 700 }}>Amount Paid</span>
                             <span style={{ fontWeight: 800, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>
                         </div>
                         <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 6 }}>
