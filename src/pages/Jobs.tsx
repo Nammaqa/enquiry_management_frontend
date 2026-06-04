@@ -113,6 +113,29 @@ const SKILL_SUGGESTIONS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const renderTextWithBullets = (text: string) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-1">
+            {lines.map((line, i) => {
+                const trimmed = line.trim();
+                if (/^[•\-*]\s+/.test(trimmed)) {
+                    return (
+                        <div key={i} className="flex items-start gap-2 pl-2">
+                            <span className="text-slate-400 select-none font-bold mt-0.5">•</span>
+                            <span className="flex-1">{trimmed.replace(/^[•\-*]\s+/, '')}</span>
+                        </div>
+                    );
+                } else if (trimmed === '') {
+                    return <div key={i} className="h-2" />;
+                }
+                return <p key={i}>{line}</p>;
+            })}
+        </div>
+    );
+};
+
 export default function Jobs() {
     const userRole = localStorage.getItem('userRole') ?? '';
     const isAllowed = ALLOWED_ROLES.includes(userRole);
@@ -832,16 +855,22 @@ export default function Jobs() {
                                 {job.about && (
                                     <div>
                                         <p className="font-semibold text-slate-800 mb-1">About</p>
-                                        <p className="text-slate-600 leading-relaxed">{job.about}</p>
+                                        <div className="text-slate-600 leading-relaxed">
+                                            {renderTextWithBullets(job.about)}
+                                        </div>
                                     </div>
                                 )}
                                 <div>
                                     <p className="font-semibold text-slate-800 mb-1">Job Description</p>
-                                    <pre className="whitespace-pre-wrap font-sans text-slate-600 leading-relaxed">{job.jobDescription}</pre>
+                                    <div className="font-sans text-slate-600 leading-relaxed">
+                                        {renderTextWithBullets(job.jobDescription)}
+                                    </div>
                                 </div>
                                 <div>
                                     <p className="font-semibold text-slate-800 mb-1">Preferred Technical &amp; Professional Experience</p>
-                                    <pre className="whitespace-pre-wrap font-sans text-slate-600 leading-relaxed">{job.preferredExperience}</pre>
+                                    <div className="font-sans text-slate-600 leading-relaxed">
+                                        {renderTextWithBullets(job.preferredExperience)}
+                                    </div>
                                 </div>
                                 {job.technicalSkills && job.technicalSkills.length > 0 && (
                                     <div>

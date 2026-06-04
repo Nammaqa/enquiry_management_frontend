@@ -75,6 +75,7 @@ export default function Batches() {
     const [formLoading, setFormLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
+    const [linkError, setLinkError] = useState<string | null>(null);
 
     // Modal states
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -254,14 +255,15 @@ export default function Batches() {
             });
         }
         setError(null);
+        setLinkError(null);
         setIsModalOpen(true);
     };
 
     // Save batch
     const saveBatch = async () => {
         // Validate required fields
-        if (!batchForm.name || !batchForm.code || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime) {
-            setError('Batch Name, Code, Status, Session Start Date, and Session Time are required');
+        if (!batchForm.name || !batchForm.code || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime || !batchForm.subjectId) {
+            setError('Batch Name, Code, Status, Subject, Session Start Date, and Session Time are required');
             return;
         }
 
@@ -298,6 +300,27 @@ export default function Batches() {
             setError('Batch Code must be unique');
             return;
         }
+
+        if (batchForm.sessionLink) {
+            let isValidUrl = false;
+            let isValidDomain = false;
+            try {
+                const url = new URL(batchForm.sessionLink);
+                if (url.protocol === 'http:' || url.protocol === 'https:') {
+                    isValidUrl = true;
+                    const hostname = url.hostname.toLowerCase();
+                    isValidDomain = hostname.includes('zoom.us') || hostname.includes('meet.google.com') || hostname.includes('teams.microsoft.com') || hostname.includes('teams.live.com');
+                }
+            } catch (e) {
+                // Not a valid URL string
+            }
+
+            if (!isValidUrl || !isValidDomain) {
+                setLinkError('Please enter a valid HTTP/HTTPS link for Zoom, Google Meet, or Microsoft Teams.');
+                return;
+            }
+        }
+        setLinkError(null);
 
         setFormLoading(true);
         setError(null);
@@ -756,8 +779,8 @@ export default function Batches() {
                                 </div>
 
                                 <div>
-                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Subject
+                                   <label className="block text-sm font-medium text-slate-700 mb-1">
+                                        Subject *
                                     </label>
                                     <select
                                         value={batchForm.subjectId || ''}
@@ -873,10 +896,16 @@ export default function Batches() {
                                     <input
                                         type="url"
                                         value={batchForm.sessionLink}
-                                        onChange={(e) => setBatchForm({ ...batchForm, sessionLink: e.target.value })}
-                                        className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                        onChange={(e) => {
+                                            setBatchForm({ ...batchForm, sessionLink: e.target.value });
+                                            if (linkError) setLinkError(null);
+                                        }}
+                                        className={`w-full rounded-lg border ${linkError ? 'border-rose-500' : 'border-slate-300'} px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500`}
                                         placeholder="https://zoom.us/..."
                                     />
+                                    {linkError && (
+                                        <p className="mt-1 text-xs text-rose-600 font-medium">{linkError}</p>
+                                    )}
                                 </div>
 
 

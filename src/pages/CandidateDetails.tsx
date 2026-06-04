@@ -1103,9 +1103,9 @@ export default function CandidateDetails() {
         ? `TXN-${String(selectedPaymentForInvoice.id).padStart(6, '0')}`
         : `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
 
-    // For payment history, use the running totals returned by the API
+    // For payment history, use the current transaction's paid amount so GST is distributed on this specific payment
     const currentInvoiceAmount = selectedPaymentForInvoice
-        ? Number(selectedPaymentForInvoice.totalPaidSoFar ?? selectedPaymentForInvoice.amountPaid)
+        ? Number(selectedPaymentForInvoice.amountPaid)
         : parseFloat(billingData?.amountPaid || '0');
 
     const currentInvoiceBalance = selectedPaymentForInvoice
