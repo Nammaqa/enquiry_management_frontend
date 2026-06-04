@@ -141,6 +141,12 @@ export default function PaymentHistoryModal({
                                             <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
                                                 Transaction ID
                                             </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Denomination
+                                            </th>
+                                            <th className="px-4 py-3 text-xs font-semibold text-slate-900 uppercase tracking-wider">
+                                                Receipt
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y divide-slate-200">
@@ -218,6 +224,25 @@ export default function PaymentHistoryModal({
                                                         <div className="text-sm text-slate-700 font-mono break-all">
                                                             {payment.transaction_id}
                                                         </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.denomination ? (
+                                                        <div className="text-sm text-slate-700 font-mono break-all">
+                                                            {payment.denomination}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="text-xs text-slate-400">—</span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-3">
+                                                    {payment.posReceiptUrl ? (
+                                                        <a href={payment.posReceiptUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-800 hover:underline">
+                                                            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                            View
+                                                        </a>
                                                     ) : (
                                                         <span className="text-xs text-slate-400">—</span>
                                                     )}

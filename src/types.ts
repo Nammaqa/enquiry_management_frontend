@@ -117,6 +117,7 @@ export interface BillingPaymentHistory {
     amountPaid: string | number;
     paymentMode?: string;
     transaction_id?: string;
+    denomination?: string;
     balanceAtTime?: string | number;
     balanceAfterPayment?: string | number;
     totalPaidSoFar?: string | number;
