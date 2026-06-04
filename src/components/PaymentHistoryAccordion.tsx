@@ -173,6 +173,18 @@ export default function PaymentHistoryAccordion({
                                             </p>
                                         </div>
                                     )}
+                                    
+                                    {payment.posReceiptUrl && (
+                                        <div className="mt-3 pt-3 border-t border-slate-200">
+                                            <p className="text-xs text-slate-600 flex items-center">
+                                                <span className="font-medium">POS Receipt:</span>
+                                                <a href={payment.posReceiptUrl} target="_blank" rel="noopener noreferrer" className="ml-2 inline-flex items-center gap-1 text-[11px] font-semibold text-indigo-600 hover:text-indigo-800 hover:underline">
+                                                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                                    View Document
+                                                </a>
+                                            </p>
+                                        </div>
+                                    )}
                                 </div>
                             ))}
                         </div>

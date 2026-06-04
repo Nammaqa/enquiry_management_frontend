@@ -99,6 +99,7 @@ export default function CandidateDetails() {
     const [paymentMode, setPaymentMode] = useState<string>('UPI');
     const [transactionId, setTransactionId] = useState<string>('');
     const [denomination, setDenomination] = useState<string>('');
+    const [posReceiptFile, setPosReceiptFile] = useState<File | null>(null);
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
     const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string; onClose?: () => void } | null>(null);
 
@@ -445,8 +446,35 @@ export default function CandidateDetails() {
             }
         }
 
+        if (paymentMode === 'CARD' && !posReceiptFile) {
+            alert('POS Receipt is mandatory for Card payments. Please upload it.');
+            return;
+        }
+
         setProcessingPayment(true);
         try {
+            let uploadedPosUrl = null;
+            if (paymentMode === 'CARD' && posReceiptFile) {
+                const formData = new FormData();
+                formData.append('posReceipt', posReceiptFile);
+                try {
+                    const uploadResp = await apiRequest('/api/billings/upload-receipt', {
+                        method: 'POST',
+                        body: formData,
+                        isFormData: true
+                    });
+                    if (uploadResp.success) {
+                        uploadedPosUrl = uploadResp.url;
+                    } else {
+                        throw new Error(uploadResp.message || 'Failed to upload receipt');
+                    }
+                } catch (uploadError) {
+                    alert('Error uploading POS receipt: ' + (uploadError instanceof Error ? uploadError.message : 'Unknown error'));
+                    setProcessingPayment(false);
+                    return;
+                }
+            }
+
             let billingPayload: object;
 
             if (billingData?.id) {
@@ -475,6 +503,7 @@ export default function CandidateDetails() {
                     paymentMode: paymentMode,
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                     denomination: paymentMode === 'CASH' ? denomination : null,
+                    posReceiptUrl: paymentMode === 'CARD' ? uploadedPosUrl : null,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -501,6 +530,7 @@ export default function CandidateDetails() {
                     paymentMode: paymentMode,
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                     denomination: paymentMode === 'CASH' ? denomination : null,
+                    posReceiptUrl: paymentMode === 'CARD' ? uploadedPosUrl : null,
                 };
 
                 await apiRequest('/api/billings', {
@@ -546,18 +576,14 @@ export default function CandidateDetails() {
                         paymentMode: paymentMode,
                         transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                         denomination: paymentMode === 'CASH' ? denomination : null,
+                        posReceiptUrl: paymentMode === 'CARD' ? uploadedPosUrl : null,
                     };
 
-                    console.log('Attempting to post payment-history', { billingId, payload });
-
                     if (billingId) {
-                        const phResp = await apiRequest(`/api/billings/${billingId}/payment-history`, {
+                        await apiRequest(`/api/billings/${billingId}/payment-history`, {
                             method: 'POST',
                             body: payload,
                         });
-                        console.log('payment-history response', phResp);
-                    } else {
-                        console.warn('No billingId available; skipping payment-history POST', { updatedBillingData, billingData });
                     }
                 } catch (phErr) {
                     console.warn('Failed to post payment history:', phErr);
@@ -569,6 +595,7 @@ export default function CandidateDetails() {
             setPaymentAmount(0);
             setTransactionId('');
             setDenomination('');
+            setPosReceiptFile(null);
             const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
             const newTotalPaid = previouslyPaid + paymentAmount;
             const message = enquiry.candidateStatus === 'demo'
@@ -2283,6 +2310,27 @@ export default function CandidateDetails() {
                                                             </div>
                                                         )}
 
+                                                        {paymentMode === 'CARD' && (
+                                                            <div className="space-y-2">
+                                                                <label className="block text-sm font-medium text-slate-700">
+                                                                    Upload POS Receipt <span className="text-rose-500">*</span>
+                                                                </label>
+                                                                <input
+                                                                    key={posReceiptFile ? posReceiptFile.name : 'empty'}
+                                                                    type="file"
+                                                                    accept="image/*,application/pdf"
+                                                                    onChange={(e) => {
+                                                                        if (e.target.files && e.target.files.length > 0) {
+                                                                            setPosReceiptFile(e.target.files[0]);
+                                                                        } else {
+                                                                            setPosReceiptFile(null);
+                                                                        }
+                                                                    }}
+                                                                    className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
+                                                                />
+                                                            </div>
+                                                        )}
+
                                                         <div className="space-y-2">
                                                             <label className="block text-sm font-medium text-slate-700">
                                                                 Payment Amount (₹1 - ₹{calculatePaymentDetails(enquiry).balance}):
@@ -2311,7 +2359,7 @@ export default function CandidateDetails() {
                                                                 />
                                                                 <button
                                                                     onClick={handlePayment}
-                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim()) || (paymentMode === 'CASH' && !denomination.trim())}
+                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim()) || (paymentMode === 'CASH' && !denomination.trim()) || (paymentMode === 'CARD' && !posReceiptFile)}
                                                                     className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
                                                                 >
                                                                     {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
