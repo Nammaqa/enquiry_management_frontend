@@ -446,10 +446,7 @@ export default function CandidateDetails() {
             }
         }
 
-        if (paymentMode === 'CARD' && !posReceiptFile) {
-            alert('POS Receipt is mandatory for Card payments. Please upload it.');
-            return;
-        }
+
 
         setProcessingPayment(true);
         try {
@@ -2310,26 +2307,7 @@ export default function CandidateDetails() {
                                                             </div>
                                                         )}
 
-                                                        {paymentMode === 'CARD' && (
-                                                            <div className="space-y-2">
-                                                                <label className="block text-sm font-medium text-slate-700">
-                                                                    Upload POS Receipt <span className="text-rose-500">*</span>
-                                                                </label>
-                                                                <input
-                                                                    key={posReceiptFile ? posReceiptFile.name : 'empty'}
-                                                                    type="file"
-                                                                    accept="image/*,application/pdf"
-                                                                    onChange={(e) => {
-                                                                        if (e.target.files && e.target.files.length > 0) {
-                                                                            setPosReceiptFile(e.target.files[0]);
-                                                                        } else {
-                                                                            setPosReceiptFile(null);
-                                                                        }
-                                                                    }}
-                                                                    className="w-full px-4 py-2.5 text-sm border border-slate-300 rounded-3xl focus:outline-none focus:ring-2 focus:ring-indigo-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer"
-                                                                />
-                                                            </div>
-                                                        )}
+
 
                                                         <div className="space-y-2">
                                                             <label className="block text-sm font-medium text-slate-700">
