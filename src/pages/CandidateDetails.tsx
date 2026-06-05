@@ -2337,7 +2337,7 @@ export default function CandidateDetails() {
                                                                 />
                                                                 <button
                                                                     onClick={handlePayment}
-                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim()) || (paymentMode === 'CASH' && !denomination.trim()) || (paymentMode === 'CARD' && !posReceiptFile)}
+                                                                    disabled={processingPayment || paymentAmount < 1 || paymentAmount > calculatePaymentDetails(enquiry).balance || ((paymentMode === 'UPI' || paymentMode === 'CARD') && !transactionId.trim()) || (paymentMode === 'CASH' && !denomination.trim())}
                                                                     className="px-6 py-3 bg-indigo-600 text-white text-sm font-semibold rounded-3xl hover:bg-indigo-700 disabled:bg-slate-400 transition-colors"
                                                                 >
                                                                     {processingPayment ? 'Processing...' : enquiry?.candidateStatus === 'class' ? 'Submit Payment' : 'Pay & Move to Class'}
