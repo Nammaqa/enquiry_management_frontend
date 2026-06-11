@@ -285,13 +285,7 @@ export default function Batches() {
             return;
         }
 
-        const isDuplicateName = batches.some(b => 
-            b.name.toLowerCase().trim() === batchForm.name.toLowerCase().trim() && b.id !== editingBatch?.id
-        );
-        if (isDuplicateName) {
-            setError('Batch Name must be unique');
-            return;
-        }
+
 
         const isDuplicateCode = batches.some(b => 
             b.code.toLowerCase().trim() === batchForm.code.toLowerCase().trim() && b.id !== editingBatch?.id
@@ -743,7 +737,7 @@ export default function Batches() {
                                     <input
                                         type="text"
                                         value={batchForm.name}
-                                        onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value.replace(/[^A-Za-z\s]/g, '') })}
+                                        onChange={(e) => setBatchForm({ ...batchForm, name: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Python Batch 2024"
                                     />
