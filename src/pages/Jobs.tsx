@@ -279,8 +279,6 @@ export default function Jobs() {
         const e: Partial<Record<keyof typeof form, string>> = {};
         if (!form.companyName.trim()) {
             e.companyName = 'Required';
-        } else if (form.companyName.trim().length < 4) {
-            e.companyName = 'Must be at least 4 characters';
         }
 
         if (!form.jobTitle.trim()) {
@@ -513,12 +511,7 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.companyName}
-                                onChange={e => {
-                                    const val = e.target.value;
-                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
-                                        set('companyName', val);
-                                    }
-                                }}
+                                onChange={e => set('companyName', e.target.value)}
                                 placeholder="e.g. Netflix"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.companyName ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
@@ -533,7 +526,8 @@ export default function Jobs() {
                                 value={form.jobTitle}
                                 onChange={e => {
                                     const val = e.target.value;
-                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                    // Allow letters, spaces and forward slash (e.g. "AI/ML Engineer")
+                                    if (val === '' || /^[a-zA-Z\s\/]+$/.test(val)) {
                                         set('jobTitle', val);
                                     }
                                 }}
@@ -672,6 +666,7 @@ export default function Jobs() {
                             <input
                                 ref={skillInputRef}
                                 type="text"
+                                maxLength={100}
                                 value={skillInput}
                                 onChange={e => {
                                     setSkillInput(e.target.value);

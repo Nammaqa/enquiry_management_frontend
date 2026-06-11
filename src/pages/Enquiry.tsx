@@ -285,7 +285,7 @@ export default function Enquiry() {
         }
         
         if (!formData.agreed) {
-            alert('Please agree to the terms to proceed.');
+            setFieldErrors({ ...fieldErrors, agreed: 'Please accept the Terms and Conditions to continue.' });
             return;
         }
         if (formData.packageId === null) {
@@ -788,13 +788,21 @@ export default function Enquiry() {
                             <input
                                 type="checkbox"
                                 checked={formData.agreed}
-                                onChange={e => setFormData({ ...formData, agreed: e.target.checked })}
-                                className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                onChange={e => {
+                                    setFormData({ ...formData, agreed: e.target.checked });
+                                    if (e.target.checked && fieldErrors.agreed) {
+                                        setFieldErrors({ ...fieldErrors, agreed: '' });
+                                    }
+                                }}
+                                className={`mt-1 w-4 h-4 rounded focus:ring-indigo-500 ${fieldErrors.agreed ? 'border-rose-500 text-rose-600' : 'border-slate-300 text-indigo-600'}`}
                             />
                             <span className="text-sm text-slate-600 group-hover:text-slate-800 transition-colors leading-relaxed">
                                 I agree to be contacted via phone, WhatsApp, email, Newsletters regarding NammaQA Training Community program and offers. Terms & Conditions applied.
                             </span>
                         </label>
+                        {fieldErrors.agreed && (
+                            <p className="mt-2 text-sm text-rose-600 font-medium ml-7">{fieldErrors.agreed}</p>
+                        )}
                     </div>
                 </div>
 
