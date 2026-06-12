@@ -234,8 +234,8 @@ export default function PackageSubject() {
     };
 
     const saveSubject = async () => {
-        if (!subjectForm.name || !subjectForm.code) {
-            setError('⚠️ Subject name and code are mandatory fields');
+        if (!subjectForm.name) {
+            setError('⚠️ Subject name is a mandatory field');
             return;
         }
 
@@ -420,11 +420,7 @@ if (subjectForm.prerequisites) {
     };
 
     const savePackage = async () => {
-        // Package name presence validation removed (allow any characters); keep code check
-        if (!packageForm.code) {
-            setError('Package code is required');
-            return;
-        }
+        // Package name presence validation removed (allow any characters); package code validation removed per request
 
         if (!packageForm.domain || !packageForm.mode || !packageForm.type) {
             setError('⚠️ Please select Domain, Mode, and Type for the package');
@@ -1098,7 +1094,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={subjectForm.code}
-                                        onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
+                                        onChange={(e) => setSubjectForm({ ...subjectForm, code: e.target.value })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., MATH101"
@@ -1354,7 +1350,7 @@ if (subjectForm.prerequisites) {
                                     <input
                                         type="text"
                                         value={packageForm.code}
-                                        onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
+                                        onChange={(e) => setPackageForm({ ...packageForm, code: e.target.value })}
                                         required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., SCI001"
