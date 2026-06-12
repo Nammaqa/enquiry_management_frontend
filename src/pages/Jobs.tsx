@@ -521,11 +521,8 @@ export default function Jobs() {
                                 value={form.jobTitle}
                                 onChange={e => {
                                     const val = e.target.value;
-                                    // Allow letters, spaces and forward slash (e.g. "AI/ML Engineer")
-                                    if (val !== '') {
-                                        set('jobTitle', val);
-                                    }
-                                    //  set('jobTitle', val);
+                                    // Allow any input, including clearing the field completely
+                                    set('jobTitle', val);
                                 }}
                                 placeholder="e.g. AI/ML Engineer"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobTitle ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
