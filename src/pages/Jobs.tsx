@@ -39,7 +39,6 @@ const EditIcon = () => (
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
 );
-
 const BriefcaseIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="7" width="20" height="14" rx="2" />
@@ -281,11 +280,7 @@ export default function Jobs() {
             e.companyName = 'Required';
         }
 
-        if (!form.jobTitle.trim()) {
-            e.jobTitle = 'Required';
-        } else if (form.jobTitle.trim().length < 4) {
-            e.jobTitle = 'Must be at least 4 characters';
-        }
+        // Job title validation removed: allow any content and short titles
         if (!form.location.trim()) e.location = 'Required';
         if (!form.workMode) e.workMode = 'Required';
         if (!form.jobType) e.jobType = 'Required';
