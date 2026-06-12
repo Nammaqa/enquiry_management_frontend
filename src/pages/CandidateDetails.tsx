@@ -795,6 +795,12 @@ export default function CandidateDetails() {
             return;
         }
 
+        // Validate consent (Terms and Conditions)
+        if (!detailsForm.consent) {
+            setUpdateError('Please accept the Terms and Conditions to continue.');
+            return;
+        }
+
         const payload: Partial<Enquiry> = {
             name: detailsForm.name,
             email: detailsForm.email,
