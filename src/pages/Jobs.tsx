@@ -522,9 +522,10 @@ export default function Jobs() {
                                 onChange={e => {
                                     const val = e.target.value;
                                     // Allow letters, spaces and forward slash (e.g. "AI/ML Engineer")
-                                    if (val === '' || /^[a-zA-Z\s\/]+$/.test(val)) {
+                                    if (val !== '') {
                                         set('jobTitle', val);
                                     }
+                                    //  set('jobTitle', val);
                                 }}
                                 placeholder="e.g. AI/ML Engineer"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobTitle ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
