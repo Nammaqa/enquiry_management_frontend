@@ -1,5 +1,6 @@
 import { useRef } from 'react';
 import nammaqaLogo from '../assets/nammaqa.jpg';
+import karthikcsLogo from '../assets/karthikcs.png';
 
 export interface InvoiceItem {
     name: string;
@@ -59,7 +60,7 @@ export default function InvoiceModal({
     body{font-family:Arial,sans-serif;font-size:12px;padding:24px;}
     .page{background:#fff;width:100%;max-width:900px;margin:0 auto;padding:32px;border-radius:0;box-shadow:none;}
     .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-    .logo-text{font-size:24px;font-weight:900;letter-spacing:-0.5px}
+    .logo-text{font-size:12px;font-weight:900;letter-spacing:-0.5px}
     .logo-qa{color:#f97316}.logo-namma{color:#4f46e5}
     .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
     .tax-title{font-size:32px;font-weight:900;letter-spacing:-1px}
@@ -119,20 +120,18 @@ export default function InvoiceModal({
                 <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                     <div>
                         <div className="logo-row" style={{ marginBottom: 14 }}>
-                            <img src={nammaqaLogo} alt="NammaQA" style={{ height: 52, objectFit: 'contain', display: 'block' }} />
+                            <img src={nammaqaLogo} alt="NammaQA" style={{ width: 140, height: 'auto', objectFit: 'contain', display: 'block' }} />
                         </div>
                         <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>NammaQA Training Community</div>
                         <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.8 }}>
                             1st Floor, #940, above Skanda Interiors,<br />
                             near Deepa Complex, Papreddy Palya, 2nd Stage,<br />
                             Naagarabhaavi, Bengaluru, Karnataka 560072<br />
-                            Phone: 076764 01716<br />
-                            contact@nammaqa.com · www.nammaqa.com<br />
-                            GSTIN: 29ABCDE1234F2Z5
+                            GSTIN: 29AADCW7843F1ZY
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 32, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'TAX INVOICE'}</div>
+                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'TAX INVOICE'}</div>
                         <div style={{ fontSize: 12, color: '#64748b' }}>{isPaymentHistory ? 'Transaction# ' : 'Invoice# '}<strong style={{ color: '#1e293b' }}>{invoiceNumber}</strong></div>
                     </div>
                 </div>
@@ -178,11 +177,11 @@ export default function InvoiceModal({
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
                             {isPaymentHistory ? (
-                                ['#', 'Item & Description', 'Qty', 'Amount'].map((h, i) => (
+                                ['#', 'Courses selected', 'Amount'].map((h, i) => (
                                     <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
                                 ))
                             ) : (
-                                ['#', 'Item & Description', 'Qty', 'Rate', 'CGST (9%)', 'SGST (9%)', 'Amount'].map((h, i) => (
+                                ['#', 'Courses selected', 'Rate', 'CGST (9%)', 'SGST (9%)', 'Amount'].map((h, i) => (
                                     <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
                                 ))
                             )}
@@ -193,7 +192,6 @@ export default function InvoiceModal({
                             <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
                                 <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{idx + 1}</td>
                                 <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500 }}>{item.name}</td>
-                                <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>1.00</td>
                                 {isPaymentHistory ? (
                                     <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.amount.toFixed(2)}</td>
                                 ) : (
@@ -269,10 +267,10 @@ export default function InvoiceModal({
                 {/* Footer (Payment Details removed) */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
                     <div style={{ textAlign: 'center', width: 220 }}>
-                        <div style={{ fontSize: 26, fontFamily: "'Brush Script MT', cursive", color: '#1e293b', marginBottom: 4 }}>NammaQA</div>
-                        <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', marginBottom: 6 }} />
-                        <div style={{ fontSize: 10.5, color: '#64748b' }}>Authorized Signature</div>
-                    </div>
+                            <img src={karthikcsLogo} alt="Authorized Signature" style={{ height: 48, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }} />
+                            <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', marginBottom: 6 }} />
+                            <div style={{ fontSize: 10.5, color: '#64748b' }}>Authorized Signature</div>
+                        </div>
                 </div>
 
             </div>
