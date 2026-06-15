@@ -261,9 +261,9 @@ export default function Batches() {
 
     // Save batch
     const saveBatch = async () => {
-        // Validate required fields
-        if (!batchForm.name || !batchForm.code || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime || !batchForm.subjectId) {
-            setError('Batch Name, Code, Status, Subject, Session Start Date, and Session Time are required');
+        // Validate required fields (batch code removed from mandatory list)
+        if (!batchForm.name || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime || !batchForm.subjectId) {
+            setError('Batch Name, Status, Subject, Session Start Date, and Session Time are required');
             return;
         }
 
@@ -280,20 +280,11 @@ export default function Batches() {
             return;
         }
 
-        if (batchForm.name.toLowerCase().trim() === batchForm.code.toLowerCase().trim()) {
-            setError('Batch Name and Batch Code cannot be the same');
-            return;
-        }
+        // Removed check that prevented Batch Name and Batch Code being the same
 
 
 
-        const isDuplicateCode = batches.some(b => 
-            b.code.toLowerCase().trim() === batchForm.code.toLowerCase().trim() && b.id !== editingBatch?.id
-        );
-        if (isDuplicateCode) {
-            setError('Batch Code must be unique');
-            return;
-        }
+        // Removed duplicate batch code uniqueness check per request
 
         if (batchForm.sessionLink) {
             let isValidUrl = false;
@@ -750,7 +741,7 @@ export default function Batches() {
                                     <input
                                         type="text"
                                         value={batchForm.code}
-                                        onChange={(e) => setBatchForm({ ...batchForm, code: e.target.value.replace(/[^A-Za-z0-9-]/g, '') })}
+                                        onChange={(e) => setBatchForm({ ...batchForm, code: e.target.value })}
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., PY-2024-001"
                                     />
