@@ -27,7 +27,7 @@ export default function Contact() {
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
-    const allowedStatuses = isCounsellor ? ['enquiry stage', 'demo', 'class'] : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+    const allowedStatuses = isCounsellor ? ['enquiry stage'] : ['enquiry stage', 'qualified demo', 'class qualified'];
 
     useEffect(() => {
         fetchAllData();
@@ -301,6 +301,7 @@ export default function Contact() {
 
         // Define headers
         const headers = [
+            'Enquiry ID',
             'Candidate Name',
             'Phone',
             'Email',
@@ -321,6 +322,7 @@ export default function Contact() {
 
         // Map data to rows
         const rows = filteredEnquiries.map(enquiry => [
+            enquiry.id,
             formatCandidateName(enquiry.name),
             formatPhoneNumber(enquiry.phone),
             enquiry.email,
@@ -349,6 +351,7 @@ export default function Contact() {
 
         // Set column widths for better readability
         const columnWidths = [
+            { wch: 10 }, // Enquiry ID
             { wch: 20 }, // Candidate Name
             { wch: 12 }, // Phone
             { wch: 25 }, // Email
@@ -374,7 +377,7 @@ export default function Contact() {
     };
 
     const handleCandidateClick = (enquiry: Enquiry) => {
-        navigate(`/contact-details/${enquiry.id}`, { state: { enquiry } });
+        navigate(`/contact-details/${enquiry.id}?from=enquiries`, { state: { enquiry } });
     };
 
     const rowClickEnabled = (_enquiry?: Enquiry) => true;
@@ -412,7 +415,7 @@ export default function Contact() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'demo' ? 'Demo List' : statusFilter === 'class' ? 'Class List' : statusFilter} by name, phone, or email...`}
+                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'qualified demo' ? 'Qualified Demo' : statusFilter === 'class qualified' ? 'Class Qualified' : statusFilter} by name, phone, or email...`}
                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
                             />
                             {searchTerm && (
@@ -465,13 +468,12 @@ export default function Contact() {
                             <button
                                 key={status}
                                 onClick={() => setStatusFilter(status)}
-                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${
-                                    statusFilter === status
+                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${statusFilter === status
                                         ? 'border-indigo-600 text-indigo-600 bg-white'
                                         : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
-                                }`}
+                                    }`}
                             >
-                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'demo' ? 'Demo List' : status === 'class' ? 'Class List' : status}
+                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'qualified demo' ? 'Qualified Demo' : status === 'class qualified' ? 'Class Qualified' : status}
                             </button>
                         ))}
                     </div>
@@ -499,11 +501,10 @@ export default function Contact() {
                         <button
                             onClick={exportToXLSX}
                             disabled={filteredEnquiries.length === 0}
-                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${
-                                filteredEnquiries.length === 0
+                            className={`px-4 py-2 text-sm font-medium rounded-lg flex items-center gap-2 transition-all whitespace-nowrap ${filteredEnquiries.length === 0
                                     ? 'bg-slate-200 text-slate-400 cursor-not-allowed'
                                     : 'bg-green-600 text-white hover:bg-green-700 active:bg-green-800 shadow-md'
-                            }`}
+                                }`}
                             title={filteredEnquiries.length === 0 ? 'No data to export' : 'Export filtered data as XLSX'}
                         >
                             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -518,20 +519,22 @@ export default function Contact() {
                     <table className="w-full text-left border-collapse table-fixed">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%]">Candidate <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[18%]">Contact <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%]">Package Info <span className="text-rose-500">*</span></th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%]">Training Prefs</th>
-                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%]">Add Logs</th>}
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Profession</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%]">Date</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[17%] align-top">Contact</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Training Prefs</th>
+                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Add Logs</th>}
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={9 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -543,8 +546,14 @@ export default function Contact() {
                                         onClick={rowClickEnabled(enquiry) ? () => handleCandidateClick(enquiry) : undefined}
                                     >
                                         <td className="px-3 py-4">
+                                            <div className="text-sm font-semibold text-slate-900">{enquiry.id}</div>
+                                        </td>
+                                        <td className="px-3 py-4">
                                             <div className="text-sm font-medium text-indigo-600 hover:text-indigo-800 wrap-break-word">{formatCandidateName(enquiry.name)}</div>
                                             <div className="text-xs text-black mt-0.5 wrap-break-word">{enquiry.current_location}</div>
+                                            {enquiry.collegeName && (
+                                                <div className="text-xs text-slate-500 mt-0.5">{enquiry.collegeName}</div>
+                                            )}
                                             {enquiry.consent && (
                                                 <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-green-100 text-green-800 mt-1">
                                                     Consent
@@ -556,6 +565,15 @@ export default function Contact() {
                                                 {enquiry.candidateStatus}
                                             </span>
                                             <div className="text-xs text-slate-400 mt-1.5 break-all">Ref: {enquiry.referral}</div>
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            {enquiry.isSentBack ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                                    true
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">-</span>
+                                            )}
                                         </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 flex items-start gap-1.5 break-all">
@@ -682,7 +700,7 @@ export default function Contact() {
                                                     <div key={log.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
                                                         <div className="flex items-start justify-between gap-3">
                                                             <p className="text-sm font-semibold text-slate-900">{log.title}</p>
-                                                            <span className="text-[11px] uppercase tracking-wide text-slate-500">{new Date(log.createdAt).toLocaleString()}</span>
+                                                            <span className="text-[11px] uppercase tracking-wide text-slate-500">{log.createdAt ? new Date(log.createdAt).toLocaleString() : 'Unknown date'}</span>
                                                         </div>
                                                         <p className="mt-2 text-sm text-slate-700 whitespace-pre-wrap">{log.description}</p>
                                                     </div>
@@ -699,10 +717,14 @@ export default function Contact() {
 
                             <div className="flex flex-wrap items-center justify-end gap-3 border-t border-slate-200 px-6 py-4 bg-slate-50">
                                 <button
-                                    onClick={closeLogModal}
-                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100"
+                                    onClick={() => {
+                                        setNewCallLogTitle('');
+                                        setNewCallLogDescription('');
+                                        setLogError(null);
+                                    }}
+                                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
                                 >
-                                    Cancel
+                                    Clear
                                 </button>
                                 <button
                                     onClick={handleSaveCallLog}
@@ -749,8 +771,8 @@ export default function Contact() {
                                                 key={pageNum}
                                                 onClick={() => setCurrentPage(pageNum)}
                                                 className={`px-3 py-1.5 text-sm font-medium rounded-lg transition-colors ${currentPage === pageNum
-                                                        ? 'bg-indigo-600 text-white'
-                                                        : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
+                                                    ? 'bg-indigo-600 text-white'
+                                                    : 'text-slate-700 bg-white border border-slate-300 hover:bg-slate-50'
                                                     }`}
                                             >
                                                 {pageNum}

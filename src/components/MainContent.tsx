@@ -84,6 +84,30 @@ const PlacementIcon = () => (
         <path d="M16 3.13a4 4 0 0 1 0 7.75" />
     </svg>
 );
+
+const DemoIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M23 7l-7 5 7 5V7z" />
+        <rect x="1" y="5" width="15" height="14" rx="2" ry="2" />
+    </svg>
+);
+
+const ClassIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2zM22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+    </svg>
+);
+
+const PaidIcon = () => (
+    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="w-5 h-5">
+        <path d="M6 3h12"/>
+        <path d="M6 8h12"/>
+        <path d="M6 13h3"/>
+        <path d="M9 13c6.667 0 6.667-10 0-10"/>
+        <path d="M6 13l8.5 8"/>
+    </svg>
+);
+
 interface NavItemProps {
     icon: React.ReactNode;
     label: string;
@@ -130,25 +154,45 @@ export default function MainContent({ children }: { children: React.ReactNode })
     }, []);
 
     const jobsAllowedRoles = ['ADMIN','HR', 'COUNSELLOR'];
+    const placementsAllowedRoles = ['ADMIN', 'HR'];
     const batchesAllowedRoles = ['ADMIN', 'HR', 'COUNSELLOR']; // Admin, HR, and Counsellor can see batches
     const userRolesAllowedRoles = ['ADMIN']; // Only admin can manage users and roles
-    const navItems = [
-        { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
-        { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
-        { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
-        ...(userRolesAllowedRoles.includes(fullRoleName)
-            ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
-            : []),
-        ...(batchesAllowedRoles.includes(fullRoleName)
-            ? [{ icon: <CalendarIcon />, label: 'Batches', path: '/batches' }]
-            : []),
-        ...(jobsAllowedRoles.includes(fullRoleName)
-            ? [
-                { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' },
-                { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
-            ]
-            : []),
-    ];
+    const counsellorOnlyRoles = ['COUNSELLOR']; // Only counsellors see demo and class lists
+    
+    const navItems = fullRoleName === 'ACCOUNTS'
+        ? [
+            { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
+            { icon: <PaidIcon />, label: 'Paid List', path: '/paid-list' },
+            { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
+            { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
+        ]
+        : [
+            { icon: <DashboardIcon />, label: 'Dashboard', path: '/dashboard' },
+            { icon: <PackageIcon />, label: 'Package and Subjects', path: '/package-subject' },
+            { icon: <ContactIcon />, label: 'Enquiries', path: '/enquiries' },
+            ...(counsellorOnlyRoles.includes(fullRoleName)
+                ? [
+                    { icon: <DemoIcon />, label: 'Demo List', path: '/demo-list' },
+                    { icon: <ClassIcon />, label: 'Class List', path: '/class-list' }
+                ]
+                : []),
+            ...(userRolesAllowedRoles.includes(fullRoleName)
+                ? [{ icon: <UserRolesIcon />, label: 'User and Roles', path: '/user-roles' }]
+                : []),
+            ...(batchesAllowedRoles.includes(fullRoleName)
+                ? [{ icon: <CalendarIcon />, label: 'Batches', path: '/batches' }]
+                : []),
+            ...(jobsAllowedRoles.includes(fullRoleName)
+                ? [
+                    { icon: <JobsIcon />, label: 'Jobs', path: '/jobs' }
+                ]
+                : []),
+            ...(placementsAllowedRoles.includes(fullRoleName)
+                ? [
+                    { icon: <PlacementIcon />, label: 'Student Placement List', path: '/student-placements' }
+                ]
+                : []),
+        ];
 
     const handleLogout = () => {
         // Clear all localStorage
@@ -186,6 +230,15 @@ export default function MainContent({ children }: { children: React.ReactNode })
         }
         if (activeItem?.label == 'Student Placement List') {
             return 'View and manage all student job applications';
+        }
+        if (activeItem?.label == 'Demo List') {
+            return 'View all candidates in demo stage';
+        }
+        if (activeItem?.label == 'Paid List') {
+            return 'View all candidates who have fully paid';
+        }
+        if (activeItem?.label == 'Class List') {
+            return 'View all candidates in class stage';
         }
         return 'Enquiry Forms Portal';
     }
@@ -240,21 +293,23 @@ export default function MainContent({ children }: { children: React.ReactNode })
                 </div>
 
                 {/* Create Enquiry Button */}
-                <div className="p-3 border-b border-slate-200/60">
-                    <button
-                        onClick={() => handleNavigation('/create-enquiry')}
-                        className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 group
-                            ${isCollapsed ? 'justify-center' : ''}`}
-                        title={isCollapsed ? 'Create Enquiry' : undefined}
-                    >
-                        <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-                            </svg>
-                        </span>
-                        {!isCollapsed && <span className="font-semibold text-sm whitespace-nowrap">Create Enquiry</span>}
-                    </button>
-                </div>
+                {fullRoleName !== 'ACCOUNTS' && (
+                    <div className="p-3 border-b border-slate-200/60">
+                        <button
+                            onClick={() => handleNavigation('/create-enquiry')}
+                            className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 text-white hover:from-indigo-700 hover:to-indigo-800 shadow-lg hover:shadow-xl transition-all duration-200 group
+                                ${isCollapsed ? 'justify-center' : ''}`}
+                            title={isCollapsed ? 'Create Enquiry' : undefined}
+                        >
+                            <span className="flex-shrink-0 transition-transform duration-200 group-hover:scale-110">
+                                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                                </svg>
+                            </span>
+                            {!isCollapsed && <span className="font-semibold text-sm whitespace-nowrap">Create Enquiry</span>}
+                        </button>
+                    </div>
+                )}
 
                 {/* Navigation Items */}
                 <nav className="flex-1 p-3 space-y-1.5 overflow-y-auto">

@@ -22,6 +22,7 @@ interface EnquiryFormData {
     candidatePhone: string;
     candidateEmail: string;
     candidateLocation: string;
+    collegeName: string;
     packageId: number | null;
     subjectIds: number[];
     trainingMode: string;
@@ -42,6 +43,7 @@ const INITIAL_FORM_STATE: EnquiryFormData = {
     candidatePhone: '',
     candidateEmail: '',
     candidateLocation: '',
+    collegeName: '',
     packageId: null,
     subjectIds: [],
     trainingMode: '',
@@ -164,20 +166,6 @@ export default function Enquiry() {
 
     const handlePackageSelect = async (pkgId: number) => {
         setFormData(prev => ({ ...prev, packageId: pkgId }));
-
-        if (pkgId === PACKAGE_ID_OTHERS) {
-            setFormData(prev => ({ ...prev, subjectIds: [] }));
-            return;
-        }
-
-        // Find the selected package from the already loaded packages
-        const selectedPackage = packages.find(pkg => pkg.id === pkgId);
-        if (selectedPackage && selectedPackage.subjects) {
-            const includedSubjectIds = selectedPackage.subjects.map(s => s.id);
-            setFormData(prev => ({ ...prev, subjectIds: includedSubjectIds }));
-        } else {
-            setFormData(prev => ({ ...prev, subjectIds: [] }));
-        }
     };
 
     const handleSubjectToggle = (subjectId: number) => {
@@ -273,6 +261,22 @@ export default function Enquiry() {
             setFieldErrors({ ...fieldErrors, phone: phoneError });
             return;
         }
+
+        // Validate email format and domain
+        const email = formData.candidateEmail.trim();
+        const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
+        if (!emailRegex.test(email)) {
+            setFieldErrors({ ...fieldErrors, email: 'Invalid email format' });
+            alert('Please provide a valid email address.');
+            return;
+        }
+
+        const invalidDomains = ['test.com', 'example.com', 'dummy.com', 'fake.com', 'invalid.com', 'email.com', '123.com'];
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        if (emailDomain && invalidDomains.includes(emailDomain)) {
+            setFieldErrors({ ...fieldErrors, email: 'Please provide a genuine email address' });
+            return;
+        }
         
         // Check if phone already exists
         if (phoneExists) {
@@ -281,7 +285,7 @@ export default function Enquiry() {
         }
         
         if (!formData.agreed) {
-            alert('Please agree to the terms to proceed.');
+            setFieldErrors({ ...fieldErrors, agreed: 'Please accept the Terms and Conditions to continue.' });
             return;
         }
         if (formData.packageId === null) {
@@ -297,13 +301,23 @@ export default function Enquiry() {
         setSubmitting(true);
         setFieldErrors({});
         try {
+            let finalSubjectIds = [...formData.subjectIds];
+            if (formData.packageId !== null && formData.packageId !== PACKAGE_ID_OTHERS) {
+                const selectedPackage = packages.find(pkg => pkg.id === formData.packageId);
+                if (selectedPackage && selectedPackage.subjects) {
+                    const pkgSubjectIds = selectedPackage.subjects.map(s => s.id);
+                    finalSubjectIds = [...new Set([...finalSubjectIds, ...pkgSubjectIds])];
+                }
+            }
+
             const payload = {
                 name: formData.candidateName,
                 email: formData.candidateEmail,
                 phone: formData.candidatePhone,
                 current_location: formData.candidateLocation,
+                collegeName: formData.collegeName,
                 packageId: formData.packageId === PACKAGE_ID_OTHERS ? null : formData.packageId,
-                subjectIds: formData.subjectIds,
+                subjectIds: finalSubjectIds,
                 trainingMode: formData.trainingMode,
                 trainingTime: formData.trainingTiming,
                 startTime: formData.startDate,
@@ -328,11 +342,21 @@ export default function Enquiry() {
             
             // Set field-specific errors
             const errors: { [key: string]: string } = {};
-            if (errorMessage.toLowerCase().includes('email')) {
-                errors.email = 'Email address already exists. Please use a different email.';
+            const lowerMsg = errorMessage.toLowerCase();
+            
+            if (lowerMsg.includes('email')) {
+                if (lowerMsg.includes('exist') || lowerMsg.includes('duplicate') || lowerMsg.includes('unique')) {
+                    errors.email = 'Email address already exists. Please use a different email.';
+                } else {
+                    errors.email = errorMessage;
+                }
             }
-            if (errorMessage.toLowerCase().includes('phone')) {
-                errors.phone = 'Phone number already exists. Please use a different phone number.';
+            if (lowerMsg.includes('phone')) {
+                if (lowerMsg.includes('exist') || lowerMsg.includes('duplicate') || lowerMsg.includes('unique')) {
+                    errors.phone = 'Phone number already exists. Please use a different phone number.';
+                } else {
+                    errors.phone = errorMessage;
+                }
             }
             if (Object.keys(errors).length === 0) {
                 setError(errorMessage);
@@ -454,9 +478,26 @@ export default function Enquiry() {
                                     required
                                     type="text"
                                     value={formData.candidateLocation}
-                                    onChange={e => setFormData({ ...formData, candidateLocation: e.target.value })}
+                                    onChange={e => {
+                                        const val = e.target.value;
+                                        if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                            setFormData({ ...formData, candidateLocation: val });
+                                        }
+                                    }}
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="City, Area"
+                                />
+                            </div>
+
+                            {/* College Name */}
+                            <div className="relative">
+                                <label className="block text-sm font-medium text-slate-700 mb-2">College Name</label>
+                                <input
+                                    type="text"
+                                    value={formData.collegeName}
+                                    onChange={e => setFormData({ ...formData, collegeName: e.target.value })}
+                                    className="w-full px-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
+                                    placeholder="Enter college name (optional)"
                                 />
                             </div>
                         </div>
@@ -512,34 +553,48 @@ export default function Enquiry() {
                         </div>
                     </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-slate-700 mb-3">Included Subjects</label>
-                        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                            {subjects.map(subject => (
-                                <label
-                                    key={subject.id}
-                                    className="flex items-center space-x-2 text-sm text-slate-700 hover:text-indigo-600 transition-colors"
-                                >
-                                    <input
-                                        type="checkbox"
-                                        checked={formData.subjectIds.includes(subject.id)}
-                                        onChange={() => handleSubjectToggle(subject.id)}
-                                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
-                                    />
-                                    <span>{subject.name}</span>
-                                </label>
-                            ))}
+                    {formData.packageId !== null && (
+                        <div>
+                            <label className="block text-sm font-medium text-slate-700 mb-3">Included Subjects</label>
+                            {(() => {
+                                const pkg = packages.find(p => p.id === formData.packageId);
+                                const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
+                                const packageSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
+
+                                return (
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                                        {subjects.map(subject => {
+                                            const isPackageSubject = packageSubjectIds.includes(subject.id);
+                                            return (
+                                                <label
+                                                    key={subject.id}
+                                                    className={`flex items-center space-x-2 text-sm text-slate-700 transition-colors ${isPackageSubject ? 'opacity-80 cursor-not-allowed' : 'hover:text-indigo-600 cursor-pointer'}`}
+                                                >
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={isPackageSubject || formData.subjectIds.includes(subject.id)}
+                                                        disabled={isPackageSubject}
+                                                        onChange={() => handleSubjectToggle(subject.id)}
+                                                        className="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500 disabled:opacity-70"
+                                                    />
+                                                    <span className="flex flex-col">
+                                                        <span>{subject.name}</span>
+                                                        {isPackageSubject && <span className="text-[10px] text-indigo-500 font-medium leading-tight">Included in package</span>}
+                                                    </span>
+                                                </label>
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            })()}
+                            {formData.subjectIds.length === 0 && formData.packageId === PACKAGE_ID_OTHERS && (
+                                <p className="text-xs text-red-500 mt-2">Please select at least one subject.</p>
+                            )}
+                            {formData.subjectIds.length === 0 && formData.packageId !== PACKAGE_ID_OTHERS && (
+                                <p className="text-xs text-amber-500 mt-2">Subjects will be auto-selected based on the package.</p>
+                            )}
                         </div>
-                        {formData.subjectIds.length === 0 && formData.packageId === PACKAGE_ID_OTHERS && (
-                            <p className="text-xs text-red-500 mt-2">Please select at least one subject.</p>
-                        )}
-                        {formData.subjectIds.length === 0 && formData.packageId !== PACKAGE_ID_OTHERS && formData.packageId !== null && (
-                            <p className="text-xs text-amber-500 mt-2">Subjects will be auto-selected based on the package.</p>
-                        )}
-                        {formData.subjectIds.length === 0 && formData.packageId === null && (
-                            <p className="text-xs text-amber-500 mt-2">No subjects selected. Please select a package or manually check subjects.</p>
-                        )}
-                    </div>
+                    )}
                 </div>
 
                 {/* 3. Training Preferences */}
@@ -612,7 +667,7 @@ export default function Enquiry() {
 
                     <div className="space-y-6">
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-3">Current Situation</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-3">Current Student Professional</label>
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                 {PROF_SITUATIONS.map(sit => (
                                     <label key={sit} className="flex items-center gap-2 cursor-pointer">
@@ -635,7 +690,7 @@ export default function Enquiry() {
                                         type="text"
                                         value={formData.situationOther}
                                         onChange={e => setFormData({ ...formData, situationOther: e.target.value })}
-                                        placeholder="Enter your current situation"
+                                        placeholder="Enter your current student professional"
                                         className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                     />
                                 </div>
@@ -733,13 +788,21 @@ export default function Enquiry() {
                             <input
                                 type="checkbox"
                                 checked={formData.agreed}
-                                onChange={e => setFormData({ ...formData, agreed: e.target.checked })}
-                                className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
+                                onChange={e => {
+                                    setFormData({ ...formData, agreed: e.target.checked });
+                                    if (e.target.checked && fieldErrors.agreed) {
+                                        setFieldErrors({ ...fieldErrors, agreed: '' });
+                                    }
+                                }}
+                                className={`mt-1 w-4 h-4 rounded focus:ring-indigo-500 ${fieldErrors.agreed ? 'border-rose-500 text-rose-600' : 'border-slate-300 text-indigo-600'}`}
                             />
                             <span className="text-sm text-slate-600 group-hover:text-slate-800 transition-colors leading-relaxed">
                                 I agree to be contacted via phone, WhatsApp, email, Newsletters regarding NammaQA Training Community program and offers. Terms & Conditions applied.
                             </span>
                         </label>
+                        {fieldErrors.agreed && (
+                            <p className="mt-2 text-sm text-rose-600 font-medium ml-7">{fieldErrors.agreed}</p>
+                        )}
                     </div>
                 </div>
 

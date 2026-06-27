@@ -13,6 +13,9 @@ import CandidateDetails from "./pages/CandidateDetails";
 import Batches from "./pages/batches";
 import Jobs from "./pages/Jobs";
 import StudentPlacementList from "./pages/StudentPlacementList";
+import DemoList from "./pages/DemoList";
+import ClassList from "./pages/ClassList";
+import PaidList from "./pages/PaidList";
 
 const router = createBrowserRouter([
   {
@@ -94,6 +97,30 @@ const router = createBrowserRouter([
     element: <ProtectedRoute>
       <MainContent>
         <StudentPlacementList />
+      </MainContent>
+    </ProtectedRoute>,
+  },
+  {
+    path: "/demo-list",
+    element: <ProtectedRoute>
+      <MainContent>
+        <DemoList />
+      </MainContent>
+    </ProtectedRoute>,
+  },
+  {
+    path: "/class-list",
+    element: <ProtectedRoute>
+      <MainContent>
+        <ClassList />
+      </MainContent>
+    </ProtectedRoute>,
+  },
+  {
+    path: "/paid-list",
+    element: <ProtectedRoute>
+      <MainContent>
+        <PaidList />
       </MainContent>
     </ProtectedRoute>,
   },

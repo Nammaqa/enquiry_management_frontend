@@ -39,7 +39,6 @@ const EditIcon = () => (
         <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
     </svg>
 );
-
 const BriefcaseIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
         <rect x="2" y="7" width="20" height="14" rx="2" />
@@ -113,6 +112,29 @@ const SKILL_SUGGESTIONS = [
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
+const renderTextWithBullets = (text: string) => {
+    if (!text) return null;
+    const lines = text.split('\n');
+    return (
+        <div className="space-y-1">
+            {lines.map((line, i) => {
+                const trimmed = line.trim();
+                if (/^[•\-*]\s+/.test(trimmed)) {
+                    return (
+                        <div key={i} className="flex items-start gap-2 pl-2">
+                            <span className="text-slate-400 select-none font-bold mt-0.5">•</span>
+                            <span className="flex-1">{trimmed.replace(/^[•\-*]\s+/, '')}</span>
+                        </div>
+                    );
+                } else if (trimmed === '') {
+                    return <div key={i} className="h-2" />;
+                }
+                return <p key={i}>{line}</p>;
+            })}
+        </div>
+    );
+};
+
 export default function Jobs() {
     const userRole = localStorage.getItem('userRole') ?? '';
     const isAllowed = ALLOWED_ROLES.includes(userRole);
@@ -133,8 +155,8 @@ export default function Jobs() {
         companyLogo: '',
         jobTitle: '',
         location: '',
-        workMode: 'Remote' as WorkMode,
-        jobType: 'Full-time' as JobType,
+        workMode: '' as WorkMode,
+        jobType: '' as JobType,
         about: '',
         jobDescription: '',
         preferredExperience: '',
@@ -254,9 +276,14 @@ export default function Jobs() {
 
     const validate = () => {
         const e: Partial<Record<keyof typeof form, string>> = {};
-        if (!form.companyName.trim()) e.companyName = 'Required';
-        if (!form.jobTitle.trim()) e.jobTitle = 'Required';
+        if (!form.companyName.trim()) {
+            e.companyName = 'Required';
+        }
+
+        // Job title validation removed: allow any content and short titles
         if (!form.location.trim()) e.location = 'Required';
+        if (!form.workMode) e.workMode = 'Required';
+        if (!form.jobType) e.jobType = 'Required';
         if (!form.about.trim()) e.about = 'Required';
         if (!form.jobDescription.trim()) e.jobDescription = 'Required';
         if (!form.preferredExperience.trim()) e.preferredExperience = 'Required';
@@ -289,8 +316,8 @@ export default function Jobs() {
             companyLogo: '',
             jobTitle: '',
             location: '',
-            workMode: 'Remote',
-            jobType: 'Full-time',
+            workMode: '' as WorkMode,
+            jobType: '' as JobType,
             about: '',
             jobDescription: '',
             preferredExperience: '',
@@ -339,8 +366,8 @@ export default function Jobs() {
                         companyLogo: '',
                         jobTitle: '',
                         location: '',
-                        workMode: 'Remote',
-                        jobType: 'Full-time',
+                        workMode: '' as WorkMode,
+                        jobType: '' as JobType,
                         about: '',
                         jobDescription: '',
                         preferredExperience: '',
@@ -492,7 +519,11 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.jobTitle}
-                                onChange={e => set('jobTitle', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    // Allow any input, including clearing the field completely
+                                    set('jobTitle', val);
+                                }}
                                 placeholder="e.g. AI/ML Engineer"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobTitle ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
@@ -509,35 +540,48 @@ export default function Jobs() {
                             <input
                                 type="text"
                                 value={form.location}
-                                onChange={e => set('location', e.target.value)}
+                                onChange={e => {
+                                    const val = e.target.value;
+                                    if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                        set('location', val);
+                                    }
+                                }}
                                 placeholder="e.g. Bengaluru"
                                 className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.location ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             />
                             {errors.location && <p className="text-xs text-rose-500 mt-1">{errors.location}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Work Mode</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Work Mode <span className="text-rose-500">*</span>
+                            </label>
                             <select
                                 value={form.workMode}
                                 onChange={e => set('workMode', e.target.value as WorkMode)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.workMode ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             >
+                                <option value="" disabled>Select Work Mode</option>
                                 {VALID_WORK_MODES.map(m => (
                                     <option key={m} value={m}>{m}</option>
                                 ))}
                             </select>
+                            {errors.workMode && <p className="text-xs text-rose-500 mt-1">{errors.workMode}</p>}
                         </div>
                         <div>
-                            <label className="block text-sm font-medium text-slate-700 mb-1">Job Type</label>
+                            <label className="block text-sm font-medium text-slate-700 mb-1">
+                                Job Type <span className="text-rose-500">*</span>
+                            </label>
                             <select
                                 value={form.jobType}
                                 onChange={e => set('jobType', e.target.value as JobType)}
-                                className="w-full rounded-lg border border-slate-300 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
+                                className={`w-full rounded-lg border px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${errors.jobType ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             >
+                                <option value="" disabled>Select Job Type</option>
                                 {VALID_JOB_TYPES.map(t => (
                                     <option key={t} value={t}>{t}</option>
                                 ))}
                             </select>
+                            {errors.jobType && <p className="text-xs text-rose-500 mt-1">{errors.jobType}</p>}
                         </div>
                     </div>
 
@@ -615,6 +659,7 @@ export default function Jobs() {
                             <input
                                 ref={skillInputRef}
                                 type="text"
+                                maxLength={100}
                                 value={skillInput}
                                 onChange={e => {
                                     setSkillInput(e.target.value);
@@ -680,7 +725,7 @@ export default function Jobs() {
                         )}
                         <button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || (userRole === 'COUNSELLOR' && Object.keys(validate()).length > 0)}
                             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
@@ -754,7 +799,7 @@ export default function Jobs() {
                                                 {job.jobType}
                                             </span>
                                             <span className="text-slate-400">
-                                                Posted: {job.postedAt || (job.createdAt ? new Date(job.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now')}
+                                                Posted: {job.postedAt ? new Date(job.postedAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : (job.createdAt ? new Date(job.createdAt).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Just now')}
                                             </span>
                                         </div>
                                         {job.technicalSkills && job.technicalSkills.length > 0 && (
@@ -798,16 +843,22 @@ export default function Jobs() {
                                 {job.about && (
                                     <div>
                                         <p className="font-semibold text-slate-800 mb-1">About</p>
-                                        <p className="text-slate-600 leading-relaxed">{job.about}</p>
+                                        <div className="text-slate-600 leading-relaxed">
+                                            {renderTextWithBullets(job.about)}
+                                        </div>
                                     </div>
                                 )}
                                 <div>
                                     <p className="font-semibold text-slate-800 mb-1">Job Description</p>
-                                    <pre className="whitespace-pre-wrap font-sans text-slate-600 leading-relaxed">{job.jobDescription}</pre>
+                                    <div className="font-sans text-slate-600 leading-relaxed">
+                                        {renderTextWithBullets(job.jobDescription)}
+                                    </div>
                                 </div>
                                 <div>
                                     <p className="font-semibold text-slate-800 mb-1">Preferred Technical &amp; Professional Experience</p>
-                                    <pre className="whitespace-pre-wrap font-sans text-slate-600 leading-relaxed">{job.preferredExperience}</pre>
+                                    <div className="font-sans text-slate-600 leading-relaxed">
+                                        {renderTextWithBullets(job.preferredExperience)}
+                                    </div>
                                 </div>
                                 {job.technicalSkills && job.technicalSkills.length > 0 && (
                                     <div>
