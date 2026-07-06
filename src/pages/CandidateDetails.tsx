@@ -55,6 +55,9 @@ export default function CandidateDetails() {
         if (fromParam === 'class-list') {
             return '/class-list';
         }
+        if (fromParam === 'paid-list') {
+            return '/paid-list';
+        }
         // Default to enquiries page if no parameter or unknown value
         return '/enquiries';
     };
@@ -589,16 +592,23 @@ export default function CandidateDetails() {
                 console.error('Failed to refresh billing data:', err);
             }
 
+            
             setPaymentAmount(0);
             setTransactionId('');
             setDenomination('');
             setPosReceiptFile(null);
             const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
             const newTotalPaid = previouslyPaid + paymentAmount;
-            const message = enquiry.candidateStatus === 'demo'
+            const isDemoPayment = enquiry.candidateStatus === 'demo';
+            const message = isDemoPayment
                 ? `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}. Candidate moved to Class List.`
                 : `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}.`;
-            setModalMessage({ type: 'success', message });
+            
+            setModalMessage({ 
+                type: 'success', 
+                message,
+                onClose: isDemoPayment ? () => navigate('/class-list') : undefined
+            });
             
             // Trigger payment history refresh
             setPaymentHistoryRefreshTrigger(prev => prev + 1);
@@ -948,7 +958,15 @@ export default function CandidateDetails() {
         fetchBillingData();
     }, [enquiry]);
 
-    const getStatusLabel = (status: string) => {
+    const getStatusLabel = (status: string, billing?: any) => {
+        if (billing) {
+            const balance = parseFloat(billing.balance || '0');
+            const packageCost = parseFloat(billing.packageCost || '0');
+            if (!isNaN(balance) && balance <= 0 && packageCost > 0) {
+                return 'Paid';
+            }
+        }
+
         if (status === 'enquiry stage') return 'Enquiry Stage';
         if (status === 'qualified demo') return 'Demo';
         if (status === 'class') return 'Class';
@@ -1084,17 +1102,15 @@ export default function CandidateDetails() {
     }
 
     // ── Invoice data (computed before JSX) ──────────────────────────────────
-    // For payment history, create a single line item with the paid amount
-    const invoiceItems: { name: string; fee: number }[] = selectedPaymentForInvoice
-        ? [{ name: 'Training Package Payment', fee: Number(selectedPaymentForInvoice.amountPaid) }]
-        : enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
-            ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
-            : enquiry.packageId
-                ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
-                : (enquiry.subjectIds || []).map(sid => ({
-                    name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
-                    fee: getSubjectFee(sid),
-                }));
+    // Get course/package names from enquiry data
+    const invoiceItems: { name: string; fee: number }[] = enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
+        ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
+        : enquiry.packageId
+            ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
+            : (enquiry.subjectIds || []).map(sid => ({
+                name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
+                fee: getSubjectFee(sid),
+            }));
 
     const invoiceDate = selectedPaymentForInvoice?.createdAt
         ? new Date(selectedPaymentForInvoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -1149,7 +1165,7 @@ export default function CandidateDetails() {
                         </div>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                        Status: <span className="font-semibold text-slate-900">{getStatusLabel(enquiry.candidateStatus || '', billingData)}</span>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
@@ -2375,7 +2391,7 @@ export default function CandidateDetails() {
                                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                                     </svg>
-                                                            Consolidated Tax Invoice
+                                                            Preview Consolidated Tax Invoice
                                                                 </button>
                                                             );
                                                         })()
