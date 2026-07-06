@@ -592,6 +592,7 @@ export default function CandidateDetails() {
                 console.error('Failed to refresh billing data:', err);
             }
 
+            
             setPaymentAmount(0);
             setTransactionId('');
             setDenomination('');
