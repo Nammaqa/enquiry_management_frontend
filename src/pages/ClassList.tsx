@@ -18,7 +18,22 @@ export default function ClassList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
+    const isPageReload = () => {
+        const navigationEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navigationEntries.length > 0) {
+            return navigationEntries[0].type === 'reload';
+        }
+        return (performance as any).navigation?.type === 1;
+    };
+
     useEffect(() => {
+        const reload = isPageReload();
+        if (reload) {
+            sessionStorage.removeItem('classListSearchTerm');
+            sessionStorage.removeItem('classListSelectedDate');
+            sessionStorage.removeItem('classListCurrentPage');
+        }
+
         fetchAllData();
         
         // Restore filter and pagination state from sessionStorage
@@ -67,12 +82,20 @@ export default function ClassList() {
 
     // Save search term to sessionStorage
     useEffect(() => {
-        sessionStorage.setItem('classListSearchTerm', searchTerm);
+        if (searchTerm) {
+            sessionStorage.setItem('classListSearchTerm', searchTerm);
+        } else {
+            sessionStorage.removeItem('classListSearchTerm');
+        }
     }, [searchTerm]);
 
     // Save selected date to sessionStorage
     useEffect(() => {
-        sessionStorage.setItem('classListSelectedDate', selectedDate);
+        if (selectedDate) {
+            sessionStorage.setItem('classListSelectedDate', selectedDate);
+        } else {
+            sessionStorage.removeItem('classListSelectedDate');
+        }
     }, [selectedDate]);
 
     // Save current page to sessionStorage

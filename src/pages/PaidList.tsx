@@ -128,6 +128,17 @@ export default function PaidList() {
             .join(', ');
     };
 
+    const getDisplayStatus = (enquiry: Enquiry) => {
+        if (enquiry.billing) {
+            const balance = parseFloat(enquiry.billing.balance || '0');
+            const packageCost = parseFloat(enquiry.billing.packageCost || '0');
+            if (!isNaN(balance) && balance <= 0 && packageCost > 0) {
+                return 'Paid';
+            }
+        }
+        return enquiry.candidateStatus || 'Unknown';
+    };
+
     const formatCandidateName = (name: string) => {
         if (!name) return '';
         return name.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
@@ -262,7 +273,7 @@ export default function PaidList() {
             formatPhoneNumber(enquiry.phone),
             enquiry.email,
             enquiry.current_location,
-            enquiry.candidateStatus,
+            getDisplayStatus(enquiry),
             getPackageName(enquiry.packageId),
             getSubjectNames(enquiry.subjectIds),
             enquiry.trainingMode,
@@ -483,7 +494,7 @@ export default function PaidList() {
                                         </td>
                                         <td className="px-3 py-4">
                                             <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-slate-900">
-                                                {enquiry.candidateStatus}
+                                                {getDisplayStatus(enquiry)}
                                             </span>
                                             <div className="text-xs text-slate-500 mt-1.5">Ref: {enquiry.referral || '-'}</div>
                                         </td>
