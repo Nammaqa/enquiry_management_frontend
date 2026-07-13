@@ -492,7 +492,7 @@ export default function Jobs() {
                                         Remove
                                     </button>
                                 )}
-                                <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, SVG · Max display size 64×64px</p>
+                                <p className="text-xs text-slate-400 mt-1.5"></p>
                             </div>
                         </div>
                     </div>
