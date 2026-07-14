@@ -55,9 +55,6 @@ export default function CandidateDetails() {
         if (fromParam === 'class-list') {
             return '/class-list';
         }
-        if (fromParam === 'paid-list') {
-            return '/paid-list';
-        }
         // Default to enquiries page if no parameter or unknown value
         return '/enquiries';
     };
@@ -88,6 +85,7 @@ export default function CandidateDetails() {
     const [feesByPackage, setFeesByPackage] = useState<Record<number, string>>({});
     const [feesBySubject, setFeesBySubject] = useState<Record<number, string>>({});
     const [savingFees, setSavingFees] = useState(false);
+    const [hasUnsavedFeesDraft, setHasUnsavedFeesDraft] = useState(false);
     const [newSubjectToAdd, setNewSubjectToAdd] = useState<number | null>(null);
     const [logForm, setLogForm] = useState({ title: '', description: '' });
     const [submittingLog, setSubmittingLog] = useState(false);
@@ -122,8 +120,7 @@ export default function CandidateDetails() {
             const pkg = packages.find(p => p.id === enquiry.packageId);
             const pkgSubjects = pkg ? (((pkg as any).subjects as Subject[] | undefined) ?? (pkg as any).Subjects) : [];
             const pkgSubjectIds = pkgSubjects?.map((s: any) => s.id) ?? [];
-            const manual = (enquiry.subjectIds || []).filter(id => !pkgSubjectIds.includes(id));
-            setManuallyAddedSubjectIds(manual);
+            setManuallyAddedSubjectIds((enquiry.subjectIds || []).filter(id => !pkgSubjectIds.includes(id)));
         }
     }, [enquiry, packages]);
 
@@ -191,6 +188,11 @@ export default function CandidateDetails() {
         return (pkgSubjects as { id: number }[]).map(s => s.id);
     };
 
+    const getManualSubjectIds = (packageId: number | null | undefined, subjectIds: number[] = []) => {
+        const packageSubjectIds = getPackageSubjectIds(packageId ?? null);
+        return subjectIds.filter(id => !packageSubjectIds.includes(id));
+    };
+
     const buildTargetedFees = (packageId: number | null, subjectIds: number[]) => {
         const fees: Record<string, number> = {};
 
@@ -224,8 +226,8 @@ export default function CandidateDetails() {
         packageId: number | null,
         subjectIds: number[],
         successMessage: string = getPackageSaveMessage(packageId)
-    ) => {
-        if (!enquiry) return;
+    ): Promise<boolean> => {
+        if (!enquiry) return false;
 
         setUpdateError(null);
         setSavingFees(true);
@@ -305,6 +307,7 @@ export default function CandidateDetails() {
             }
 
             setModalMessage({ type: 'success', message: successMessage });
+            return true;
         } catch (err) {
             console.error('Failed to update package/subject selection:', err);
             if (err instanceof Error) {
@@ -312,17 +315,19 @@ export default function CandidateDetails() {
             } else {
                 setModalMessage({ type: 'error', message: 'Failed to update package and subject selection.' });
             }
+            return false;
         } finally {
             setSavingFees(false);
         }
     };
 
-    const handleAddSubject = async () => {
+    const handleAddSubject = () => {
         if (!newSubjectToAdd) return;
         if (detailsForm.subjectIds?.includes(newSubjectToAdd)) return;
 
         const updatedSubjectIds = [...(detailsForm.subjectIds || []), newSubjectToAdd];
         
+        setHasUnsavedFeesDraft(true);
         setManuallyAddedSubjectIds(prev => [...prev, newSubjectToAdd]);
         
         setDetailsForm(prev => ({
@@ -331,13 +336,12 @@ export default function CandidateDetails() {
         }));
         setFeesBySubject(prev => ({ ...prev, [newSubjectToAdd]: '' }));
         setNewSubjectToAdd(null);
-
-        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds, 'Subject added successfully');
     };
 
-    const handleRemoveSubject = async (subjectId: number) => {
+    const handleRemoveSubject = (subjectId: number) => {
         const updatedSubjectIds = (detailsForm.subjectIds || []).filter(id => id !== subjectId);
         
+        setHasUnsavedFeesDraft(true);
         setManuallyAddedSubjectIds(prev => prev.filter(id => id !== subjectId));
 
         setDetailsForm(prev => ({
@@ -349,8 +353,6 @@ export default function CandidateDetails() {
             delete next[subjectId];
             return next;
         });
-
-        await savePackageSubjectUpdate(detailsForm.packageId ?? null, updatedSubjectIds, 'Subject removed successfully');
     };
 
     const availableAdditionalSubjects = subjects.filter(subject => {
@@ -592,23 +594,16 @@ export default function CandidateDetails() {
                 console.error('Failed to refresh billing data:', err);
             }
 
-            
             setPaymentAmount(0);
             setTransactionId('');
             setDenomination('');
             setPosReceiptFile(null);
             const previouslyPaid = billingData ? parseFloat(billingData.amountPaid) || 0 : 0;
             const newTotalPaid = previouslyPaid + paymentAmount;
-            const isDemoPayment = enquiry.candidateStatus === 'demo';
-            const message = isDemoPayment
+            const message = enquiry.candidateStatus === 'demo'
                 ? `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}. Candidate moved to Class List.`
                 : `Payment of ₹${paymentAmount} processed! Total paid: ₹${newTotalPaid}.`;
-            
-            setModalMessage({ 
-                type: 'success', 
-                message,
-                onClose: isDemoPayment ? () => navigate('/class-list') : undefined
-            });
+            setModalMessage({ type: 'success', message });
             
             // Trigger payment history refresh
             setPaymentHistoryRefreshTrigger(prev => prev + 1);
@@ -958,15 +953,7 @@ export default function CandidateDetails() {
         fetchBillingData();
     }, [enquiry]);
 
-    const getStatusLabel = (status: string, billing?: any) => {
-        if (billing) {
-            const balance = parseFloat(billing.balance || '0');
-            const packageCost = parseFloat(billing.packageCost || '0');
-            if (!isNaN(balance) && balance <= 0 && packageCost > 0) {
-                return 'Paid';
-            }
-        }
-
+    const getStatusLabel = (status: string) => {
         if (status === 'enquiry stage') return 'Enquiry Stage';
         if (status === 'qualified demo') return 'Demo';
         if (status === 'class') return 'Class';
@@ -1102,15 +1089,17 @@ export default function CandidateDetails() {
     }
 
     // ── Invoice data (computed before JSX) ──────────────────────────────────
-    // Get course/package names from enquiry data
-    const invoiceItems: { name: string; fee: number }[] = enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
-        ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
-        : enquiry.packageId
-            ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
-            : (enquiry.subjectIds || []).map(sid => ({
-                name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
-                fee: getSubjectFee(sid),
-            }));
+    // For payment history, create a single line item with the paid amount
+    const invoiceItems: { name: string; fee: number }[] = selectedPaymentForInvoice
+        ? [{ name: 'Training Package Payment', fee: Number(selectedPaymentForInvoice.amountPaid) }]
+        : enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0
+            ? Object.entries(enquiry.targetedFees).map(([name, fee]) => ({ name, fee: Number(fee) }))
+            : enquiry.packageId
+                ? [{ name: getPackageName(enquiry.packageId), fee: getSelectedPackageFee(enquiry.packageId) || getPackageCost(enquiry.packageId) }]
+                : (enquiry.subjectIds || []).map(sid => ({
+                    name: subjects.find(s => s.id === sid)?.name || `Subject ${sid}`,
+                    fee: getSubjectFee(sid),
+                }));
 
     const invoiceDate = selectedPaymentForInvoice?.createdAt
         ? new Date(selectedPaymentForInvoice.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
@@ -1136,6 +1125,36 @@ export default function CandidateDetails() {
     const currentInvoiceTotal = billingData
         ? parseFloat(billingData.packageCost || '0')
         : currentInvoiceAmount;
+
+    const normalizeIds = (ids: number[] = []) => Array.from(new Set(ids)).sort((a, b) => a - b);
+    const sameIds = (first: number[] = [], second: number[] = []) => {
+        const left = normalizeIds(first);
+        const right = normalizeIds(second);
+        return left.length === right.length && left.every((id, index) => id === right[index]);
+    };
+    const sameFeeBreakdown = (first: Record<string, number> = {}, second: Record<string, any> = {}) => {
+        const firstKeys = Object.keys(first).sort();
+        const secondKeys = Object.keys(second).sort();
+        return firstKeys.length === secondKeys.length && firstKeys.every((key, index) => (
+            key === secondKeys[index] && Number(first[key] || 0) === Number(second[key] || 0)
+        ));
+    };
+    const draftedTargetedFees = buildTargetedFees(detailsForm.packageId ?? null, detailsForm.subjectIds || []);
+    const hasUnsavedFeesChanges = isEditingFees && (
+        hasUnsavedFeesDraft ||
+        (detailsForm.packageId ?? null) !== (enquiry.packageId ?? null) ||
+        !sameIds(detailsForm.subjectIds || [], enquiry.subjectIds || []) ||
+        !sameFeeBreakdown(draftedTargetedFees, enquiry.targetedFees || {})
+    );
+    // FIX: "Saved Billing Summary" must reflect ONLY what's persisted in billingData —
+    // never fall back to enquiry.targetedFees (or any draft/form state). That fallback was
+    // the reason adding/removing a subject in the Fees editor could visually change this
+    // box before "Save fees" was clicked. Now it only shows what is actually saved in the
+    // billing record, and shows nothing for the breakdown list until a billing record with
+    // subjectWiseBreakdown exists.
+    const savedBillingBreakdown = billingData?.subjectWiseBreakdown && typeof billingData.subjectWiseBreakdown === 'object'
+        ? billingData.subjectWiseBreakdown
+        : {};
     // ────────────────────────────────────────────────────────────────────────
 
     return (
@@ -1165,7 +1184,7 @@ export default function CandidateDetails() {
                         </div>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                        Status: <span className="font-semibold text-slate-900">{getStatusLabel(enquiry.candidateStatus || '', billingData)}</span>
+                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
@@ -1817,7 +1836,10 @@ export default function CandidateDetails() {
                                         <div className="flex justify-end pt-4 mb-4">
                                             <button
                                                 type="button"
-                                                onClick={() => setIsEditingFees(true)}
+                                                onClick={() => {
+                                                    setIsEditingFees(true);
+                                                    setHasUnsavedFeesDraft(false);
+                                                }}
                                                 className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                                             >
                                                 Edit Fees
@@ -1835,6 +1857,7 @@ export default function CandidateDetails() {
                                                             disabled={!isEditingFees}
                                                             onChange={(e) => {
                                                                 const newPackageId = e.target.value ? Number(e.target.value) : null;
+                                                                setHasUnsavedFeesDraft(true);
                                                                 
                                                                 const newPkg = packages.find(p => p.id === newPackageId);
                                                                 const newPkgSubjects = newPkg ? (((newPkg as any).subjects as Subject[] | undefined) ?? (newPkg as any).Subjects) : [];
@@ -1853,20 +1876,6 @@ export default function CandidateDetails() {
                                                                 <option key={pkg.id} value={pkg.id}>{pkg.name}</option>
                                                             ))}
                                                         </select>
-                                                        {detailsForm.packageId !== enquiry?.packageId && isEditingFees && (
-                                                            <button
-                                                                type="button"
-                                                                onClick={() => savePackageSubjectUpdate(
-                                                                    detailsForm.packageId ?? null,
-                                                                    detailsForm.subjectIds || [],
-                                                                    getPackageSaveMessage(detailsForm.packageId ?? null)
-                                                                )}
-                                                                disabled={savingFees}
-                                                                className="inline-flex items-center justify-center rounded-3xl border border-indigo-600 text-indigo-600 bg-white px-4 py-3 text-sm font-semibold hover:bg-indigo-50 disabled:opacity-60 disabled:cursor-not-allowed transition-colors whitespace-nowrap"
-                                                            >
-                                                                {savingFees ? 'Saving...' : 'Update package'}
-                                                            </button>
-                                                        )}
                                                     </div>
                                                 </div>
                                                 {detailsForm.packageId && (
@@ -1874,8 +1883,7 @@ export default function CandidateDetails() {
                                                         <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
                                                         {(() => {
                                                             const pkgName = getPackageName(detailsForm.packageId);
-                                                            const isOriginalPackage = detailsForm.packageId === enquiry?.packageId;
-                                                            const savedFee = isOriginalPackage && enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
+                                                            const savedFee = enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
 
                                                             const inputValue = detailsForm.packageId
                                                                 ? (feesByPackage[detailsForm.packageId] !== undefined
@@ -1896,17 +1904,17 @@ export default function CandidateDetails() {
                                                                     type="text"
                                                                     inputMode="numeric"
                                                                     value={inputValue}
-                                                                    disabled={!isOriginalPackage || !isEditingFees}
+                                                                    disabled={!isEditingFees}
                                                                     onChange={(e) => {
                                                                         const raw = e.target.value;
                                                                         const cleaned = raw.replace(/[^0-9.]/g, '');
                                                                         if (detailsForm.packageId) {
+                                                                            setHasUnsavedFeesDraft(true);
                                                                             setFeesByPackage(prev => ({ ...prev, [detailsForm.packageId as number]: cleaned }));
                                                                         }
                                                                     }}
-                                                                    className={`no-spinner w-full rounded-3xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${(!isOriginalPackage || !isEditingFees) ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
-                                                                    placeholder={!isOriginalPackage ? "Update package first" : "Enter package fee"}
-                                                                    title={!isOriginalPackage ? "Please click 'Update package' before entering the fee" : ""}
+                                                                    className={`no-spinner w-full rounded-3xl border border-slate-300 px-4 py-3 text-sm focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 ${!isEditingFees ? 'bg-slate-50 text-slate-500 cursor-not-allowed' : 'bg-white text-slate-900'}`}
+                                                                    placeholder="Enter package fee"
                                                                 />
                                                             );
                                                         })()}
@@ -2055,6 +2063,7 @@ export default function CandidateDetails() {
                                                                                 onChange={(e) => {
                                                                                     const raw = e.target.value;
                                                                                     const cleaned = raw.replace(/[^0-9.]/g, '');
+                                                                                    setHasUnsavedFeesDraft(true);
                                                                                     setFeesBySubject(prev => ({ ...prev, [subjectId]: cleaned }));
                                                                                 }}
                                                                                 className="no-spinner w-full rounded-3xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100 disabled:opacity-70"
@@ -2094,16 +2103,15 @@ export default function CandidateDetails() {
                                                 <button
                                                     type="button"
                                                     onClick={() => {
-                                                        if (detailsForm.packageId !== enquiry?.packageId) {
-                                                            setModalMessage({ type: 'error', message: 'Please save package first' });
-                                                            return;
-                                                        }
                                                         savePackageSubjectUpdate(
                                                             detailsForm.packageId ?? null,
                                                             detailsForm.subjectIds || [],
                                                             'Fees updated successfully'
-                                                        ).then(() => {
-                                                            setIsEditingFees(false);
+                                                        ).then(saved => {
+                                                            if (saved) {
+                                                                setHasUnsavedFeesDraft(false);
+                                                                setIsEditingFees(false);
+                                                            }
                                                         });
                                                     }}
                                                     disabled={savingFees}
@@ -2115,12 +2123,14 @@ export default function CandidateDetails() {
                                                     type="button"
                                                     onClick={() => {
                                                         setIsEditingFees(false);
+                                                        setHasUnsavedFeesDraft(false);
                                                         if (enquiry) {
                                                             setDetailsForm(prev => ({
                                                                 ...prev,
                                                                 packageId: enquiry.packageId,
                                                                 subjectIds: enquiry.subjectIds || [],
                                                             }));
+                                                            setManuallyAddedSubjectIds(getManualSubjectIds(enquiry.packageId, enquiry.subjectIds || []));
                                                             // Also reset any fee edits to what is on the server if needed...
                                                             // But targetedFees logic is already handling this somewhat through getSelectedPackageFee.
                                                         }
@@ -2133,9 +2143,25 @@ export default function CandidateDetails() {
                                         )}
 
                                         {/* Saved billing summary */}
+                                        {hasUnsavedFeesChanges && (
+                                            <div className="rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-800">
+                                                Subject or fee changes are not saved yet. The saved billing summary below is still the previously saved billing and will update only after you click Save fees.
+                                            </div>
+                                        )}
+
                                         {billingData && (
                                             <div className="rounded-3xl border border-green-200 bg-green-50 p-4 space-y-2">
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2">Saved Billing Summary</p>
+                                                {Object.keys(savedBillingBreakdown).length > 0 && (
+                                                    <div className="space-y-2 border-b border-green-200 pb-3 mb-3">
+                                                        {Object.entries(savedBillingBreakdown).map(([name, fee]) => (
+                                                            <div key={name} className="flex justify-between text-sm text-slate-700">
+                                                                <span>{name}</span>
+                                                                <span className="font-semibold">₹{Number(fee || 0).toFixed(2)}</span>
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                                 <div className="flex justify-between text-sm text-slate-700">
                                                     <span>Package Cost</span>
                                                     <span className="font-semibold">₹{parseFloat(billingData.packageCost || 0).toFixed(2)}</span>
@@ -2391,7 +2417,7 @@ export default function CandidateDetails() {
                                                                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                                                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                                                                     </svg>
-                                                            Preview Consolidated Tax Invoice
+                                                            Consolidated Tax Invoice
                                                                 </button>
                                                             );
                                                         })()
@@ -2574,5 +2600,6 @@ export default function CandidateDetails() {
     );
     
 }
+
 
 //test
