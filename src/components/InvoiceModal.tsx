@@ -1,4 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import nammaqaLogo from '../assets/nammaqa.jpg';
 import karthikcsLogo from '../assets/karthikcs.png';
 
@@ -31,6 +33,7 @@ export default function InvoiceModal({
     items, amountPaid, balance, totalAmount, discount
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
+    const [downloading, setDownloading] = useState(false);
 
     if (!isOpen) return null;
 
@@ -49,7 +52,72 @@ export default function InvoiceModal({
         amount: item.fee,
     }));
 
+    /**
+     * Renders the invoice DOM node to a canvas, then embeds that image into a
+     * real PDF document via jsPDF. This produces an actual .pdf file (unlike
+     * the previous approach, which saved raw HTML with a ".pdf" extension —
+     * that file could never open in a real PDF viewer since its bytes were
+     * not a PDF at all).
+     */
     const handleDownload = async () => {
+        if (!printRef.current || downloading) return;
+        setDownloading(true);
+
+        try {
+            const node = printRef.current;
+
+            const canvas = await html2canvas(node, {
+                scale: 2, // higher scale => sharper output
+                useCORS: true,
+                backgroundColor: '#ffffff',
+                windowWidth: node.scrollWidth,
+                windowHeight: node.scrollHeight,
+            });
+
+            const imgData = canvas.toDataURL('image/png');
+
+            const pdf = new jsPDF({
+                orientation: 'portrait',
+                unit: 'pt',
+                format: 'a4',
+            });
+
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+
+            const imgWidth = pageWidth;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+            let heightLeft = imgHeight;
+            let position = 0;
+
+            // First page
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+
+            // Additional pages if the invoice is taller than one A4 page
+            while (heightLeft > 0) {
+                position = heightLeft - imgHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+            }
+
+            pdf.save(`Invoice ${invoiceNumber}.pdf`);
+        } catch (err) {
+            console.error('Failed to generate PDF:', err);
+            alert('Something went wrong while generating the PDF. Please try again.');
+        } finally {
+            setDownloading(false);
+        }
+    };
+
+    /**
+     * Opens the browser print dialog for the invoice content, letting the
+     * user print physically or choose "Save as PDF" as the destination.
+     * Kept as a secondary option alongside the direct PDF download above.
+     */
+    const handlePrint = async () => {
         const html = printRef.current?.innerHTML ?? '';
 
         const toDataUrl = async (url: string) => {
@@ -113,16 +181,6 @@ export default function InvoiceModal({
     @page{margin:10mm;}
     </style></head><body><div class="page">${html.replaceAll(nammaqaLogo, nammaqaDataUrl).replaceAll(karthikcsLogo, karthikcsDataUrl)}</div></body></html>`;
 
-        const downloadBlob = new Blob([printableHtml], { type: 'text/html;charset=utf-8' });
-        const downloadUrl = URL.createObjectURL(downloadBlob);
-        const downloadLink = document.createElement('a');
-        downloadLink.href = downloadUrl;
-        downloadLink.download = `Invoice ${invoiceNumber}.pdf`;
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-        URL.revokeObjectURL(downloadUrl);
-
         const win = window.open('', '_blank', 'width=950,height=800');
         if (!win) return;
         win.document.write(printableHtml);
@@ -137,8 +195,11 @@ export default function InvoiceModal({
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
             {/* Action bar */}
             <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
-                <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ⬇ Download / Print
+                <button onClick={handleDownload} disabled={downloading} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {downloading ? 'Generating…' : '⬇ Download PDF'}
+                </button>
+                <button onClick={handlePrint} style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🖨 Print
                 </button>
                 <button onClick={onClose} style={{ background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     ✕ Close
