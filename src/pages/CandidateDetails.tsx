@@ -2135,9 +2135,9 @@ export default function CandidateDetails() {
                                                             // But targetedFees logic is already handling this somewhat through getSelectedPackageFee.
                                                         }
                                                     }}
-                                                    className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
+                                                    // className="inline-flex items-center justify-center rounded-3xl border border-slate-300 bg-white px-5 py-3 text-sm font-semibold text-slate-700 hover:bg-slate-50 transition-colors"
                                                 >
-                                                    Cancel
+                                                    
                                                 </button>
                                             </div>
                                         )}
