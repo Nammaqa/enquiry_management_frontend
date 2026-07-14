@@ -117,7 +117,7 @@ export default function InvoiceModal({
         const downloadUrl = URL.createObjectURL(downloadBlob);
         const downloadLink = document.createElement('a');
         downloadLink.href = downloadUrl;
-        downloadLink.download = `Invoice ${invoiceNumber}.html`;
+        downloadLink.download = `Invoice ${invoiceNumber}.pdf`;
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);
