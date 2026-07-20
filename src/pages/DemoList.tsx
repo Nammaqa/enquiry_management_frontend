@@ -154,6 +154,20 @@ export default function DemoList() {
         return phone.replace(/\D/g, '').slice(0, 10);
     };
 
+    const formatListDate = (date: string) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) return '-';
+
+        return parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const formatListTime = (date: string) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) return '';
+
+        return parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     const openLogModal = async (enquiry: Enquiry) => {
         setActiveEnquiryForLogs({ ...enquiry, callLogs: enquiry.callLogs ?? [] });
         setLogTitle('');
@@ -454,22 +468,23 @@ export default function DemoList() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[11%] align-top">Training Prefs</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Profession</th>
                                 {isAccounts && (
                                     <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Actions</th>
                                 )}
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {loading && enquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAccounts ? 8 : 7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 9 : 8} className="px-6 py-12 text-center text-slate-500">
                                         Loading demo list...
                                     </td>
                                 </tr>
                             ) : paginatedEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAccounts ? 8 : 7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 9 : 8} className="px-6 py-12 text-center text-slate-500">
                                         No demo candidates found.
                                     </td>
                                 </tr>
@@ -530,7 +545,6 @@ export default function DemoList() {
                                             <div className="text-xs text-slate-900">{enquiry.trainingTime}</div>
                                             <div className="text-xs text-slate-900 mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
-                                        <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
                                         {isAccounts && (
                                             <td className="px-3 py-4">
                                                 <div className="flex items-center gap-2">
@@ -553,6 +567,11 @@ export default function DemoList() {
                                                 </div>
                                             </td>
                                         )}
+                                        <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
+                                        <td className="px-3 py-4">
+                                            <div className="text-xs font-medium text-slate-900">{formatListDate(enquiry.createdAt)}</div>
+                                            <div className="text-xs text-slate-900 mt-0.5">{formatListTime(enquiry.createdAt)}</div>
+                                        </td>
                                     </tr>
                                 ))
                             )}
@@ -610,7 +629,11 @@ export default function DemoList() {
                             </div>
 
                             {logError && (
-                                <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                                <div className={`mt-4 rounded-3xl border p-4 text-sm ${
+                                    logError.toLowerCase().includes('success')
+                                        ? 'border-green-200 bg-green-50 text-green-700'
+                                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                                }`}>
                                     {logError}
                                 </div>
                             )}

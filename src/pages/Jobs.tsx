@@ -143,6 +143,7 @@ export default function Jobs() {
     const [successMessage, setSuccessMessage] = useState<string | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [errors, setErrors] = useState<Partial<Record<keyof JobPost, string>>>({});
     const [editingId, setEditingId] = useState<number | null>(null);
     const [logoPreview, setLogoPreview] = useState<string>('');
@@ -186,6 +187,8 @@ export default function Jobs() {
         const skill = raw.trim();
         if (skill && !form.technicalSkills.includes(skill)) {
             setForm(prev => ({ ...prev, technicalSkills: [...prev.technicalSkills, skill] }));
+            setErrors(prev => ({ ...prev, technicalSkills: undefined }));
+            setActionError(null);
         }
         setSkillInput('');
         setSkillDropdownOpen(false);
@@ -194,6 +197,7 @@ export default function Jobs() {
     };
 
     const removeSkill = (skill: string) => {
+        setActionError(null);
         setForm(prev => ({ ...prev, technicalSkills: prev.technicalSkills.filter(s => s !== skill) }));
     };
 
@@ -253,8 +257,11 @@ export default function Jobs() {
         }
     };
 
-    const set = (key: keyof typeof form, value: string) =>
+    const set = (key: keyof typeof form, value: string) => {
+        setActionError(null);
+        setErrors(prev => ({ ...prev, [key]: undefined }));
         setForm(prev => ({ ...prev, [key]: value }));
+    };
 
     const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
@@ -280,13 +287,14 @@ export default function Jobs() {
             e.companyName = 'Required';
         }
 
-        // Job title validation removed: allow any content and short titles
+        if (!form.jobTitle.trim()) e.jobTitle = 'Required';
         if (!form.location.trim()) e.location = 'Required';
         if (!form.workMode) e.workMode = 'Required';
         if (!form.jobType) e.jobType = 'Required';
         if (!form.about.trim()) e.about = 'Required';
         if (!form.jobDescription.trim()) e.jobDescription = 'Required';
         if (!form.preferredExperience.trim()) e.preferredExperience = 'Required';
+        if (form.technicalSkills.length === 0) e.technicalSkills = 'Required';
         return e;
     };
 
@@ -305,6 +313,8 @@ export default function Jobs() {
             technicalSkills: job.technicalSkills || [],
         });
         setSkillInput('');
+        setActionError(null);
+        setErrors({});
         setLogoPreview(job.companyLogo);
         window.scrollTo({ top: 0, behavior: 'smooth' });
     };
@@ -324,6 +334,8 @@ export default function Jobs() {
             technicalSkills: [],
         });
         setSkillInput('');
+        setActionError(null);
+        setErrors({});
         setLogoPreview('');
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
@@ -333,9 +345,11 @@ export default function Jobs() {
         const errs = validate();
         if (Object.keys(errs).length > 0) {
             setErrors(errs);
+            setActionError('Mandatory fields are missing');
             return;
         }
         setErrors({});
+        setActionError(null);
         setLoading(true);
         setError(null);
 
@@ -492,7 +506,7 @@ export default function Jobs() {
                                         Remove
                                     </button>
                                 )}
-                                <p className="text-xs text-slate-400 mt-1.5">PNG, JPG, SVG · Max display size 64×64px</p>
+                                <p className="text-xs text-slate-400 mt-1.5"></p>
                             </div>
                         </div>
                     </div>
@@ -634,10 +648,12 @@ export default function Jobs() {
 
                     {/* Technical Skills */}
                     <div ref={skillWrapperRef} className="relative">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Technical Skills</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Technical Skills <span className="text-rose-500">*</span>
+                        </label>
                         {/* Tag box */}
                         <div
-                            className="flex flex-wrap gap-2 rounded-lg border px-3 py-2 min-h-[44px] focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 border-slate-300 bg-white cursor-text"
+                            className={`flex flex-wrap gap-2 rounded-lg border px-3 py-2 min-h-[44px] focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 bg-white cursor-text ${errors.technicalSkills ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             onClick={() => skillInputRef.current?.focus()}
                         >
                             {form.technicalSkills.map(skill => (
@@ -710,10 +726,16 @@ export default function Jobs() {
                                 )}
                             </ul>
                         )}
+                        {errors.technicalSkills && <p className="text-xs text-rose-500 mt-1">{errors.technicalSkills}</p>}
                        </div>
 
                     {/* Submit */}
-                    <div className="flex justify-end items-center gap-3 pt-2">
+                    <div className="flex flex-col gap-2 pt-2 sm:flex-row sm:items-center sm:justify-end">
+                        {actionError && (
+                            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:whitespace-nowrap">
+                                {actionError}
+                            </div>
+                        )}
                         {editingId && (
                             <button
                                 type="button"
@@ -725,7 +747,7 @@ export default function Jobs() {
                         )}
                         <button
                             type="submit"
-                            disabled={loading || (userRole === 'COUNSELLOR' && Object.keys(validate()).length > 0)}
+                            disabled={loading || Object.keys(validate()).length > 0}
                             className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-2.5 rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                         >
                             <svg className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>

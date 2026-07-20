@@ -1,4 +1,6 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import nammaqaLogo from '../assets/nammaqa.jpg';
 import karthikcsLogo from '../assets/karthikcs.png';
 
@@ -31,6 +33,7 @@ export default function InvoiceModal({
     items, amountPaid, balance, totalAmount, discount
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
+    const [downloading, setDownloading] = useState(false);
 
     if (!isOpen) return null;
 
@@ -105,8 +108,11 @@ export default function InvoiceModal({
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
             {/* Action bar */}
             <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
-                <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ⬇ Download / Print
+                <button onClick={handleDownload} disabled={downloading} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: downloading ? 'not-allowed' : 'pointer', opacity: downloading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    {downloading ? 'Generating…' : '⬇ Download PDF'}
+                </button>
+                <button onClick={handlePrint} style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🖨 Print
                 </button>
                 <button onClick={onClose} style={{ background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     ✕ Close
