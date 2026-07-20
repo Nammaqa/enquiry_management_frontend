@@ -2631,4 +2631,3 @@ export default function CandidateDetails() {
     
 }
 
-//test
