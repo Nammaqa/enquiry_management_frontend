@@ -110,7 +110,9 @@ export default function CandidateDetails() {
     const isDemoCandidate = enquiry?.candidateStatus === 'demo';
     const canMoveCandidate = enquiry?.candidateStatus === 'demo' || enquiry?.candidateStatus === 'qualified demo';
     const statusOptions = isCounsellor
-        ? ['enquiry stage', 'demo']
+        ? enquiry?.candidateStatus === 'enquiry stage'
+            ? ['demo']
+            : ['enquiry stage', 'demo']
         : isAccounts && isDemoCandidate
             ? ['enquiry stage', 'demo']
             : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
@@ -1303,10 +1305,6 @@ export default function CandidateDetails() {
                                             <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                                 <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">Subjects</p>
                                                 <p className="text-sm font-semibold text-slate-900">{getSubjectNames(detailsForm.subjectIds)}</p>
-                                            </div>
-                                            <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
-                                                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 mb-1">College Name</p>
-                                                <p className="text-sm font-semibold text-slate-900">{detailsForm.collegeName || '-'}</p>
                                             </div>
                                         </div>
                                     )}
