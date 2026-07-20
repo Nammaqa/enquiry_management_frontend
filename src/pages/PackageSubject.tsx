@@ -38,6 +38,25 @@ interface Package {
     Subjects: Subject[];
 }
 
+const sortByName = <T extends { id?: number; name?: string; code?: string }>(items: T[]) =>
+    [...items].sort((a, b) => {
+        const nameCompare = (a.name || '').trim().localeCompare((b.name || '').trim(), undefined, {
+            sensitivity: 'base',
+            numeric: true,
+        });
+
+        if (nameCompare !== 0) return nameCompare;
+
+        const codeCompare = (a.code || '').trim().localeCompare((b.code || '').trim(), undefined, {
+            sensitivity: 'base',
+            numeric: true,
+        });
+
+        if (codeCompare !== 0) return codeCompare;
+
+        return (a.id || 0) - (b.id || 0);
+    });
+
 // Icons
 const PlusIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -174,7 +193,7 @@ export default function PackageSubject() {
             const data = await apiRequest<Subject[]>('/api/subjects', {
                 method: 'GET',
             });
-            setSubjects(data);
+            setSubjects(sortByName(data));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch subjects');
             console.error('Error fetching subjects:', err);
@@ -195,10 +214,10 @@ export default function PackageSubject() {
             // Normalize package subjects: backend may return `subjects` or `Subjects`
             const normalized = data.map(p => ({
                 ...p,
-                Subjects: (p as any).Subjects || (p as any).subjects || []
+                Subjects: sortByName((p as any).Subjects || (p as any).subjects || [])
             }) as Package);
 
-            setPackages(normalized);
+            setPackages(sortByName(normalized));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch packages');
             console.error('Error fetching packages:', err);
@@ -546,10 +565,10 @@ if (subjectForm.prerequisites) {
 
 
     // Filter subjects based on search query
-    const filteredSubjects = subjects.filter(subject =>
+    const filteredSubjects = sortByName(subjects.filter(subject =>
         subject.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
         subject.code.toLowerCase().includes(subjectSearchQuery.toLowerCase())
-    );
+    ));
 
     // Select/Deselect all filtered subjects
     const handleSelectAll = () => {
@@ -575,15 +594,15 @@ if (subjectForm.prerequisites) {
     };
 
     // Filter subjects and packages for table views
-    const filteredTableSubjects = subjects.filter(subject =>
+    const filteredTableSubjects = sortByName(subjects.filter(subject =>
         subject.name.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase()) ||
         subject.code.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase())
-    );
+    ));
 
-    const filteredTablePackages = packages.filter(pkg =>
+    const filteredTablePackages = sortByName(packages.filter(pkg =>
         pkg.name.toLowerCase().includes(tablePackageSearchQuery.toLowerCase()) ||
         pkg.code.toLowerCase().includes(tablePackageSearchQuery.toLowerCase())
-    );
+    ));
 
     return (
         <div className="space-y-4">

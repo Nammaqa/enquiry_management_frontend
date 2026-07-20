@@ -127,6 +127,20 @@ export default function ClassList() {
         return phone.replace(/\D/g, '').slice(0, 10);
     };
 
+    const formatListDate = (date: string) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) return '-';
+
+        return parsedDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const formatListTime = (date: string) => {
+        const parsedDate = new Date(date);
+        if (isNaN(parsedDate.getTime())) return '';
+
+        return parsedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    };
+
     const filteredEnquiries = useMemo(() => {
         let filtered = enquiries.filter(enquiry => {
             const matchesSearch = searchTerm === '' || 
@@ -363,18 +377,19 @@ export default function ClassList() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Training Prefs</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {loading && enquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         Loading class list...
                                     </td>
                                 </tr>
                             ) : paginatedEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={8} className="px-6 py-12 text-center text-slate-500">
                                         No class candidates found.
                                     </td>
                                 </tr>
@@ -439,6 +454,10 @@ export default function ClassList() {
                                             <div className="text-xs text-slate-900 mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
                                         <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
+                                        <td className="px-3 py-4">
+                                            <div className="text-xs font-medium text-slate-900">{formatListDate(enquiry.createdAt)}</div>
+                                            <div className="text-xs text-slate-900 mt-0.5">{formatListTime(enquiry.createdAt)}</div>
+                                        </td>
                                     </tr>
                                 ))
                             )}
