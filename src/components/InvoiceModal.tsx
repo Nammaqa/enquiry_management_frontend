@@ -1,4 +1,6 @@
 import { useRef } from 'react';
+import html2canvas from 'html2canvas';
+import jsPDF from 'jspdf';
 import nammaqaLogo from '../assets/nammaqa.jpg';
 import karthikcsLogo from '../assets/karthikcs.png';
 
@@ -49,7 +51,36 @@ export default function InvoiceModal({
         amount: item.fee,
     }));
 
-    const handleDownload = () => {
+    const handleDownload = async () => {
+        if (!printRef.current) return;
+
+        const canvas = await html2canvas(printRef.current, {
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            scale: 2,
+        });
+
+        const imgData = canvas.toDataURL('image/jpeg', 1.0);
+        const pdf = new jsPDF('p', 'mm', 'a4');
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+
+        let position = 0;
+        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+
+        let heightLeft = pdfHeight - pageHeight;
+        while (heightLeft > 0) {
+            position = heightLeft - pdfHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pageHeight;
+        }
+
+        pdf.save(`${invoiceNumber || 'invoice'}.pdf`);
+    };
+
+    const handlePrint = () => {
         const html = printRef.current?.innerHTML ?? '';
         const win = window.open('', '_blank', 'width=950,height=800');
         if (!win) return;
@@ -57,42 +88,50 @@ export default function InvoiceModal({
     <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{background:#fff;color:#1e293b;}
-    body{font-family:Arial,sans-serif;font-size:12px;padding:24px;}
-    .page{background:#fff;width:100%;max-width:900px;margin:0 auto;padding:32px;border-radius:0;box-shadow:none;}
-    .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:16px}
-    .logo-text{font-size:12px;font-weight:900;letter-spacing:-0.5px}
+    body{font-family:Arial,sans-serif;font-size:11px;padding:12px;}
+    .page{background:#fff;width:100%;max-width:100%;margin:0 auto;padding:20px;border-radius:0;box-shadow:none;}
+    .logo-row{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+    .logo-text{font-size:11px;font-weight:900;letter-spacing:-0.5px}
     .logo-qa{color:#f97316}.logo-namma{color:#4f46e5}
-    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px}
-    .tax-title{font-size:32px;font-weight:900;letter-spacing:-1px}
-    .company-info{font-size:11px;color:#475569;line-height:1.8}
-    .company-name{font-size:13px;font-weight:700;margin-bottom:6px}
-    .addresses{display:flex;gap:48px;margin-bottom:24px}
-    .addr-block h3{font-size:12px;font-weight:700;margin-bottom:8px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
-    .addr-block p{font-size:11.5px;color:#334155;line-height:1.8}
-    table{width:100%;border-collapse:collapse;margin-bottom:20px}
-    .meta-table th{background:#f97316;color:#fff;padding:9px 12px;font-size:10.5px;text-align:left}
-    .meta-table td{padding:9px 12px;border-bottom:1px solid #e2e8f0;font-size:11.5px}
-    .items-table th{background:#f97316;color:#fff;padding:9px 12px;font-size:10.5px}
-    .items-table td{padding:9px 12px;border-bottom:1px solid #e2e8f0;font-size:11.5px}
+    .header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:18px}
+    .tax-title{font-size:28px;font-weight:900;letter-spacing:-1px}
+    .company-info{font-size:10px;color:#475569;line-height:1.5}
+    .company-name{font-size:12px;font-weight:700;margin-bottom:6px}
+    .addresses{display:flex;gap:32px;margin-bottom:18px}
+    .addr-block h3{font-size:11px;font-weight:700;margin-bottom:6px;border-bottom:1px solid #e2e8f0;padding-bottom:4px}
+    .addr-block p{font-size:10px;color:#334155;line-height:1.5}
+    table{width:100%;border-collapse:collapse;margin-bottom:16px}
+    .meta-table th{background:#f97316;color:#fff;padding:8px 10px;font-size:10px;text-align:left}
+    .meta-table td{padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:10px}
+    .items-table th{background:#f97316;color:#fff;padding:8px 10px;font-size:10px}
+    .items-table td{padding:8px 10px;border-bottom:1px solid #e2e8f0;font-size:10px}
     .items-table tr:nth-child(even) td{background:#f8fafc}
     .tr{text-align:right}.tc{text-align:center}
-    .totals{display:flex;justify-content:flex-end;margin-bottom:32px}
-    .totals-inner{width:320px}
-    .tot-row{display:flex;justify-content:space-between;padding:5px 0;font-size:12px;border-bottom:1px solid #f1f5f9}
-    .tot-row.bold{font-weight:700;font-size:13px;border-top:2px solid #f97316;border-bottom:none;padding-top:8px}
-    .words-box{background:#f8fafc;border-radius:6px;padding:10px;font-size:11px;display:flex;gap:6px;margin-top:10px}
-    .terms{font-size:10.8px;color:#475569;line-height:1.7;border-top:1px solid #e2e8f0;padding-top:18px;margin-top:18px}
-    .terms h3{font-size:12px;font-weight:700;margin-bottom:8px}
-    .footer{display:flex;justify-content:space-between;align-items:flex-end;margin-top:24px;padding-top:20px;border-top:1px solid #e2e8f0}
-    .bank-info p{font-size:11.5px;line-height:1.9;color:#334155}
-    .bank-title{font-size:12px;font-weight:700;margin-bottom:8px}
+    .totals{display:flex;justify-content:flex-end;margin-bottom:26px}
+    .totals-inner{width:300px}
+    .tot-row{display:flex;justify-content:space-between;padding:4px 0;font-size:11px;border-bottom:1px solid #f1f5f9}
+    .tot-row.bold{font-weight:700;font-size:12px;border-top:2px solid #f97316;border-bottom:none;padding-top:6px}
+    .words-box{background:#f8fafc;border-radius:6px;padding:8px;font-size:10px;display:flex;gap:6px;margin-top:10px}
+    .second-page{page-break-before:always;break-before:page;page-break-inside:avoid;}
+    .terms{font-size:10px;color:#475569;line-height:1.4;border-top:1px solid #e2e8f0;padding-top:14px;margin-top:14px;}
+    .terms h3{font-size:11px;font-weight:700;margin-bottom:8px}
+    .terms ol{margin:0;padding-left:14px}
+    .terms li{margin-bottom:0.35em}
+    .footer{display:flex;justify-content:flex-end;align-items:flex-end;margin-top:16px;padding-top:18px;border-top:1px solid #e2e8f0;page-break-inside:avoid;}
+    .bank-info p{font-size:10px;line-height:1.5;color:#334155}
+    .bank-title{font-size:11px;font-weight:700;margin-bottom:6px}
     .sig{text-align:center}
-    .sig-name{font-size:22px;font-family:'Brush Script MT',cursive;color:#1e293b;margin-bottom:4px}
+    .sig-name{font-size:20px;font-family:'Brush Script MT',cursive;color:#1e293b;margin-bottom:4px}
     .sig-label{font-size:10px;color:#64748b;border-top:1px solid #94a3b8;padding-top:4px}
     .status-badge{display:inline-block;padding:2px 10px;border-radius:99px;font-size:10px;font-weight:600}
     .paid{background:#dcfce7;color:#15803d}.partial{background:#fef9c3;color:#92400e}
-    @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}} 
-    @page{margin:20mm;}
+    @media print{
+      body{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+      .page{box-shadow:none;border-radius:0;}
+      .terms{padding:12px;}
+      .footer{padding-top:12px;}
+    }
+    @page{size:A4 portrait;margin:12mm;}
     </style></head><body><div class="page">${html}</div></body></html>`);
         win.document.close();
         win.focus();
@@ -106,7 +145,10 @@ export default function InvoiceModal({
             {/* Action bar */}
             <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
                 <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ⬇ Download / Print
+                    ⬇ Download PDF
+                </button>
+                <button onClick={handlePrint} style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🖨 Print
                 </button>
                 <button onClick={onClose} style={{ background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     ✕ Close
@@ -131,7 +173,7 @@ export default function InvoiceModal({
                         </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'TAX INVOICE'}</div>
+                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'PAYMENT RECEIPT'}</div>
                     </div>
                 </div>
 
@@ -172,35 +214,20 @@ export default function InvoiceModal({
                 </table>
 
                 {/* Line items */}
-                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24, tableLayout: 'fixed' }}>
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
-                            {isPaymentHistory ? (
-                                ['#', 'Courses selected', 'Amount'].map((h, i) => (
-                                    <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
-                                ))
-                            ) : (
-                                ['#', 'Courses selected', 'Rate', 'CGST (9%)', 'SGST (9%)', 'Amount'].map((h, i) => (
-                                    <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right' }}>{h}</th>
-                                ))
-                            )}
+                            {['#', 'Courses selected', 'Amount'].map((h, i) => (
+                                <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right', width: i === 0 ? 50 : i === 2 ? 140 : 'auto' }}>{h}</th>
+                            ))}
                         </tr>
                     </thead>
                     <tbody>
                         {itemsWithTax.map((item, idx) => (
                             <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>{idx + 1}</td>
-                                <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500 }}>{item.name}</td>
-                                {isPaymentHistory ? (
-                                    <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.amount.toFixed(2)}</td>
-                                ) : (
-                                    <>
-                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>₹{item.fee.toFixed(2)}</td>
-                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{item.cgst.toFixed(2)}</td>
-                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b' }}>₹{item.sgst.toFixed(2)}</td>
-                                        <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600 }}>₹{item.amount.toFixed(2)}</td>
-                                    </>
-                                )}
+                                <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b', width: 50 }}>{idx + 1}</td>
+                                <td style={{ padding: '9px 12px', textAlign: 'left', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500, width: 'calc(100% - 190px)' }}>{item.name}</td>
+                                <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600, width: 140 }}>₹{item.amount.toFixed(2)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -240,13 +267,12 @@ export default function InvoiceModal({
                         </div>
                     </div>
                 </div>
-
-                <div style={{ fontSize: 13, color: '#475569', marginBottom: 24 }}>Thanks for your business.</div>
                 <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', marginBottom: 24 }} />
 
-                <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.7, marginBottom: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                    <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Terms & Conditions</div>
-                    <ol style={{ paddingLeft: 18, margin: 0 }}>
+                <div className="second-page">
+                  <div className="terms" style={{ fontSize: 11, color: '#475569', lineHeight: 1.6, marginBottom: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Terms & Conditions</div>
+                      <ol style={{ paddingLeft: 18, margin: 0 }}>
                         <li><strong>Non-Refundable Policy:</strong> All payments made towards any NammaQA training program, event, or course are strictly non-refundable under any circumstances, including withdrawal, absenteeism, course discontinuation, or personal reasons. Refund requests will not be entertained.</li>
                         <li><strong>Non-Transferrable Admission:</strong> Enrollment is non-transferable. Course access, registration benefits, or privileges cannot be transferred, shared, or sold to any other individual or entity under any circumstances.</li>
                         <li><strong>Attendance and Participation Compliance:</strong> Every enrolled candidate is required to maintain a minimum of 80% attendance and participate actively in all assigned sessions, projects, and activities. Failure to comply will result in withholding of certificates or discontinuation without refund.</li>
@@ -261,10 +287,11 @@ export default function InvoiceModal({
                         <li><strong>Confidentiality and Privacy:</strong> All candidate data collected by NammaQA will be used solely for administrative and academic purposes. Misuse of internal data or group communication channels is strictly prohibited.</li>
                         <li><strong>Guarantee of Placement:</strong> Placement or internship assistance is provided as a value-added service and does not constitute a job guarantee. Candidates are responsible for attending interviews and following up professionally.</li>
                     </ol>
+                    </div>
                 </div>
 
                 {/* Footer (Payment Details removed) */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end' }}>
+                <div className="footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', pageBreakInside: 'avoid' }}>
                     <div style={{ textAlign: 'center', width: 220 }}>
                             <img src={karthikcsLogo} alt="Authorized Signature" style={{ height: 48, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }} />
                             <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', marginBottom: 6 }} />
@@ -276,3 +303,4 @@ export default function InvoiceModal({
         </div>
     );
 }
+//test
