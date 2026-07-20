@@ -53,7 +53,7 @@ export default function InvoiceModal({
         const html = printRef.current?.innerHTML ?? '';
         const win = window.open('', '_blank', 'width=950,height=800');
         if (!win) return;
-        win.document.write(`<!DOCTYPE html><html><head><title>Invoice ${invoiceNumber}</title>
+        win.document.write(`<!DOCTYPE html><html><head><title>${isPaymentHistory ? 'Payment Receipt' : 'Tax Invoice'}</title>
     <style>
     *{margin:0;padding:0;box-sizing:border-box}
     html,body{background:#fff;color:#1e293b;}
@@ -132,7 +132,6 @@ export default function InvoiceModal({
                     </div>
                     <div style={{ textAlign: 'right' }}>
                         <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'TAX INVOICE'}</div>
-                        <div style={{ fontSize: 12, color: '#64748b' }}>{isPaymentHistory ? 'Transaction# ' : 'Invoice# '}<strong style={{ color: '#1e293b' }}>{invoiceNumber}</strong></div>
                     </div>
                 </div>
 
