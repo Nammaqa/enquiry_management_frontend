@@ -139,6 +139,7 @@ export default function Enquiry() {
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [actionError, setActionError] = useState<string | null>(null);
     const [fieldErrors, setFieldErrors] = useState<{ [key: string]: string }>({});
     const [phoneCheckLoading, setPhoneCheckLoading] = useState(false);
     const [phoneExists, setPhoneExists] = useState(false);
@@ -165,10 +166,12 @@ export default function Enquiry() {
     }, []);
 
     const handlePackageSelect = async (pkgId: number) => {
+        setActionError(null);
         setFormData(prev => ({ ...prev, packageId: pkgId }));
     };
 
     const handleSubjectToggle = (subjectId: number) => {
+        setActionError(null);
         setFormData(prev => {
             const currentIds = prev.subjectIds;
             const newIds = currentIds.includes(subjectId)
@@ -226,12 +229,14 @@ export default function Enquiry() {
     // Handle full name input - allow only alphabets and spaces, max 25 characters
     const handleFullNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/[^a-zA-Z\s]/g, '').slice(0, 25); // Allow only letters and spaces, max 25 chars
+        setActionError(null);
         setFormData({ ...formData, candidateName: value });
     };
 
     // Handle phone input - allow only digits, max 10
     const handlePhoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         const value = e.target.value.replace(/\D/g, '').slice(0, 10); // Allow only digits, max 10
+        setActionError(null);
         setFormData({ ...formData, candidatePhone: value });
         
         // Clear previous error
@@ -254,11 +259,28 @@ export default function Enquiry() {
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const hasMissingMandatoryFields =
+            !formData.candidateName.trim() ||
+            !formData.candidatePhone.trim() ||
+            !formData.candidateEmail.trim() ||
+            !formData.candidateLocation.trim() ||
+            formData.packageId === null ||
+            !formData.agreed ||
+            (formData.packageId === PACKAGE_ID_OTHERS && formData.subjectIds.length === 0) ||
+            (formData.professionalSituation === 'Other' && !formData.situationOther.trim()) ||
+            (formData.qualification === 'Other' && !formData.qualificationOther.trim());
+
+        if (hasMissingMandatoryFields) {
+            setActionError('Mandatory fields are missing');
+            return;
+        }
         
         // Validate phone number
         const phoneError = validatePhoneNumber(formData.candidatePhone);
         if (phoneError) {
             setFieldErrors({ ...fieldErrors, phone: phoneError });
+            setActionError(null);
             return;
         }
 
@@ -267,7 +289,7 @@ export default function Enquiry() {
         const emailRegex = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$/;
         if (!emailRegex.test(email)) {
             setFieldErrors({ ...fieldErrors, email: 'Invalid email format' });
-            alert('Please provide a valid email address.');
+            setActionError(null);
             return;
         }
 
@@ -275,30 +297,19 @@ export default function Enquiry() {
         const emailDomain = email.split('@')[1]?.toLowerCase();
         if (emailDomain && invalidDomains.includes(emailDomain)) {
             setFieldErrors({ ...fieldErrors, email: 'Please provide a genuine email address' });
+            setActionError(null);
             return;
         }
         
         // Check if phone already exists
         if (phoneExists) {
             setFieldErrors({ ...fieldErrors, phone: 'Phone number already exists' });
-            return;
-        }
-        
-        if (!formData.agreed) {
-            setFieldErrors({ ...fieldErrors, agreed: 'Please accept the Terms and Conditions to continue.' });
-            return;
-        }
-        if (formData.packageId === null) {
-            alert('Please select a package or "Others".');
-            return;
-        }
-
-        if (formData.packageId === PACKAGE_ID_OTHERS && formData.subjectIds.length === 0) {
-            alert('Please select at least one subject.');
+            setActionError(null);
             return;
         }
 
         setSubmitting(true);
+        setActionError(null);
         setFieldErrors({});
         try {
             let finalSubjectIds = [...formData.subjectIds];
@@ -321,8 +332,8 @@ export default function Enquiry() {
                 trainingMode: formData.trainingMode,
                 trainingTime: formData.trainingTiming,
                 startTime: formData.startDate,
-                profession: formData.professionalSituation === 'Other' ? formData.situationOther : formData.professionalSituation,
-                qualification: formData.qualification === 'Other' ? formData.qualificationOther : formData.qualification,
+                profession: formData.professionalSituation === 'Other' ? formData.situationOther.trim() : formData.professionalSituation,
+                qualification: formData.qualification === 'Other' ? formData.qualificationOther.trim() : formData.qualification,
                 experience: formData.experience,
                 referral: formData.source === 'Other' ? formData.sourceOther : formData.source,
                 consent: formData.agreed,
@@ -335,6 +346,7 @@ export default function Enquiry() {
             });
             alert('Enquiry submitted successfully!');
             setFormData(INITIAL_FORM_STATE);
+            setActionError(null);
             setFieldErrors({});
         } catch (err: any) {
             console.error(err);
@@ -372,6 +384,7 @@ export default function Enquiry() {
     const handleClear = () => {
         if (window.confirm('Are you sure you want to clear the form?')) {
             setFormData(INITIAL_FORM_STATE);
+            setActionError(null);
             setFieldErrors({});
         }
     };
@@ -396,7 +409,7 @@ export default function Enquiry() {
                 )}
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} noValidate className="space-y-6">
 
                 {/* 1. Candidate Personal Info */}
                 <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
@@ -459,7 +472,10 @@ export default function Enquiry() {
                                     required
                                     type="email"
                                     value={formData.candidateEmail}
-                                    onChange={e => setFormData({ ...formData, candidateEmail: e.target.value })}
+                                    onChange={e => {
+                                        setActionError(null);
+                                        setFormData({ ...formData, candidateEmail: e.target.value });
+                                    }}
                                     className="w-full pl-10 pr-4 py-2 rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition-all"
                                     placeholder="Enter email address"
                                 />
@@ -481,6 +497,7 @@ export default function Enquiry() {
                                     onChange={e => {
                                         const val = e.target.value;
                                         if (val === '' || /^[a-zA-Z\s]+$/.test(val)) {
+                                            setActionError(null);
                                             setFormData({ ...formData, candidateLocation: val });
                                         }
                                     }}
@@ -674,7 +691,10 @@ export default function Enquiry() {
                                             name="situation"
                                             value={sit}
                                             checked={formData.professionalSituation === sit}
-                                            onChange={e => setFormData({ ...formData, professionalSituation: e.target.value })}
+                                            onChange={e => {
+                                                setActionError(null);
+                                                setFormData({ ...formData, professionalSituation: e.target.value });
+                                            }}
                                             className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{sit}</span>
@@ -687,7 +707,10 @@ export default function Enquiry() {
                                     <input
                                         type="text"
                                         value={formData.situationOther}
-                                        onChange={e => setFormData({ ...formData, situationOther: e.target.value })}
+                                        onChange={e => {
+                                            setActionError(null);
+                                            setFormData({ ...formData, situationOther: e.target.value });
+                                        }}
                                         placeholder="Enter your current student professional"
                                         className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                     />
@@ -705,7 +728,10 @@ export default function Enquiry() {
                                             name="qualification"
                                             value={qual}
                                             checked={formData.qualification === qual}
-                                            onChange={e => setFormData({ ...formData, qualification: e.target.value })}
+                                            onChange={e => {
+                                                setActionError(null);
+                                                setFormData({ ...formData, qualification: e.target.value });
+                                            }}
                                             className="w-4 h-4 text-indigo-600 border-slate-300 focus:ring-indigo-500"
                                         />
                                         <span className="text-sm text-slate-700">{qual}</span>
@@ -718,7 +744,10 @@ export default function Enquiry() {
                                     <input
                                         type="text"
                                         value={formData.qualificationOther}
-                                        onChange={e => setFormData({ ...formData, qualificationOther: e.target.value })}
+                                        onChange={e => {
+                                            setActionError(null);
+                                            setFormData({ ...formData, qualificationOther: e.target.value });
+                                        }}
                                         placeholder="Enter your qualification"
                                         className="w-full sm:w-1/2 px-4 py-2 text-sm rounded-lg border border-slate-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none"
                                     />
@@ -787,6 +816,7 @@ export default function Enquiry() {
                                 type="checkbox"
                                 checked={formData.agreed}
                                 onChange={e => {
+                                    setActionError(null);
                                     setFormData({ ...formData, agreed: e.target.checked });
                                     if (e.target.checked && fieldErrors.agreed) {
                                         setFieldErrors({ ...fieldErrors, agreed: '' });
@@ -813,7 +843,13 @@ export default function Enquiry() {
                     >
                         Clear Form
                     </button>
-                    <div className="flex gap-3 w-full sm:w-auto">
+                    <div className="flex flex-col gap-2 w-full sm:w-auto sm:flex-row sm:items-center">
+                        {actionError && (
+                            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm font-semibold text-rose-700 sm:whitespace-nowrap">
+                                {actionError}
+                            </div>
+                        )}
+                        <div className="flex gap-3 w-full sm:w-auto">
                         <button
                             type="button"
                             onClick={() => navigate('/dashboard')}
@@ -828,6 +864,7 @@ export default function Enquiry() {
                         >
                             {submitting ? 'Saving...' : 'Save Enquiry'}
                         </button>
+                        </div>
                     </div>
                 </div>
             </form>

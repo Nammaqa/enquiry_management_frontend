@@ -21,6 +21,8 @@ interface LogEntry {
 
 interface DetailsFormData extends Partial<Enquiry> {
     sourceOther?: string;
+    professionOther?: string;
+    qualificationOther?: string;
 }
 
 const TRAINING_MODES = ['Offline', 'Hybrid', 'Online'];
@@ -116,6 +118,11 @@ export default function CandidateDetails() {
         : isAccounts && isDemoCandidate
             ? ['enquiry stage', 'demo']
             : ['enquiry stage', 'demo', 'qualified demo', 'class', 'class qualified'];
+
+    const mapOtherValue = (value: string | undefined, options: string[]) => ({
+        selected: value && options.includes(value) ? value : value ? 'Other' : '',
+        other: value && !options.includes(value) ? value : '',
+    });
 
     useEffect(() => {
         if (enquiry && packages.length > 0) {
@@ -693,6 +700,8 @@ export default function CandidateDetails() {
     useEffect(() => {
         if (enquiry) {
             const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
+            const professionValue = mapOtherValue(enquiry.profession, PROF_SITUATIONS);
+            const qualificationValue = mapOtherValue(enquiry.qualification, QUALIFICATIONS);
             setSelectedStatus('');
             // Clean phone and name data on initial load
             const cleanedName = (enquiry.name || '').replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
@@ -703,14 +712,16 @@ export default function CandidateDetails() {
                 phone: cleanedPhone,
                 current_location: enquiry.current_location,
                 collegeName: enquiry.collegeName,
-                profession: enquiry.profession,
+                profession: professionValue.selected,
+                professionOther: professionValue.other,
                 referral: referralValue,
                 sourceOther: referralValue === 'Other' ? enquiry.referral : '',
                 consent: enquiry.consent,
                 trainingMode: enquiry.trainingMode,
                 trainingTime: enquiry.trainingTime,
                 startTime: enquiry.startTime,
-                qualification: enquiry.qualification,
+                qualification: qualificationValue.selected,
+                qualificationOther: qualificationValue.other,
                 experience: enquiry.experience,
                 packageId: enquiry.packageId,
                 subjectIds: enquiry.subjectIds || [],
@@ -764,19 +775,31 @@ export default function CandidateDetails() {
 
         // Validate required fields
         if (!detailsForm.name?.trim()) {
-            setUpdateError('Name is required');
+            setUpdateError('Mandatory fields are missing');
             return;
         }
         if (!detailsForm.email?.trim()) {
-            setUpdateError('Email is required');
+            setUpdateError('Mandatory fields are missing');
             return;
         }
         if (!detailsForm.phone?.trim()) {
-            setUpdateError('Phone is required');
+            setUpdateError('Mandatory fields are missing');
             return;
         }
         if (!detailsForm.current_location?.trim()) {
-            setUpdateError('Location is required');
+            setUpdateError('Mandatory fields are missing');
+            return;
+        }
+        if (!detailsForm.consent) {
+            setUpdateError('Mandatory fields are missing');
+            return;
+        }
+        if (detailsForm.profession === 'Other' && !detailsForm.professionOther?.trim()) {
+            setUpdateError('Mandatory fields are missing');
+            return;
+        }
+        if (detailsForm.qualification === 'Other' && !detailsForm.qualificationOther?.trim()) {
+            setUpdateError('Mandatory fields are missing');
             return;
         }
 
@@ -802,25 +825,19 @@ export default function CandidateDetails() {
             return;
         }
 
-        // Validate consent (Terms and Conditions)
-        if (!detailsForm.consent) {
-            setUpdateError('Please accept the Terms and Conditions to continue.');
-            return;
-        }
-
         const payload: Partial<Enquiry> = {
             name: detailsForm.name,
             email: detailsForm.email,
             phone: detailsForm.phone,
             current_location: detailsForm.current_location,
             collegeName: detailsForm.collegeName,
-            profession: detailsForm.profession,
+            profession: detailsForm.profession === 'Other' ? (detailsForm.professionOther || '').trim() : detailsForm.profession,
             referral: detailsForm.referral === 'Other' ? (detailsForm.sourceOther || 'Other') : detailsForm.referral,
             consent: detailsForm.consent,
             trainingMode: detailsForm.trainingMode,
             trainingTime: detailsForm.trainingTime,
             startTime: detailsForm.startTime,
-            qualification: detailsForm.qualification,
+            qualification: detailsForm.qualification === 'Other' ? (detailsForm.qualificationOther || '').trim() : detailsForm.qualification,
             experience: detailsForm.experience,
             packageId: detailsForm.packageId ?? null,
             subjectIds: detailsForm.subjectIds || [],
@@ -1233,7 +1250,7 @@ export default function CandidateDetails() {
 
                                 <div className="space-y-4">
                                     <div className="space-y-4">
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Name * </label>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Name <span className="text-rose-500">*</span></label>
                                         <input
                                             type="text"
                                             value={detailsForm.name || ''}
@@ -1244,7 +1261,7 @@ export default function CandidateDetails() {
                                             placeholder="Enter full name (alphabets and spaces only)"
                                         />
 
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Email *</label>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Email <span className="text-rose-500">*</span></label>
                                         <input
                                             type="email"
                                             value={detailsForm.email || ''}
@@ -1253,7 +1270,7 @@ export default function CandidateDetails() {
                                             className="w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
                                         />
 
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Phone *</label>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Phone <span className="text-rose-500">*</span></label>
                                         <input
                                             type="tel"
                                             value={detailsForm.phone || ''}
@@ -1271,7 +1288,7 @@ export default function CandidateDetails() {
                                             <p className="text-xs text-rose-600 mt-1">{validatePhoneNumber(detailsForm.phone)}</p>
                                         )}
 
-                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Location *</label>
+                                        <label className="block text-xs font-semibold text-slate-500 uppercase">Location <span className="text-rose-500">*</span></label>
                                         <input
                                             type="text"
                                             value={detailsForm.current_location || ''}
@@ -1434,6 +1451,16 @@ export default function CandidateDetails() {
                                                     </label>
                                                 ))}
                                             </div>
+                                            {detailsForm.profession === 'Other' && (
+                                                <input
+                                                    type="text"
+                                                    value={detailsForm.professionOther || ''}
+                                                    disabled={!isEditingDetails}
+                                                    onChange={(e) => setDetailsForm(prev => ({ ...prev, professionOther: e.target.value }))}
+                                                    placeholder="Enter current student professional"
+                                                    className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                                />
+                                            )}
                                         </div>
 
                                         <div>
@@ -1454,6 +1481,16 @@ export default function CandidateDetails() {
                                                     </label>
                                                 ))}
                                             </div>
+                                            {detailsForm.qualification === 'Other' && (
+                                                <input
+                                                    type="text"
+                                                    value={detailsForm.qualificationOther || ''}
+                                                    disabled={!isEditingDetails}
+                                                    onChange={(e) => setDetailsForm(prev => ({ ...prev, qualificationOther: e.target.value }))}
+                                                    placeholder="Enter highest qualification"
+                                                    className="mt-3 w-full rounded-3xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 disabled:bg-slate-100"
+                                                />
+                                            )}
                                         </div>
 
                                         <div>
@@ -1485,7 +1522,7 @@ export default function CandidateDetails() {
                                                 className="mt-1 w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500"
                                             />
                                             <label className="text-sm text-slate-600 leading-relaxed">
-                                                I agree to be contacted via phone, WhatsApp, email, Newsletters regarding NammaQA Training Community program and offers.
+                                                I agree to be contacted via phone, WhatsApp, email, Newsletters regarding NammaQA Training Community program and offers. <span className="text-rose-500 font-semibold">*</span>
                                             </label>
                                         </div>
                                     </div>
@@ -1584,7 +1621,7 @@ export default function CandidateDetails() {
                                 </div>
 
                                 {isEditingDetails && (
-                                    <div className="flex flex-wrap gap-3 pt-4">
+                                    <div className="flex flex-wrap items-center gap-3 pt-4">
                                         <button
                                             type="button"
                                             onClick={handleUpdateCandidate}
@@ -1599,20 +1636,24 @@ export default function CandidateDetails() {
                                                 setUpdateError(null); // Clear any update errors when canceling
                                                 if (enquiry) {
                                                     const referralValue = SOURCES.includes(enquiry.referral) ? enquiry.referral : 'Other';
+                                                    const professionValue = mapOtherValue(enquiry.profession, PROF_SITUATIONS);
+                                                    const qualificationValue = mapOtherValue(enquiry.qualification, QUALIFICATIONS);
                                                     setDetailsForm({
                                                         name: enquiry.name,
                                                         email: enquiry.email,
                                                         phone: enquiry.phone,
                                                         current_location: enquiry.current_location,
                                                         collegeName: enquiry.collegeName,
-                                                        profession: enquiry.profession,
+                                                        profession: professionValue.selected,
+                                                        professionOther: professionValue.other,
                                                         referral: referralValue,
                                                         sourceOther: referralValue === 'Other' ? enquiry.referral : '',
                                                         consent: enquiry.consent,
                                                         trainingMode: enquiry.trainingMode,
                                                         trainingTime: enquiry.trainingTime,
                                                         startTime: enquiry.startTime,
-                                                        qualification: enquiry.qualification,
+                                                        qualification: qualificationValue.selected,
+                                                        qualificationOther: qualificationValue.other,
                                                         experience: enquiry.experience,
                                                         packageId: enquiry.packageId,
                                                         subjectIds: enquiry.subjectIds || [],
@@ -1623,17 +1664,11 @@ export default function CandidateDetails() {
                                         >
                                             Cancel
                                         </button>
-                                    </div>
-                                )}
-
-                                {updateError && (
-                                    <div className="mt-4 p-4 bg-rose-50 border border-rose-200 rounded-3xl">
-                                        <div className="flex items-center gap-2">
-                                            <svg className="w-5 h-5 text-rose-500 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                                                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
-                                            </svg>
-                                            <p className="text-sm font-medium text-rose-800">{updateError}</p>
-                                        </div>
+                                        {updateError && (
+                                            <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-2 text-sm font-semibold text-rose-700">
+                                                {updateError}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>

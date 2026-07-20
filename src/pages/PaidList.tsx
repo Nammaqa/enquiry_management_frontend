@@ -613,7 +613,11 @@ export default function PaidList() {
                             </div>
 
                             {logError && (
-                                <div className="mt-4 rounded-3xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700">
+                                <div className={`mt-4 rounded-3xl border p-4 text-sm ${
+                                    logError.toLowerCase().includes('success')
+                                        ? 'border-green-200 bg-green-50 text-green-700'
+                                        : 'border-rose-200 bg-rose-50 text-rose-700'
+                                }`}>
                                     {logError}
                                 </div>
                             )}

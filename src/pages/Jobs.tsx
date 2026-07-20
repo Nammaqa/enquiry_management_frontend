@@ -186,6 +186,7 @@ export default function Jobs() {
         const skill = raw.trim();
         if (skill && !form.technicalSkills.includes(skill)) {
             setForm(prev => ({ ...prev, technicalSkills: [...prev.technicalSkills, skill] }));
+            setErrors(prev => ({ ...prev, technicalSkills: undefined }));
         }
         setSkillInput('');
         setSkillDropdownOpen(false);
@@ -287,6 +288,7 @@ export default function Jobs() {
         if (!form.about.trim()) e.about = 'Required';
         if (!form.jobDescription.trim()) e.jobDescription = 'Required';
         if (!form.preferredExperience.trim()) e.preferredExperience = 'Required';
+        if (form.technicalSkills.length === 0) e.technicalSkills = 'Required';
         return e;
     };
 
@@ -634,10 +636,12 @@ export default function Jobs() {
 
                     {/* Technical Skills */}
                     <div ref={skillWrapperRef} className="relative">
-                        <label className="block text-sm font-medium text-slate-700 mb-1">Technical Skills</label>
+                        <label className="block text-sm font-medium text-slate-700 mb-1">
+                            Technical Skills <span className="text-rose-500">*</span>
+                        </label>
                         {/* Tag box */}
                         <div
-                            className="flex flex-wrap gap-2 rounded-lg border px-3 py-2 min-h-[44px] focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 border-slate-300 bg-white cursor-text"
+                            className={`flex flex-wrap gap-2 rounded-lg border px-3 py-2 min-h-[44px] focus-within:ring-2 focus-within:ring-indigo-500 focus-within:border-indigo-500 bg-white cursor-text ${errors.technicalSkills ? 'border-rose-400 bg-rose-50' : 'border-slate-300'}`}
                             onClick={() => skillInputRef.current?.focus()}
                         >
                             {form.technicalSkills.map(skill => (
@@ -710,6 +714,7 @@ export default function Jobs() {
                                 )}
                             </ul>
                         )}
+                        {errors.technicalSkills && <p className="text-xs text-rose-500 mt-1">{errors.technicalSkills}</p>}
                        </div>
 
                     {/* Submit */}
