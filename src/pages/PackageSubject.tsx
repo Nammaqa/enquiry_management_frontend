@@ -439,8 +439,10 @@ if (subjectForm.prerequisites) {
     };
 
     const savePackage = async () => {
-        // Package name presence validation removed (allow any characters); package code validation removed per request
-
+            if (!packageForm.name?.trim()) {
+                setError('⚠️ Package name is mandatory.');
+                return;
+            }
         if (!packageForm.domain || !packageForm.mode || !packageForm.type) {
             setError('⚠️ Please select Domain, Mode, and Type for the package');
             return;
@@ -1352,12 +1354,13 @@ if (subjectForm.prerequisites) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Package Name
+                                        Package Name <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={packageForm.name}
                                         onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Science Package"
                                     />

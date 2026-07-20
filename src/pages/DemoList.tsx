@@ -27,7 +27,22 @@ export default function DemoList() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
 
+    const isPageReload = () => {
+        const navigationEntries = performance.getEntriesByType('navigation') as PerformanceNavigationTiming[];
+        if (navigationEntries.length > 0) {
+            return navigationEntries[0].type === 'reload';
+        }
+        return (performance as any).navigation?.type === 1;
+    };
+
     useEffect(() => {
+        const reload = isPageReload();
+        if (reload) {
+            sessionStorage.removeItem('demoListSearchTerm');
+            sessionStorage.removeItem('demoListSelectedDate');
+            sessionStorage.removeItem('demoListCurrentPage');
+        }
+
         fetchAllData();
         
         // Restore filter and pagination state from sessionStorage
@@ -94,12 +109,20 @@ export default function DemoList() {
 
     // Save search term to sessionStorage
     useEffect(() => {
-        sessionStorage.setItem('demoListSearchTerm', searchTerm);
+        if (searchTerm) {
+            sessionStorage.setItem('demoListSearchTerm', searchTerm);
+        } else {
+            sessionStorage.removeItem('demoListSearchTerm');
+        }
     }, [searchTerm]);
 
     // Save selected date to sessionStorage
     useEffect(() => {
-        sessionStorage.setItem('demoListSelectedDate', selectedDate);
+        if (selectedDate) {
+            sessionStorage.setItem('demoListSelectedDate', selectedDate);
+        } else {
+            sessionStorage.removeItem('demoListSelectedDate');
+        }
     }, [selectedDate]);
 
     // Save current page to sessionStorage
