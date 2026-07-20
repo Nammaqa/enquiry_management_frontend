@@ -57,6 +57,9 @@ export default function CandidateDetails() {
         if (fromParam === 'class-list') {
             return '/class-list';
         }
+        if (fromParam === 'paid-list') {
+            return '/paid-list';
+        }
         // Default to enquiries page if no parameter or unknown value
         return '/enquiries';
     };
