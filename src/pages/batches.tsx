@@ -119,6 +119,15 @@ export default function Batches() {
     // Validation state
     const [studentCountError, setStudentCountError] = useState<string | null>(null);
 
+    const isBatchFormValid = Boolean(
+        batchForm.name.trim() &&
+        batchForm.code.trim() &&
+        batchForm.status &&
+        batchForm.sessionStartDate &&
+        batchForm.sessionTime &&
+        batchForm.subjectId != null
+    );
+
     // Fetch batches and subjects on mount
     useEffect(() => {
         const role = localStorage.getItem('userRole');
@@ -261,9 +270,9 @@ export default function Batches() {
 
     // Save batch
     const saveBatch = async () => {
-        // Validate required fields (batch code removed from mandatory list)
-        if (!batchForm.name || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime || !batchForm.subjectId) {
-            setError('Batch Name, Status, Subject, Session Start Date, and Session Time are required');
+        // Validate required fields, including batch code
+        if (!batchForm.name || !batchForm.code || !batchForm.status || !batchForm.sessionStartDate || !batchForm.sessionTime || !batchForm.subjectId) {
+            setError('Batch Name, Batch Code, Status, Subject, Session Start Date, and Session Time are required');
             return;
         }
 
@@ -707,23 +716,9 @@ export default function Batches() {
                         <div className="grid grid-cols-1 gap-6 px-6 py-4">
                             {/* Left Column - Form Fields */}
                             <div className="space-y-4">
-                                {/* Error Message in Modal */}
-                                {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
-                                        <span>{error}</span>
-                                        <button
-                                            onClick={() => setError(null)}
-                                            className="text-rose-700 hover:text-rose-900"
-                                            aria-label="Close error message"
-                                        >
-                                            <CloseIcon />
-                                        </button>
-                                    </div>
-                                )}
-
-                                <div>
+                                    <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Batch Name *
+                                        Batch Name <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -736,7 +731,7 @@ export default function Batches() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Batch Code *
+                                        Batch Code <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
@@ -749,7 +744,7 @@ export default function Batches() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Status *
+                                        Status <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={batchForm.status}
@@ -765,7 +760,7 @@ export default function Batches() {
 
                                 <div>
                                    <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Subject *
+                                        Subject <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={batchForm.subjectId || ''}
@@ -838,7 +833,7 @@ export default function Batches() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Session Start Date *
+                                        Session Start Date <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="date"
@@ -864,7 +859,7 @@ export default function Batches() {
 
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Session Time *
+                                        Session Time <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="time"
@@ -898,20 +893,27 @@ export default function Batches() {
 
                             {/* image upload UI removed */}
                         </div>
-                        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
-                            <button
-                                onClick={() => setIsModalOpen(false)}
-                                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={saveBatch}
-                                disabled={formLoading}
-                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {formLoading ? 'Saving...' : editingBatch ? 'Update' : 'Create'}
-                            </button>
+                        <div className="flex flex-col gap-3 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
+                            {error && (
+                                <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm">
+                                     Mandatory fields are missing
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                    onClick={() => setIsModalOpen(false)}
+                                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={saveBatch}
+                                    disabled={formLoading || !isBatchFormValid}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {formLoading ? 'Saving...' : editingBatch ? 'Update' : 'Create'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
