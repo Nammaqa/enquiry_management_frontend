@@ -154,6 +154,15 @@ export default function DemoList() {
         return phone.replace(/\D/g, '').slice(0, 10);
     };
 
+    const keepLastWordTogether = (text?: string | null) => {
+        if (!text) return '-';
+        const s = text.trim();
+        if (!s) return '-';
+        const parts = s.split(' ');
+        if (parts.length <= 1) return s;
+        return <>{parts.slice(0, -1).join(' ')}{"\u00A0"}{parts[parts.length - 1]}</>;
+    };
+
     const formatListDate = (date: string) => {
         const parsedDate = new Date(date);
         if (isNaN(parsedDate.getTime())) return '-';
@@ -280,6 +289,8 @@ export default function DemoList() {
             'Training Time',
             'Start Date',
             'Profession',
+            'Qualification',
+            'Experience',
             'Source/Referral',
             'Consent',
             'Created Date'
@@ -299,6 +310,8 @@ export default function DemoList() {
             enquiry.trainingTime,
             enquiry.startTime,
             enquiry.profession,
+            enquiry.qualification,
+            enquiry.experience,
             enquiry.referral,
             enquiry.consent ? 'Yes' : 'No',
             new Date(enquiry.createdAt).toLocaleDateString('en-US')
@@ -326,6 +339,8 @@ export default function DemoList() {
             { wch: 15 }, // Training Time
             { wch: 12 }, // Start Date
             { wch: 15 }, // Profession
+            { wch: 15 }, // Qualification
+            { wch: 12 }, // Experience
             { wch: 20 }, // Source/Referral
             { wch: 10 }, // Consent
             { wch: 15 }  // Created Date
@@ -567,7 +582,17 @@ export default function DemoList() {
                                                 </div>
                                             </td>
                                         )}
-                                        <td className="px-3 py-4 text-xs text-slate-900">{enquiry.profession || '-'}</td>
+                                        <td className="px-3 py-4">
+                                            <div className="text-xs text-slate-900 wrap-break-word">
+                                                <span className="font-semibold whitespace-nowrap">Professional:</span> {keepLastWordTogether(enquiry.profession)}
+                                            </div>
+                                            <div className="text-xs text-slate-700 wrap-break-word">
+                                                <span className="font-semibold whitespace-nowrap">Qualification:</span> {keepLastWordTogether(enquiry.qualification)}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-0.5">
+                                                <span className="font-semibold whitespace-nowrap">Experience:</span> {enquiry.experience || '-'}
+                                            </div>
+                                        </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs font-medium text-slate-900">{formatListDate(enquiry.createdAt)}</div>
                                             <div className="text-xs text-slate-900 mt-0.5">{formatListTime(enquiry.createdAt)}</div>
