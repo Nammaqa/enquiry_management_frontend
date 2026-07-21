@@ -2187,7 +2187,7 @@ export default function CandidateDetails() {
                                                         {Object.entries(savedBillingBreakdown).map(([name, fee]) => (
                                                             <div key={name} className="flex justify-between text-sm text-slate-700">
                                                                 <span>{name}</span>
-                                                                <span className="font-semibold">â‚¹{Number(fee || 0).toFixed(2)}</span>
+                                                                <span className="font-semibold">₹{Number(fee || 0).toFixed(2)}</span>
                                                             </div>
                                                         ))}
                                                     </div>
