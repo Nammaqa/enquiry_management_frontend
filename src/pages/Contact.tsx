@@ -293,6 +293,15 @@ export default function Contact() {
         return name.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
     };
 
+    const keepLastWordTogether = (text?: string | null) => {
+        if (!text) return '-';
+        const s = text.trim();
+        if (!s) return '-';
+        const parts = s.split(' ');
+        if (parts.length <= 1) return s;
+        return <>{parts.slice(0, -1).join(' ')}{"\u00A0"}{parts[parts.length - 1]}</>;
+    };
+
     // Export filtered data to CSV
     const exportToXLSX = () => {
         if (filteredEnquiries.length === 0) {
@@ -618,13 +627,13 @@ export default function Contact() {
                                         )}
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 wrap-break-word">
-                                                <span className="font-semibold">Professional:</span> {enquiry.profession || '-'}
+                                                <span className="font-semibold whitespace-nowrap">Professional:</span> {keepLastWordTogether(enquiry.profession)}
                                             </div>
                                             <div className="text-xs text-black wrap-break-word">
-                                                <span className="font-semibold">Qualification:</span> {enquiry.qualification || '-'}
+                                                <span className="font-semibold whitespace-nowrap">Qualification:</span> {keepLastWordTogether(enquiry.qualification)}
                                             </div>
                                             <div className="text-xs text-slate-400 mt-0.5">
-                                                <span className="font-semibold">Experience:</span> {enquiry.experience || '-'}
+                                                <span className="font-semibold whitespace-nowrap">Experience:</span> {enquiry.experience || '-'}
                                             </div>
                                         </td>
                                         <td className="px-3 py-4">
