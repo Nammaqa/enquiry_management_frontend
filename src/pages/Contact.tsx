@@ -162,6 +162,7 @@ export default function Contact() {
 
             setNewCallLogTitle('');
             setNewCallLogDescription('');
+            setLogError('Call log added successfully.');
         } catch (err) {
             console.error('Failed to save call log:', err);
             setLogError('Unable to save call log. Please try again.');
@@ -290,6 +291,15 @@ export default function Contact() {
     const formatCandidateName = (name: string) => {
         if (!name) return '';
         return name.replace(/[^a-zA-Z\s]/g, '').slice(0, 25);
+    };
+
+    const keepLastWordTogether = (text?: string | null) => {
+        if (!text) return '-';
+        const s = text.trim();
+        if (!s) return '-';
+        const parts = s.split(' ');
+        if (parts.length <= 1) return s;
+        return <>{parts.slice(0, -1).join(' ')}{"\u00A0"}{parts[parts.length - 1]}</>;
     };
 
     // Export filtered data to CSV
@@ -616,9 +626,15 @@ export default function Contact() {
                                             </td>
                                         )}
                                         <td className="px-3 py-4">
-                                            <div className="text-xs text-slate-900 wrap-break-word">{enquiry.profession}</div>
-                                            <div className="text-xs text-black wrap-break-word">{enquiry.qualification}</div>
-                                            <div className="text-xs text-slate-400 mt-0.5">{enquiry.experience}</div>
+                                            <div className="text-xs text-slate-900 wrap-break-word">
+                                                <span className="font-semibold whitespace-nowrap">Professional:</span> {keepLastWordTogether(enquiry.profession)}
+                                            </div>
+                                            <div className="text-xs text-black wrap-break-word">
+                                                <span className="font-semibold whitespace-nowrap">Qualification:</span> {keepLastWordTogether(enquiry.qualification)}
+                                            </div>
+                                            <div className="text-xs text-slate-400 mt-0.5">
+                                                <span className="font-semibold whitespace-nowrap">Experience:</span> {enquiry.experience || '-'}
+                                            </div>
                                         </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-black">
@@ -659,7 +675,10 @@ export default function Contact() {
                                                 <label className="block text-sm font-medium text-slate-700">Call title</label>
                                                 <input
                                                     value={newCallLogTitle}
-                                                    onChange={(e) => setNewCallLogTitle(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setLogError(null);
+                                                        setNewCallLogTitle(e.target.value);
+                                                    }}
                                                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                                                     placeholder="Call title"
                                                 />
@@ -668,7 +687,10 @@ export default function Contact() {
                                                 <label className="block text-sm font-medium text-slate-700">Add a note about the call</label>
                                                 <textarea
                                                     value={newCallLogDescription}
-                                                    onChange={(e) => setNewCallLogDescription(e.target.value)}
+                                                    onChange={(e) => {
+                                                        setLogError(null);
+                                                        setNewCallLogDescription(e.target.value);
+                                                    }}
                                                     rows={4}
                                                     className="w-full rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-900 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
                                                     placeholder="Add a note about the call"
@@ -676,7 +698,11 @@ export default function Contact() {
                                             </div>
                                         </div>
 
-                                        {logError && <p className="text-sm text-rose-600">{logError}</p>}
+                                        {logError && (
+                                            <p className={`text-sm font-medium ${logError.toLowerCase().includes('success') ? 'text-green-600' : 'text-rose-600'}`}>
+                                                {logError}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="rounded-3xl border border-slate-200 p-6 space-y-4">

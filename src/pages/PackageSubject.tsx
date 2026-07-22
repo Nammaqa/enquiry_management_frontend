@@ -38,6 +38,25 @@ interface Package {
     Subjects: Subject[];
 }
 
+const sortByName = <T extends { id?: number; name?: string; code?: string }>(items: T[]) =>
+    [...items].sort((a, b) => {
+        const nameCompare = (a.name || '').trim().localeCompare((b.name || '').trim(), undefined, {
+            sensitivity: 'base',
+            numeric: true,
+        });
+
+        if (nameCompare !== 0) return nameCompare;
+
+        const codeCompare = (a.code || '').trim().localeCompare((b.code || '').trim(), undefined, {
+            sensitivity: 'base',
+            numeric: true,
+        });
+
+        if (codeCompare !== 0) return codeCompare;
+
+        return (a.id || 0) - (b.id || 0);
+    });
+
 // Icons
 const PlusIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -148,6 +167,24 @@ export default function PackageSubject() {
     const [packageForm, setPackageForm] = useState({ name: '', code: '', domain: '', mode: '', type: '', description: '', duration: '', image: '', overview: '', syllabus: '', prerequisites: '', subjectIds: [] as number[], });
     const [subjectSearchQuery, setSubjectSearchQuery] = useState(''); // Modal search
     const [tableSubjectSearchQuery, setTableSubjectSearchQuery] = useState('');
+
+    const isPackageFormValid = Boolean(
+        packageForm.name.trim() &&
+        packageForm.code.trim() &&
+        packageForm.domain &&
+        packageForm.mode &&
+        packageForm.type &&
+        packageForm.subjectIds.length > 0
+    );
+
+    const isSubjectFormValid = Boolean(
+        subjectForm.name.trim() &&
+        subjectForm.code.trim() &&
+        subjectForm.domain &&
+        subjectForm.mode &&
+        subjectForm.type
+    );
+
     const [tablePackageSearchQuery, setTablePackageSearchQuery] = useState('');
     const [currentSubjectPage, setCurrentSubjectPage] = useState(1);
     const [currentPackagePage, setCurrentPackagePage] = useState(1);
@@ -174,7 +211,7 @@ export default function PackageSubject() {
             const data = await apiRequest<Subject[]>('/api/subjects', {
                 method: 'GET',
             });
-            setSubjects(data);
+            setSubjects(sortByName(data));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch subjects');
             console.error('Error fetching subjects:', err);
@@ -195,10 +232,10 @@ export default function PackageSubject() {
             // Normalize package subjects: backend may return `subjects` or `Subjects`
             const normalized = data.map(p => ({
                 ...p,
-                Subjects: (p as any).Subjects || (p as any).subjects || []
+                Subjects: sortByName((p as any).Subjects || (p as any).subjects || [])
             }) as Package);
 
-            setPackages(normalized);
+            setPackages(sortByName(normalized));
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to fetch packages');
             console.error('Error fetching packages:', err);
@@ -234,13 +271,8 @@ export default function PackageSubject() {
     };
 
     const saveSubject = async () => {
-        if (!subjectForm.name) {
-            setError('⚠️ Subject name is a mandatory field');
-            return;
-        }
-
-        if (!subjectForm.domain || !subjectForm.mode || !subjectForm.type) {
-            setError('⚠️ Please select Domain, Mode, and Type for the subject');
+        if (!subjectForm.name?.trim() || !subjectForm.code?.trim() || !subjectForm.domain || !subjectForm.mode || !subjectForm.type) {
+            setError('Mandatory fields are missing');
             return;
         }
 
@@ -420,20 +452,13 @@ if (subjectForm.prerequisites) {
     };
 
     const savePackage = async () => {
-        // Package name presence validation removed (allow any characters); package code validation removed per request
-
-        if (!packageForm.domain || !packageForm.mode || !packageForm.type) {
-            setError('⚠️ Please select Domain, Mode, and Type for the package');
-            return;
-        }
+            if (!packageForm.name?.trim() || !packageForm.code?.trim() || !packageForm.domain || !packageForm.mode || !packageForm.type || !packageForm.subjectIds || packageForm.subjectIds.length === 0) {
+                setError('Mandatory fields are missing');
+                return;
+            }
 
         if (isDuplicatePackageName(packageForm.name, editingPackage?.id)) {
             setError(`Package name "${packageForm.name.trim()}" already exists. Please choose a unique package name.`);
-            return;
-        }
-
-        if (!packageForm.subjectIds || packageForm.subjectIds.length === 0) {
-            setError('⚠️ Subjects are mandatory - Please select at least one subject for this package');
             return;
         }
 
@@ -544,10 +569,10 @@ if (subjectForm.prerequisites) {
 
 
     // Filter subjects based on search query
-    const filteredSubjects = subjects.filter(subject =>
+    const filteredSubjects = sortByName(subjects.filter(subject =>
         subject.name.toLowerCase().includes(subjectSearchQuery.toLowerCase()) ||
         subject.code.toLowerCase().includes(subjectSearchQuery.toLowerCase())
-    );
+    ));
 
     // Select/Deselect all filtered subjects
     const handleSelectAll = () => {
@@ -573,15 +598,15 @@ if (subjectForm.prerequisites) {
     };
 
     // Filter subjects and packages for table views
-    const filteredTableSubjects = subjects.filter(subject =>
+    const filteredTableSubjects = sortByName(subjects.filter(subject =>
         subject.name.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase()) ||
         subject.code.toLowerCase().includes(tableSubjectSearchQuery.toLowerCase())
-    );
+    ));
 
-    const filteredTablePackages = packages.filter(pkg =>
+    const filteredTablePackages = sortByName(packages.filter(pkg =>
         pkg.name.toLowerCase().includes(tablePackageSearchQuery.toLowerCase()) ||
         pkg.code.toLowerCase().includes(tablePackageSearchQuery.toLowerCase())
-    );
+    ));
 
     return (
         <div className="space-y-4">
@@ -1060,20 +1085,6 @@ if (subjectForm.prerequisites) {
                         <div className="grid grid-cols-2 gap-6 px-6 py-4">
                             {/* Left Column - Form Fields */}
                             <div className="space-y-4">
-                                {/* Error Message in Modal */}
-                                {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
-                                        <span>{error}</span>
-                                        <button
-                                            onClick={() => setError(null)}
-                                            className="text-rose-700 hover:text-rose-900 flex-shrink-0"
-                                            aria-label="Close error message"
-                                        >
-                                            <CloseIcon />
-                                        </button>
-                                    </div>
-                                )}
-
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
                                         Subject Name <span className="text-rose-500">*</span>
@@ -1272,24 +1283,31 @@ if (subjectForm.prerequisites) {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
-                            <button
-                                onClick={() => {
-                                    setIsSubjectModalOpen(false);
-                                    setError(null);
-                                    setSuccessMessage(null);
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={saveSubject}
-                                disabled={formLoading}
-                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {formLoading ? 'Saving...' : editingSubject ? 'Update' : 'Create'}
-                            </button>
+                        <div className="flex flex-col gap-3 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
+                            {error && (
+                                <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm">
+                                    {error}
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                    onClick={() => {
+                                        setIsSubjectModalOpen(false);
+                                        setError(null);
+                                        setSuccessMessage(null);
+                                    }}
+                                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={saveSubject}
+                                    disabled={formLoading || !isSubjectFormValid}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {formLoading ? 'Saving...' : editingSubject ? 'Update' : 'Create'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1317,28 +1335,15 @@ if (subjectForm.prerequisites) {
                         <div className="grid grid-cols-2 gap-6 px-6 py-4">
                             {/* Left Column - Form Fields */}
                             <div className="space-y-4">
-                                {/* Error Message in Modal */}
-                                {error && (
-                                    <div className="bg-rose-50 border border-rose-200 text-rose-700 px-3 py-2 rounded-lg text-sm flex items-start justify-between gap-4">
-                                        <span>{error}</span>
-                                        <button
-                                            onClick={() => setError(null)}
-                                            className="text-rose-700 hover:text-rose-900 flex-shrink-0"
-                                            aria-label="Close error message"
-                                        >
-                                            <CloseIcon />
-                                        </button>
-                                    </div>
-                                )}
-
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Package Name
+                                        Package Name <span className="text-rose-500">*</span>
                                     </label>
                                     <input
                                         type="text"
                                         value={packageForm.name}
                                         onChange={(e) => setPackageForm({ ...packageForm, name: e.target.value })}
+                                        required
                                         className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                         placeholder="e.g., Science Package"
                                     />
@@ -1358,7 +1363,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Domain
+                                        Domain <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={packageForm.domain}
@@ -1375,7 +1380,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Mode
+                                        Mode <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={packageForm.mode}
@@ -1389,7 +1394,7 @@ if (subjectForm.prerequisites) {
                                 </div>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-700 mb-1">
-                                        Type
+                                        Type <span className="text-rose-500">*</span>
                                     </label>
                                     <select
                                         value={packageForm.type}
@@ -1588,24 +1593,31 @@ if (subjectForm.prerequisites) {
                                 </div>
                             </div>
                         </div>
-                        <div className="flex justify-end gap-2 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
-                            <button
-                                onClick={() => {
-                                    setIsPackageModalOpen(false);
-                                    setError(null);
-                                    setSuccessMessage(null);
-                                }}
-                                className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
-                            >
-                                Cancel
-                            </button>
-                            <button
-                                onClick={savePackage}
-                                disabled={formLoading}
-                                className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                                {formLoading ? 'Saving...' : editingPackage ? 'Update' : 'Create'}
-                            </button>
+                        <div className="flex flex-col gap-3 px-6 py-4 border-t border-slate-200 sticky bottom-0 bg-white">
+                            {error && (
+                                <div className="rounded-3xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700 shadow-sm">
+                                    {error}
+                                </div>
+                            )}
+                            <div className="flex flex-wrap items-center justify-end gap-2">
+                                <button
+                                    onClick={() => {
+                                        setIsPackageModalOpen(false);
+                                        setError(null);
+                                        setSuccessMessage(null);
+                                    }}
+                                    className="px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-100 rounded-lg transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={savePackage}
+                                    disabled={formLoading || !isPackageFormValid}
+                                    className="px-4 py-2 text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {formLoading ? 'Saving...' : editingPackage ? 'Update' : 'Create'}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
