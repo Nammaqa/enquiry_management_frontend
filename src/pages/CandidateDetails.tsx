@@ -1219,6 +1219,7 @@ export default function CandidateDetails() {
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
                     </div>
                 </div>
+                
 
                 <div className="space-y-4">
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
