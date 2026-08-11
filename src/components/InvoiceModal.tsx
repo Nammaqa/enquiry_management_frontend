@@ -18,6 +18,7 @@ interface InvoiceModalProps {
     candidateLocation: string;
     invoiceNumber: string;
     invoiceDate: string;
+    showInvoiceNumber?: boolean;
     items: InvoiceItem[];
     discount: number;
     amountPaid: number;
@@ -29,7 +30,7 @@ interface InvoiceModalProps {
 export default function InvoiceModal({
     isOpen, onClose,
     candidateName, candidateEmail, candidatePhone, candidateLocation,
-    invoiceNumber, invoiceDate,
+    invoiceNumber, invoiceDate, showInvoiceNumber = false,
     items, amountPaid, balance, totalAmount, discount
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
@@ -139,6 +140,8 @@ export default function InvoiceModal({
     };
 
     const statusLabel = balance <= 0 ? 'PAID' : 'PARTIALLY PAID';
+    const shouldShowInvoiceNumber = showInvoiceNumber && Boolean(invoiceNumber);
+    const metaHeaders = shouldShowInvoiceNumber ? ['Invoice Date', 'Invoice Number', 'Status'] : ['Invoice Date', 'Status'];
 
     return (
         <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
@@ -196,7 +199,7 @@ export default function InvoiceModal({
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
-                            {['Invoice Date', 'Status'].map(h => (
+                            {metaHeaders.map(h => (
                                 <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10.5, fontWeight: 600 }}>{h}</th>
                             ))}
                         </tr>
@@ -204,6 +207,9 @@ export default function InvoiceModal({
                     <tbody>
                         <tr>
                             <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>{invoiceDate}</td>
+                            {shouldShowInvoiceNumber ? (
+                                <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 700 }}>{invoiceNumber}</td>
+                            ) : null}
                             <td style={{ padding: '9px 12px', borderBottom: '1px solid #e2e8f0' }}>
                                 <span style={{ background: balance <= 0 ? '#dcfce7' : '#fef9c3', color: balance <= 0 ? '#15803d' : '#92400e', padding: '2px 10px', borderRadius: 99, fontWeight: 600, fontSize: 10.5 }}>
                                     {statusLabel}
