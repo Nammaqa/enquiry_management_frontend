@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import nammaqaLogo from '../assets/nammaqa.jpg';
+import nammaqaLogo from '../assets/nammaqa.jpeg';
 import karthikcsLogo from '../assets/karthikcs.png';
 
 export interface InvoiceItem {
@@ -163,30 +163,29 @@ export default function InvoiceModal({
     const metaHeaders = ['Invoice Date', 'Status'];
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
-            {/* Action bar */}
-            <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
-                <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 12, padding: '32px 16px' }}>
+            {/* Actions stay outside the invoice paper and stack vertically. */}
+            <div style={{ order: 2, position: 'sticky', top: 32, display: 'flex', flexDirection: 'column', gap: 10, width: 150, flexShrink: 0, zIndex: 60 }}>
+                <button onClick={handleDownload} style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     ⬇ Download PDF
                 </button>
-                <button onClick={handlePrint} style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={handlePrint} style={{ width: '100%', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     🖨 Print
                 </button>
-                <button onClick={onClose} style={{ background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <button onClick={onClose} style={{ width: '100%', background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     ✕ Close
                 </button>
             </div>
 
             {/* Invoice paper */}
-            <div ref={printRef} style={{ background: '#fff', width: '100%', maxWidth: 960, borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
+            <div ref={printRef} style={{ order: 1, background: '#fff', width: '100%', maxWidth: 960, borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
 
                 {/* Header */}
                 <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                     <div>
-                        <div className="logo-row" style={{ marginBottom: 14 }}>
-                            <img src={nammaqaLogo} alt="NammaQA" style={{ width: 140, height: 'auto', objectFit: 'contain', display: 'block' }} />
+                        <div className="logo-row" style={{ marginBottom: 10 }}>
+                            <img src={nammaqaLogo} alt="NammaQA" style={{ width: 190, height: 'auto', objectFit: 'contain', display: 'block' }} />
                         </div>
-                        <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>Unit of Wizzybox</div>
                         <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8, fontWeight: 700 }}>
                             1st Floor, #940, above Skanda Interiors,<br />
                             near Deepa Complex, Papreddy Palya, 2nd Stage,<br />
@@ -194,10 +193,10 @@ export default function InvoiceModal({
                             GSTIN: 29AADCW7843F1ZY
                         </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
+                    <div style={{ textAlign: 'left' }}>
                         <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'PAYMENT RECEIPT'}</div>
                         {shouldShowInvoiceNumber && (
-                            <div style={{ fontSize: 14, fontWeight: 700 }}>Invoice Number: {invoiceNumber}</div>
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>Invoice Number: {invoiceNumber}</div>
                         )}
                     </div>
                 </div>
