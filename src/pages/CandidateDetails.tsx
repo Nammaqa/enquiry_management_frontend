@@ -1129,9 +1129,22 @@ export default function CandidateDetails() {
             ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    const invoiceNumber = selectedPaymentForInvoice?.id
-        ? `TXN-${String(selectedPaymentForInvoice.id).padStart(6, '0')}`
-        : `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`;
+    const formatInvoiceNumber = (id: number | string, createdAt?: string | Date) => {
+        const invoiceYear = createdAt ? new Date(createdAt).getFullYear() : new Date().getFullYear();
+        return `NQA-${invoiceYear}${String(id ?? 0).padStart(6, '0')}`;
+    };
+
+    const invoiceNumber = selectedPaymentForInvoice
+        ? (
+            selectedPaymentForInvoice.invoiceNumber
+            || selectedPaymentForInvoice.invoiceNo
+            || selectedPaymentForInvoice.taxInvoiceNumber
+            || formatInvoiceNumber(selectedPaymentForInvoice.id, selectedPaymentForInvoice.createdAt)
+        )
+        : (
+            billingData?.invoiceNumber
+            || formatInvoiceNumber(billingData?.id ?? enquiry.id, billingData?.createdAt || enquiry.createdAt)
+        );
 
     // For payment history, use the current transaction's paid amount so GST is distributed on this specific payment
     const currentInvoiceAmount = selectedPaymentForInvoice
@@ -1206,6 +1219,7 @@ export default function CandidateDetails() {
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
                     </div>
                 </div>
+                
 
                 <div className="space-y-4">
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -2550,6 +2564,7 @@ export default function CandidateDetails() {
                     candidateLocation={enquiry.current_location}
                     invoiceNumber={invoiceNumber}
                     invoiceDate={invoiceDate}
+                    showInvoiceNumber={Boolean(selectedPaymentForInvoice)}
                     items={invoiceItems}
                     discount={currentInvoiceDiscount}
                     amountPaid={currentInvoiceAmount}

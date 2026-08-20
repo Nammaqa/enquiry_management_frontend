@@ -1,7 +1,7 @@
 import { useRef } from 'react';
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
-import nammaqaLogo from '../assets/nammaqa.jpg';
+import nammaqaLogo from '../assets/nammaqa.jpeg';
 import karthikcsLogo from '../assets/karthikcs.png';
 
 export interface InvoiceItem {
@@ -18,6 +18,7 @@ interface InvoiceModalProps {
     candidateLocation: string;
     invoiceNumber: string;
     invoiceDate: string;
+    showInvoiceNumber?: boolean;
     items: InvoiceItem[];
     discount: number;
     amountPaid: number;
@@ -29,10 +30,11 @@ interface InvoiceModalProps {
 export default function InvoiceModal({
     isOpen, onClose,
     candidateName, candidateEmail, candidatePhone, candidateLocation,
-    invoiceNumber, invoiceDate,
+    invoiceNumber, invoiceDate, showInvoiceNumber = false,
     items, amountPaid, balance, totalAmount, discount
 }: InvoiceModalProps) {
     const printRef = useRef<HTMLDivElement>(null);
+    const termsRef = useRef<HTMLDivElement>(null);
 
     if (!isOpen) return null;
 
@@ -52,30 +54,48 @@ export default function InvoiceModal({
     }));
 
     const handleDownload = async () => {
-        if (!printRef.current) return;
+        if (!printRef.current || !termsRef.current) return;
 
-        const canvas = await html2canvas(printRef.current, {
+        const receiptCanvas = await html2canvas(printRef.current, {
+            backgroundColor: '#ffffff',
+            useCORS: true,
+            scale: 2,
+            onclone: clonedDocument => {
+                clonedDocument.querySelector('.second-page')?.remove();
+                clonedDocument.querySelector('.footer')?.remove();
+            },
+        });
+        const termsCanvas = await html2canvas(termsRef.current, {
             backgroundColor: '#ffffff',
             useCORS: true,
             scale: 2,
         });
 
-        const imgData = canvas.toDataURL('image/jpeg', 1.0);
         const pdf = new jsPDF('p', 'mm', 'a4');
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         const pageHeight = pdf.internal.pageSize.getHeight();
 
-        let position = 0;
-        pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+        const addCanvasPages = (canvas: HTMLCanvasElement, addNewPage: boolean) => {
+            if (addNewPage) pdf.addPage();
 
-        let heightLeft = pdfHeight - pageHeight;
-        while (heightLeft > 0) {
-            position = heightLeft - pdfHeight;
-            pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', 0, position, pdfWidth, pdfHeight);
+            const imgData = canvas.toDataURL('image/png');
+            const imageHeight = (canvas.height * pdfWidth) / canvas.width;
+            let heightLeft = imageHeight;
+            let position = 0;
+
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imageHeight);
             heightLeft -= pageHeight;
-        }
+
+            while (heightLeft > 0) {
+                position = heightLeft - imageHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, imageHeight);
+                heightLeft -= pageHeight;
+            }
+        };
+
+        addCanvasPages(receiptCanvas, false);
+        addCanvasPages(termsCanvas, true);
 
         pdf.save(`${invoiceNumber || 'invoice'}.pdf`);
     };
@@ -139,41 +159,45 @@ export default function InvoiceModal({
     };
 
     const statusLabel = balance <= 0 ? 'PAID' : 'PARTIALLY PAID';
+    const shouldShowInvoiceNumber = showInvoiceNumber && Boolean(invoiceNumber);
+    const metaHeaders = ['Invoice Date', 'Status'];
 
     return (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', padding: '32px 16px' }}>
-            {/* Action bar */}
-            <div style={{ position: 'fixed', top: 16, right: 16, display: 'flex', gap: 8, zIndex: 60 }}>
-                <button onClick={handleDownload} style={{ background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 50, background: 'rgba(0,0,0,0.6)', overflowY: 'auto', display: 'flex', justifyContent: 'center', alignItems: 'flex-start', gap: 12, padding: '32px 16px' }}>
+            {/* Actions stay outside the invoice paper and stack vertically. */}
+            <div style={{ order: 2, position: 'sticky', top: 32, display: 'flex', flexDirection: 'column', gap: 10, width: 150, flexShrink: 0, zIndex: 60 }}>
+                <button onClick={handleDownload} style={{ width: '100%', background: '#4f46e5', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     ⬇ Download PDF
                 </button>
-                <button onClick={handlePrint} style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 20px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <button onClick={handlePrint} style={{ width: '100%', background: '#0f766e', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
                     🖨 Print
                 </button>
-                <button onClick={onClose} style={{ background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '8px 16px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
+                <button onClick={onClose} style={{ width: '100%', background: '#374151', color: '#fff', border: 'none', borderRadius: 999, padding: '11px 14px', fontWeight: 600, fontSize: 13, cursor: 'pointer' }}>
                     ✕ Close
                 </button>
             </div>
 
             {/* Invoice paper */}
-            <div ref={printRef} style={{ background: '#fff', width: '100%', maxWidth: 'none', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
+            <div ref={printRef} style={{ order: 1, background: '#fff', width: '100%', maxWidth: 960, borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', padding: '48px 56px', fontFamily: 'Arial, sans-serif', color: '#1e293b' }}>
 
                 {/* Header */}
                 <div className="header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
                     <div>
-                        <div className="logo-row" style={{ marginBottom: 14 }}>
-                            <img src={nammaqaLogo} alt="NammaQA" style={{ width: 140, height: 'auto', objectFit: 'contain', display: 'block' }} />
+                        <div className="logo-row" style={{ marginBottom: 10 }}>
+                            <img src={nammaqaLogo} alt="NammaQA" style={{ width: 190, height: 'auto', objectFit: 'contain', display: 'block' }} />
                         </div>
-                        <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 6 }}>NammaQA Training Community</div>
-                        <div style={{ fontSize: 11, color: '#475569', lineHeight: 1.8 }}>
+                        <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8, fontWeight: 700 }}>
                             1st Floor, #940, above Skanda Interiors,<br />
                             near Deepa Complex, Papreddy Palya, 2nd Stage,<br />
                             Naagarabhaavi, Bengaluru, Karnataka 560072<br />
                             GSTIN: 29AADCW7843F1ZY
                         </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                        <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'PAYMENT RECEIPT'}</div>
+                    <div style={{ textAlign: 'left' }}>
+                        <div style={{ fontSize: 26, fontWeight: 900, letterSpacing: '-1px', marginBottom: 8 }}>{isPaymentHistory ? 'PAYMENT RECEIPT' : 'PAYMENT RECEIPT'}</div>
+                        {shouldShowInvoiceNumber && (
+                            <div style={{ fontSize: 16, fontWeight: 700 }}>Invoice Number: {invoiceNumber}</div>
+                        )}
                     </div>
                 </div>
 
@@ -182,8 +206,8 @@ export default function InvoiceModal({
                 {/* Bill To (Place of Supply removed for download) */}
                 <div style={{ display: 'flex', gap: 48, marginBottom: 24 }}>
                     <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>Bill To</div>
-                        <div style={{ fontSize: 11.5, color: '#334155', lineHeight: 1.8 }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8, borderBottom: '1px solid #e2e8f0', paddingBottom: 4 }}>Bill To</div>
+                        <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.8 }}>
                             <strong>{candidateName}</strong><br />
                             {candidateLocation}<br />
                             {candidateEmail}<br />
@@ -196,16 +220,16 @@ export default function InvoiceModal({
                 <table style={{ width: '100%', borderCollapse: 'collapse', marginBottom: 24 }}>
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
-                            {['Invoice Date', 'Status'].map(h => (
-                                <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 10.5, fontWeight: 600 }}>{h}</th>
+                            {metaHeaders.map(h => (
+                                <th key={h} style={{ padding: '9px 12px', textAlign: 'left', fontSize: 12, fontWeight: 600 }}>{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         <tr>
-                            <td style={{ padding: '9px 12px', fontSize: 11.5, borderBottom: '1px solid #e2e8f0' }}>{invoiceDate}</td>
+                            <td style={{ padding: '9px 12px', fontSize: 13, borderBottom: '1px solid #e2e8f0' }}>{invoiceDate}</td>
                             <td style={{ padding: '9px 12px', borderBottom: '1px solid #e2e8f0' }}>
-                                <span style={{ background: balance <= 0 ? '#dcfce7' : '#fef9c3', color: balance <= 0 ? '#15803d' : '#92400e', padding: '2px 10px', borderRadius: 99, fontWeight: 600, fontSize: 10.5 }}>
+                                <span style={{ display: 'inline-block', background: balance <= 0 ? '#dcfce7' : '#fef9c3', color: balance <= 0 ? '#15803d' : '#92400e', padding: '3px 10px', borderRadius: 99, fontWeight: 600, fontSize: 12, lineHeight: 1.4 }}>
                                     {statusLabel}
                                 </span>
                             </td>
@@ -218,16 +242,16 @@ export default function InvoiceModal({
                     <thead>
                         <tr style={{ background: '#1e293b', color: '#fff' }}>
                             {['#', 'Courses selected', 'Amount'].map((h, i) => (
-                                <th key={h} style={{ padding: '9px 12px', fontSize: 10.5, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right', width: i === 0 ? 50 : i === 2 ? 140 : 'auto' }}>{h}</th>
+                                <th key={h} style={{ padding: '10px 12px', fontSize: 12, fontWeight: 600, textAlign: i === 0 ? 'center' : i === 1 ? 'left' : 'right', width: i === 0 ? 50 : i === 2 ? 140 : 'auto' }}>{h}</th>
                             ))}
                         </tr>
                     </thead>
                     <tbody>
                         {itemsWithTax.map((item, idx) => (
                             <tr key={idx} style={{ background: idx % 2 === 0 ? '#fff' : '#f8fafc' }}>
-                                <td style={{ padding: '9px 12px', textAlign: 'center', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', color: '#64748b', width: 50 }}>{idx + 1}</td>
-                                <td style={{ padding: '9px 12px', textAlign: 'left', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 500, width: 'calc(100% - 190px)' }}>{item.name}</td>
-                                <td style={{ padding: '9px 12px', textAlign: 'right', fontSize: 11.5, borderBottom: '1px solid #e2e8f0', fontWeight: 600, width: 140 }}>₹{item.amount.toFixed(2)}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'center', fontSize: 13, borderBottom: '1px solid #e2e8f0', color: '#64748b', width: 50 }}>{idx + 1}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'left', fontSize: 13, borderBottom: '1px solid #e2e8f0', fontWeight: 500, width: 'calc(100% - 190px)' }}>{item.name}</td>
+                                <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, borderBottom: '1px solid #e2e8f0', fontWeight: 600, width: 140 }}>₹{item.amount.toFixed(2)}</td>
                             </tr>
                         ))}
                     </tbody>
@@ -240,28 +264,28 @@ export default function InvoiceModal({
                             { label: 'Package Total Amount', value: `₹${totalPackageCost.toFixed(2)}` },
                             ...(discount > 0 ? [{ label: 'Discount', value: `-₹${discount.toFixed(2)}`, color: '#16a34a' }] : []),
                         ].map(r => (
-                            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
+                            <div key={r.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', fontSize: 15, borderBottom: '1px solid #f1f5f9' }}>
                                 <span style={{ color: '#475569' }}>{r.label}</span>
                                 <span style={{ fontWeight: 700, color: r.color || '#1e293b' }}>{r.value}</span>
                             </div>
                         ))}
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 13, borderTop: '2px solid #1e293b', marginTop: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 15, borderTop: '2px solid #1e293b', marginTop: 8 }}>
                             <span style={{ color: '#475569' }}>Base Amount (Paid)</span>
                             <span style={{ fontWeight: 700 }}>₹{(amountPaid / 1.18).toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 15, borderBottom: '1px solid #f1f5f9' }}>
                             <span style={{ color: '#475569' }}>CGST (9%)</span>
                             <span style={{ fontWeight: 700 }}>₹{((amountPaid / 1.18) * 0.09).toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13, borderBottom: '1px solid #f1f5f9' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 15, borderBottom: '1px solid #f1f5f9' }}>
                             <span style={{ color: '#475569' }}>SGST (9%)</span>
                             <span style={{ fontWeight: 700 }}>₹{((amountPaid / 1.18) * 0.09).toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '14px 0 6px', fontSize: 16, borderTop: '2px solid #1e293b', marginTop: 8 }}>
                             <span style={{ fontWeight: 700 }}>Amount Paid</span>
                             <span style={{ fontWeight: 800, color: '#16a34a' }}>₹{amountPaid.toFixed(2)}</span>
                         </div>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: 14, borderTop: '2px solid #1e293b', marginTop: 6 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', padding: '10px 0', fontSize: 16, borderTop: '2px solid #1e293b', marginTop: 6 }}>
                             <span style={{ fontWeight: 700 }}>{isPaymentHistory ? 'Balance' : 'Balance Amount'}</span>
                             <span style={{ fontWeight: 800, color: balance > 0 ? '#dc2626' : '#16a34a' }}>₹{balance.toFixed(2)}</span>
                         </div>
@@ -269,38 +293,46 @@ export default function InvoiceModal({
                 </div>
                 <hr style={{ border: 'none', borderTop: '1px solid #e2e8f0', marginBottom: 24 }} />
 
-                <div className="second-page">
-                  <div className="terms" style={{ fontSize: 11, color: '#475569', lineHeight: 1.6, marginBottom: 24, padding: '18px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
-                      <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 8 }}>Terms & Conditions</div>
-                      <ol style={{ paddingLeft: 18, margin: 0 }}>
-                        <li><strong>Non-Refundable Policy:</strong> All payments made towards any NammaQA training program, event, or course are strictly non-refundable under any circumstances, including withdrawal, absenteeism, course discontinuation, or personal reasons. Refund requests will not be entertained.</li>
-                        <li><strong>Non-Transferrable Admission:</strong> Enrollment is non-transferable. Course access, registration benefits, or privileges cannot be transferred, shared, or sold to any other individual or entity under any circumstances.</li>
-                        <li><strong>Attendance and Participation Compliance:</strong> Every enrolled candidate is required to maintain a minimum of 80% attendance and participate actively in all assigned sessions, projects, and activities. Failure to comply will result in withholding of certificates or discontinuation without refund.</li>
-                        <li><strong>Mock Interview Mandate:</strong> Participation in at least one official Mock Interview organized by NammaQA is mandatory for all enrolled candidates. Certification and placement assistance will be processed only after successful completion of the mock evaluation.</li>
-                        <li><strong>Code of Conduct and Disciplinary Action:</strong> Any act of misbehavior, misconduct, use of abusive language, harassment, or disrespect towards trainers, coordinators, management, or fellow participants will lead to immediate expulsion from the course. Fees paid will be forfeited in full. Legal action may be initiated if the act involves defamation, disruption, or damage to the reputation of NammaQA or WizzyBox Private Limited.</li>
-                        <li><strong>Intellectual Property Protection:</strong> All training content, course materials, and digital resources are proprietary assets of NammaQA. Unauthorized recording, duplication, distribution, or sharing (online/offline) is strictly prohibited and will invite legal consequences.</li>
-                        <li><strong>Batch and Schedule Policy:</strong> Once a batch is allotted, requests for change of batch, trainer, or schedule will not be accepted unless approved by management under exceptional cases.</li>
-                        <li><strong>Fee Payment Obligation:</strong> Fees must be paid in full as per the scheduled installments before or on the due date. Delay or default in payment will result in suspension of classes, and certificates will be withheld until dues are cleared.</li>
-                        <li><strong>Certification Policy:</strong> Certificates will be issued only upon satisfactory completion of the course, successful mock interview performance, and clearance of all outstanding payments. The management reserves the right to withhold or cancel certificates in case of violation of any terms.</li>
-                        <li><strong>No Recording or Distribution Policy:</strong> Candidates are strictly prohibited from recording online or offline sessions, taking screenshots, or redistributing class materials. Violation of this policy will result in immediate expulsion and legal proceedings.</li>
-                        <li><strong>Management Rights:</strong> NammaQA and WizzyBox Private Limited reserve full rights to modify the course structure, schedule, or trainer allocation; reject or cancel admissions at any stage; and take disciplinary action for violations or misconduct without refund.</li>
-                        <li><strong>Confidentiality and Privacy:</strong> All candidate data collected by NammaQA will be used solely for administrative and academic purposes. Misuse of internal data or group communication channels is strictly prohibited.</li>
-                        <li><strong>Guarantee of Placement:</strong> Placement or internship assistance is provided as a value-added service and does not constitute a job guarantee. Candidates are responsible for attending interviews and following up professionally.</li>
-                    </ol>
+                {/*
+                  termsRef now wraps BOTH the terms box and the signature footer, and carries its
+                  own page padding. html2canvas crops tightly to whatever element it is given, so
+                  without this wrapper padding the terms box (and the signature below it) were
+                  rendered flush against the edges of the captured canvas in the PDF, unlike the
+                  live preview where printRef's own padding supplied the surrounding gap.
+                */}
+                <div ref={termsRef} style={{ background: '#fff', padding: '40px 56px 56px' }}>
+                    <div className="second-page">
+                        <div className="terms" style={{ fontSize: 13, color: '#475569', lineHeight: 1.6, marginBottom: 32, padding: '18px 20px', background: '#f8fafc', borderRadius: 12, border: '1px solid #e2e8f0' }}>
+                            <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 8 }}>Terms & Conditions</div>
+                            <ol style={{ paddingLeft: 18, margin: 0 }}>
+                                <li><strong>Non-Refundable Policy:</strong> All payments made towards any NammaQA training program, event, or course are strictly non-refundable under any circumstances, including withdrawal, absenteeism, course discontinuation, or personal reasons. Refund requests will not be entertained.</li>
+                                <li><strong>Non-Transferrable Admission:</strong> Enrollment is non-transferable. Course access, registration benefits, or privileges cannot be transferred, shared, or sold to any other individual or entity under any circumstances.</li>
+                                <li><strong>Attendance and Participation Compliance:</strong> Every enrolled candidate is required to maintain a minimum of 80% attendance and participate actively in all assigned sessions, projects, and activities. Failure to comply will result in withholding of certificates or discontinuation without refund.</li>
+                                <li><strong>Mock Interview Mandate:</strong> Participation in at least one official Mock Interview organized by NammaQA is mandatory for all enrolled candidates. Certification and placement assistance will be processed only after successful completion of the mock evaluation.</li>
+                                <li><strong>Code of Conduct and Disciplinary Action:</strong> Any act of misbehavior, misconduct, use of abusive language, harassment, or disrespect towards trainers, coordinators, management, or fellow participants will lead to immediate expulsion from the course. Fees paid will be forfeited in full. Legal action may be initiated if the act involves defamation, disruption, or damage to the reputation of NammaQA or WizzyBox Private Limited.</li>
+                                <li><strong>Intellectual Property Protection:</strong> All training content, course materials, and digital resources are proprietary assets of NammaQA. Unauthorized recording, duplication, distribution, or sharing (online/offline) is strictly prohibited and will invite legal consequences.</li>
+                                <li><strong>Batch and Schedule Policy:</strong> Once a batch is allotted, requests for change of batch, trainer, or schedule will not be accepted unless approved by management under exceptional cases.</li>
+                                <li><strong>Fee Payment Obligation:</strong> Fees must be paid in full as per the scheduled installments before or on the due date. Delay or default in payment will result in suspension of classes, and certificates will be withheld until dues are cleared.</li>
+                                <li><strong>Certification Policy:</strong> Certificates will be issued only upon satisfactory completion of the course, successful mock interview performance, and clearance of all outstanding payments. The management reserves the right to withhold or cancel certificates in case of violation of any terms.</li>
+                                <li><strong>No Recording or Distribution Policy:</strong> Candidates are strictly prohibited from recording online or offline sessions, taking screenshots, or redistributing class materials. Violation of this policy will result in immediate expulsion and legal proceedings.</li>
+                                <li><strong>Management Rights:</strong> NammaQA and WizzyBox Private Limited reserve full rights to modify the course structure, schedule, or trainer allocation; reject or cancel admissions at any stage; and take disciplinary action for violations or misconduct without refund.</li>
+                                <li><strong>Confidentiality and Privacy:</strong> All candidate data collected by NammaQA will be used solely for administrative and academic purposes. Misuse of internal data or group communication channels is strictly prohibited.</li>
+                                <li><strong>Guarantee of Placement:</strong> Placement or internship assistance is provided as a value-added service and does not constitute a job guarantee. Candidates are responsible for attending interviews and following up professionally.</li>
+                            </ol>
+                        </div>
                     </div>
-                </div>
 
-                {/* Footer (Payment Details removed) */}
-                <div className="footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', pageBreakInside: 'avoid' }}>
-                    <div style={{ textAlign: 'center', width: 220 }}>
+                    {/* Footer now lives inside termsRef so it is actually captured for the PDF's second page */}
+                    <div className="footer" style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'flex-end', pageBreakInside: 'avoid', marginTop: 24, paddingTop: 20, paddingBottom: 8, borderTop: '1px solid #e2e8f0' }}>
+                        <div style={{ textAlign: 'center', width: 220 }}>
                             <img src={karthikcsLogo} alt="Authorized Signature" style={{ height: 48, objectFit: 'contain', display: 'block', margin: '0 auto 6px' }} />
                             <hr style={{ border: 'none', borderTop: '1px solid #94a3b8', marginBottom: 6 }} />
-                            <div style={{ fontSize: 10.5, color: '#64748b' }}>Authorized Signature</div>
+                            <div style={{ fontSize: 12, color: '#64748b' }}>Authorized Signature</div>
                         </div>
+                    </div>
                 </div>
 
             </div>
         </div>
     );
 }
-//test
