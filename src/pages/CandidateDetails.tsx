@@ -391,6 +391,71 @@ export default function CandidateDetails() {
         return Object.values(enquiry.targetedFees).reduce((sum, fee) => sum + Number(fee), 0);
     };
 
+    const getBillingBreakdown = (candidate: Enquiry) => {
+        if (billingData?.subjectWiseBreakdown && typeof billingData.subjectWiseBreakdown === 'object') {
+            return billingData.subjectWiseBreakdown as Record<string, number | string>;
+        }
+        return candidate.targetedFees || {};
+    };
+
+    const getBillingPackageType = (candidate: Enquiry) => candidate.packageId ? 'package' : 'individual';
+
+    const getBillingSubjectIds = (candidate: Enquiry) => {
+        const subjectIds = candidate.subjectIds || [];
+        return subjectIds.length > 0 ? subjectIds : null;
+    };
+
+    const buildBillingLineItems = (candidate: Enquiry) => {
+        const breakdown = getBillingBreakdown(candidate);
+        const items: { name: string; fee: number }[] = [];
+        const usedNames = new Set<string>();
+        const savedPackageCost = Number(billingData?.packageCost || 0);
+        const isValidBillingLine = (name: string, fee: number) => {
+            const normalizedName = String(name).trim();
+            return normalizedName !== '' && normalizedName !== '0' && Number.isFinite(fee);
+        };
+
+        if (candidate.packageId) {
+            const packageName = getPackageName(candidate.packageId);
+            const packageBreakdownFee = Number(breakdown[packageName] || 0);
+            const packageFee = packageBreakdownFee > 0
+                ? packageBreakdownFee
+                : getSelectedPackageFee(candidate.packageId) || getPackageCost(candidate.packageId) || savedPackageCost;
+
+            items.push({ name: packageName, fee: packageFee });
+            usedNames.add(packageName);
+        }
+
+        const packageSubjectIds = getPackageSubjectIds(candidate.packageId ?? null);
+        const individualSubjectIds = candidate.packageId
+            ? (candidate.subjectIds || []).filter(subjectId => !packageSubjectIds.includes(subjectId))
+            : (candidate.subjectIds || []);
+
+        individualSubjectIds.forEach(subjectId => {
+            const subjectName = subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`;
+            const subjectFee = Number(breakdown[subjectName] || 0) || getSubjectFee(subjectId);
+            items.push({ name: subjectName, fee: subjectFee });
+            usedNames.add(subjectName);
+        });
+
+        Object.entries(breakdown).forEach(([name, fee]) => {
+            const amount = Number(fee || 0);
+            if (!usedNames.has(name) && isValidBillingLine(name, amount)) {
+                items.push({ name, fee: amount });
+            }
+        });
+
+        if (items.length === 0 && savedPackageCost > 0) {
+            items.push({ name: 'Package Cost', fee: savedPackageCost });
+        }
+
+        return items;
+    };
+
+    const buildBillingBreakdownPayload = (candidate: Enquiry) => Object.fromEntries(
+        buildBillingLineItems(candidate).map(item => [item.name, item.fee])
+    );
+
     const calculatePaymentDetails = (enquiry: Enquiry) => {
         let packageCost = 0;
         if (isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0) {
@@ -402,6 +467,9 @@ export default function CandidateDetails() {
             packageCost = enquiry.subjectIds.reduce((sum, subjectId) => {
                 return sum + getSubjectFee(subjectId);
             }, 0);
+        }
+        if (packageCost <= 0 && billingData?.packageCost) {
+            packageCost = Number(billingData.packageCost) || 0;
         }
         const discount = discountAmount > 0 ? discountAmount : (billingData ? (Number(billingData.discount) || 0) : 0);
         const discountedAmount = packageCost - discount;
@@ -490,6 +558,9 @@ export default function CandidateDetails() {
             }
 
             let billingPayload: object;
+            const billingBreakdownPayload = buildBillingBreakdownPayload(enquiry);
+            const billingSubjectIds = getBillingSubjectIds(enquiry);
+            const billingPackageType = getBillingPackageType(enquiry);
 
             if (billingData?.id) {
                 // ── UPDATE PATH ──────────────────────────────────────────────
@@ -518,6 +589,9 @@ export default function CandidateDetails() {
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                     denomination: paymentMode === 'CASH' ? denomination : null,
                     posReceiptUrl: paymentMode === 'CARD' ? uploadedPosUrl : null,
+                    packageType: billingData.packageType || billingPackageType,
+                    subjectIds: billingSubjectIds,
+                    subjectWiseBreakdown: billingBreakdownPayload,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -545,6 +619,9 @@ export default function CandidateDetails() {
                     transaction_id: (paymentMode === 'UPI' || paymentMode === 'CARD') ? transactionId : null,
                     denomination: paymentMode === 'CASH' ? denomination : null,
                     posReceiptUrl: paymentMode === 'CARD' ? uploadedPosUrl : null,
+                    packageType: billingPackageType,
+                    subjectIds: billingSubjectIds,
+                    subjectWiseBreakdown: billingBreakdownPayload,
                 };
 
                 await apiRequest('/api/billings', {
@@ -638,6 +715,9 @@ export default function CandidateDetails() {
         setAddingDiscountState(true);
         try {
             const paymentDetails = calculatePaymentDetails(enquiry);
+            const billingBreakdownPayload = buildBillingBreakdownPayload(enquiry);
+            const billingSubjectIds = getBillingSubjectIds(enquiry);
+            const billingPackageType = getBillingPackageType(enquiry);
             let billingPayload: any;
 
             if (billingData?.id) {
@@ -655,6 +735,9 @@ export default function CandidateDetails() {
                     paymentMode: billingData.paymentMode || 'UPI',
                     transaction_id: billingData.transaction_id || null,
                     denomination: billingData.denomination || null,
+                    packageType: billingData.packageType || billingPackageType,
+                    subjectIds: billingSubjectIds,
+                    subjectWiseBreakdown: billingBreakdownPayload,
                 };
 
                 await apiRequest(`/api/billings/${billingData.id}`, {
@@ -674,6 +757,9 @@ export default function CandidateDetails() {
                     paymentMode: 'UPI',
                     transaction_id: null,
                     denomination: null,
+                    packageType: billingPackageType,
+                    subjectIds: billingSubjectIds,
+                    subjectWiseBreakdown: billingBreakdownPayload,
                 };
 
                 await apiRequest('/api/billings', {
@@ -1129,22 +1215,14 @@ export default function CandidateDetails() {
             ? new Date(billingData.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' })
             : new Date().toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 
-    const formatInvoiceNumber = (id: number | string, createdAt?: string | Date) => {
-        const invoiceYear = createdAt ? new Date(createdAt).getFullYear() : new Date().getFullYear();
-        return `NQA-${invoiceYear}${String(id ?? 0).padStart(6, '0')}`;
-    };
-
     const invoiceNumber = selectedPaymentForInvoice
         ? (
             selectedPaymentForInvoice.invoiceNumber
             || selectedPaymentForInvoice.invoiceNo
             || selectedPaymentForInvoice.taxInvoiceNumber
-            || formatInvoiceNumber(selectedPaymentForInvoice.id, selectedPaymentForInvoice.createdAt)
+            || `TXN-${String(selectedPaymentForInvoice.id).padStart(6, '0')}`
         )
-        : (
-            billingData?.invoiceNumber
-            || formatInvoiceNumber(billingData?.id ?? enquiry.id, billingData?.createdAt || enquiry.createdAt)
-        );
+        : (billingData?.invoiceNumber || `INV-${String(billingData?.id || enquiry.id).padStart(6, '0')}`);
 
     // For payment history, use the current transaction's paid amount so GST is distributed on this specific payment
     const currentInvoiceAmount = selectedPaymentForInvoice
@@ -1181,9 +1259,11 @@ export default function CandidateDetails() {
         !sameIds(detailsForm.subjectIds || [], enquiry.subjectIds || []) ||
         !sameFeeBreakdown(draftedTargetedFees, enquiry.targetedFees || {})
     );
-    const savedBillingBreakdown = billingData?.subjectWiseBreakdown && typeof billingData.subjectWiseBreakdown === 'object'
-        ? billingData.subjectWiseBreakdown
-        : enquiry.targetedFees || {};
+    const savedBillingLineItems = buildBillingLineItems(enquiry);
+    const formatBillingAmount = (value: unknown) => {
+        const amount = Number(value);
+        return Number.isFinite(amount) ? amount.toFixed(2) : '0.00';
+    };
     // ────────────────────────────────────────────────────────────────────────
 
     return (
@@ -1219,7 +1299,6 @@ export default function CandidateDetails() {
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
                     </div>
                 </div>
-                
 
                 <div className="space-y-4">
                     <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
@@ -2196,33 +2275,33 @@ export default function CandidateDetails() {
                                         {billingData && (
                                             <div className="rounded-3xl border border-green-200 bg-green-50 p-4 space-y-2">
                                                 <p className="text-xs font-semibold uppercase tracking-wide text-green-700 mb-2">Saved Billing Summary</p>
-                                                {Object.keys(savedBillingBreakdown).length > 0 && (
+                                                {savedBillingLineItems.length > 0 && (
                                                     <div className="space-y-2 border-b border-green-200 pb-3 mb-3">
-                                                        {Object.entries(savedBillingBreakdown).map(([name, fee]) => (
+                                                        {savedBillingLineItems.map(({ name, fee }) => (
                                                             <div key={name} className="flex justify-between text-sm text-slate-700">
                                                                 <span>{name}</span>
-                                                                <span className="font-semibold">₹{Number(fee || 0).toFixed(2)}</span>
+                                                                <span className="font-semibold">₹{formatBillingAmount(fee)}</span>
                                                             </div>
                                                         ))}
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between text-sm text-slate-700">
                                                     <span>Package Cost</span>
-                                                    <span className="font-semibold">₹{parseFloat(billingData.packageCost || 0).toFixed(2)}</span>
+                                                    <span className="font-semibold">₹{formatBillingAmount(billingData.packageCost)}</span>
                                                 </div>
                                                 {parseFloat(billingData.discount || 0) > 0 && (
                                                     <div className="flex justify-between text-sm text-slate-700">
                                                         <span>Discount</span>
-                                                        <span className="font-semibold text-rose-600">- ₹{parseFloat(billingData.discount).toFixed(2)}</span>
+                                                        <span className="font-semibold text-rose-600">- ₹{formatBillingAmount(billingData.discount)}</span>
                                                     </div>
                                                 )}
                                                 <div className="flex justify-between text-sm text-slate-700">
                                                     <span>Amount Paid</span>
-                                                    <span className="font-semibold text-green-700">₹{parseFloat(billingData.amountPaid || 0).toFixed(2)}</span>
+                                                    <span className="font-semibold text-green-700">₹{formatBillingAmount(billingData.amountPaid)}</span>
                                                 </div>
                                                 <div className="flex justify-between text-sm border-t border-green-200 pt-2">
                                                     <span className="font-medium text-slate-700">Balance Due</span>
-                                                    <span className="font-bold text-slate-900">₹{parseFloat(billingData.balance || 0).toFixed(2)}</span>
+                                                    <span className="font-bold text-slate-900">₹{formatBillingAmount(billingData.balance)}</span>
                                                 </div>
                                             </div>
                                         )}
@@ -2255,32 +2334,21 @@ export default function CandidateDetails() {
                                             {/* top warning removed — moved closer to payment input */}
                                             {enquiry && ((isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0) || calculatePaymentDetails(enquiry).packageCost > 0) ? (
                                                 <>
-                                                    {isAccounts && enquiry.targetedFees && Object.keys(enquiry.targetedFees).length > 0 ? (
-                                                        <div className="space-y-4">
-                                                            <div className="text-sm font-semibold text-slate-900 pb-3 border-b border-slate-200">Subject fees</div>
-                                                            <div className="space-y-3">
-                                                                {Object.entries(enquiry.targetedFees).map(([name, fee]) => (
-                                                                    <div key={name} className="flex justify-between items-center text-sm text-slate-700">
-                                                                        <span>{name}</span>
-                                                                        <span className="font-semibold text-slate-900">₹{fee}</span>
-                                                                    </div>
-                                                                ))}
-                                                            </div>
-                                                            <div className="flex justify-between items-center text-sm pt-3 border-t border-slate-200">
-                                                                <span className="text-slate-600">Total Package Cost:</span>
-                                                                <span className="font-semibold text-slate-900">₹{getTargetedFeesTotal(enquiry)}</span>
-                                                            </div>
+                                                    <div className="space-y-4">
+                                                        <div className="text-sm font-semibold text-slate-900 pb-3 border-b border-slate-200">Billing Summary</div>
+                                                        <div className="space-y-3">
+                                                            {savedBillingLineItems.map(({ name, fee }) => (
+                                                                <div key={name} className="flex justify-between items-center text-sm text-slate-700">
+                                                                    <span>{name}</span>
+                                                                    <span className="font-semibold text-slate-900">₹{formatBillingAmount(fee)}</span>
+                                                                </div>
+                                                            ))}
                                                         </div>
-                                                    ) : (
-                                                        <>
-                                                            <div className="flex justify-between items-center text-sm pb-3 border-b border-slate-200">
-                                                                <span className="text-slate-600">Package Cost:</span>
-                                                                <span className="font-semibold text-slate-900">₹{calculatePaymentDetails(enquiry).packageCost}</span>
-                                                            </div>
-
-                                                            {/* Discount Section */}
-                                                        </>
-                                                    )}
+                                                        <div className="flex justify-between items-center text-sm pt-3 border-t border-slate-200">
+                                                            <span className="text-slate-600">Total Package Cost:</span>
+                                                            <span className="font-semibold text-slate-900">₹{formatBillingAmount(calculatePaymentDetails(enquiry).packageCost)}</span>
+                                                        </div>
+                                                    </div>
                                                     <div className="space-y-3">
                                                         {!(billingData && Number(billingData.discount || 0) > 0) && (
                                                             <div>
