@@ -317,6 +317,7 @@ export default function Contact() {
             'Email',
             'Location',
             'Status',
+            'Global',
             'Package',
             'Subjects',
             'Training Mode',
@@ -338,6 +339,7 @@ export default function Contact() {
             enquiry.email,
             enquiry.current_location,
             enquiry.candidateStatus,
+            enquiry.global ? 'True' : 'False',
             getPackageName(enquiry.packageId),
             getSubjectNames(enquiry.subjectIds),
             enquiry.trainingMode,
@@ -533,6 +535,7 @@ export default function Contact() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Global</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[17%] align-top">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Training Prefs</th>
@@ -544,7 +547,7 @@ export default function Contact() {
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={10 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -584,6 +587,11 @@ export default function Contact() {
                                             ) : (
                                                 <span className="text-xs text-slate-400">-</span>
                                             )}
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${enquiry.global ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                                                {enquiry.global ? 'True' : 'False'}
+                                            </span>
                                         </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 flex items-start gap-1.5 break-all">
