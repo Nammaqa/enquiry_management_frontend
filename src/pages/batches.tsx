@@ -81,9 +81,6 @@ export default function Batches() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
 
-    // Role-based UI controls
-    const [isCounsellor, setIsCounsellor] = useState(false);
-
     // Enrollment Modal state
     const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
     const [enrollmentBatchId, setEnrollmentBatchId] = useState<number | null>(null);
@@ -130,8 +127,6 @@ export default function Batches() {
 
     // Fetch batches and subjects on mount
     useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        setIsCounsellor(role === 'COUNSELLOR');
         fetchBatches();
         fetchSubjects();
         fetchInstructors();
@@ -618,19 +613,17 @@ export default function Batches() {
                                                     <EyeIcon />
                                                 </button>
                                             )}
-                                            {!isCounsellor && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEnrollmentBatchId(batch.id);
-                                                        setEnrollmentBatchName(batch.name);
-                                                        setIsEnrollmentModalOpen(true);
-                                                    }}
-                                                    title="Enrollments"
-                                                    className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors"
-                                                >
-                                                    <MoreVerticalIcon />
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    setEnrollmentBatchId(batch.id);
+                                                    setEnrollmentBatchName(batch.name);
+                                                    setIsEnrollmentModalOpen(true);
+                                                }}
+                                                title="Enrollments"
+                                                className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors"
+                                            >
+                                                <MoreVerticalIcon />
+                                            </button>
                                             <button
                                                 onClick={() => openModal(batch)}
                                                 className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded transition-colors"
