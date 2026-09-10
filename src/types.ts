@@ -45,6 +45,7 @@ export interface Enquiry {
     experience: string;
     referral: string;
     consent: boolean;
+    global?: boolean;
     candidateStatus: string; // The "Deal Stage"
     targetedFees?: Record<string, number>;
     demoStatus?: string; // New field requested
