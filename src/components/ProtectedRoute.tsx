@@ -15,7 +15,8 @@ export default function ProtectedRoute({ children }: { children: JSX.Element }) 
         const validateToken = async () => {
             try {
                 const token = localStorage.getItem('authToken');
-                const response = await fetch(`${import.meta.env.VITE_API_URL}/api/auth/validate-token`, {
+                const apiUrl = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
+                const response = await fetch(`${apiUrl}/api/auth/validate-token`, {
                     method: 'GET',
                     headers: {
                         'Authorization': `Bearer ${token}`,
