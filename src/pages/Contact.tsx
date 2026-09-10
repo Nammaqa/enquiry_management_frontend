@@ -24,9 +24,6 @@ export default function Contact() {
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedDate, setSelectedDate] = useState<string>(''); // Date filter in YYYY-MM-DD format
 
-    const role = localStorage.getItem('userRole');
-    const isCounsellor = role === 'COUNSELLOR';
-
     useEffect(() => {
         fetchAllData();
         // Restore selectedDate from sessionStorage
