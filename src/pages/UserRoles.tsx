@@ -6,6 +6,7 @@ interface User {
     id: string;
     name: string;
     email: string;
+    phone_number?: string;
     role: 'HR' | 'COUNSELLOR' | 'ACCOUNTS' | 'INSTRUCTOR';
     createdAt?: string;
 }
@@ -48,6 +49,7 @@ export default function UserRoles() {
     const [userForm, setUserForm] = useState({
         name: '',
         email: '',
+        phone: '',
         password: '',
         role: 'HR' as UserRole,
     });
@@ -81,6 +83,7 @@ export default function UserRoles() {
             setUserForm({
                 name: user.name,
                 email: user.email,
+                phone: user.phone_number || '',
                 password: '',
                 role: user.role,
             });
@@ -89,6 +92,7 @@ export default function UserRoles() {
             setUserForm({
                 name: '',
                 email: '',
+                phone: '',
                 password: '',
                 role: 'HR',
             });
@@ -102,6 +106,7 @@ export default function UserRoles() {
         setUserForm({
             name: '',
             email: '',
+            phone: '',
             password: '',
             role: 'HR',
         });
@@ -116,8 +121,13 @@ export default function UserRoles() {
                 return;
             }
         } else {
-            if (!userForm.name || !userForm.email || !userForm.password) {
+            if (!userForm.name || !userForm.email || !userForm.phone || !userForm.password) {
                 setError('Please fill in all required fields');
+                return;
+            }
+
+            if (!/^[6-9]\d{9}$/.test(userForm.phone)) {
+                setError('Phone number must be a valid 10-digit mobile number');
                 return;
             }
         }
@@ -142,6 +152,7 @@ export default function UserRoles() {
                     body: {
                         name: userForm.name,
                         email: userForm.email,
+                        phone_number: userForm.phone,
                         role: userForm.role,
                         password: userForm.password,
                     },
@@ -228,6 +239,7 @@ export default function UserRoles() {
                             <tr>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Name</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Email</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Phone</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Role</th>
                                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Actions</th>
                             </tr>
@@ -235,13 +247,13 @@ export default function UserRoles() {
                         <tbody className="divide-y divide-slate-200">
                             {loading && users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         Loading users...
                                     </td>
                                 </tr>
                             ) : users.length === 0 ? (
                                 <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={5} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         No users found. Click "Add User" to create one.
                                     </td>
                                 </tr>
@@ -250,6 +262,7 @@ export default function UserRoles() {
                                     <tr key={user.id} className="hover:bg-slate-50 transition-colors">
                                         <td className="px-4 py-3 text-sm font-medium text-slate-800">{user.name}</td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{user.email}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600">{user.phone_number || '-'}</td>
                                         <td className="px-4 py-3">
                                             <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(user.role)}`}>
                                                 {user.role}
@@ -328,6 +341,21 @@ export default function UserRoles() {
                                     disabled={!!editingUser}
                                     className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${editingUser ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
                                     placeholder="user@example.com"
+                                />
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium text-slate-700 mb-1">
+                                    Phone Number <span className="text-rose-500">*</span>
+                                </label>
+                                <input
+                                    type="tel"
+                                    inputMode="numeric"
+                                    value={userForm.phone}
+                                    onChange={(e) => setUserForm({ ...userForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
+                                    disabled={!!editingUser}
+                                    className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${editingUser ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                    placeholder="Enter 10-digit phone number"
                                 />
                             </div>
 
