@@ -281,7 +281,7 @@ export default function Contact() {
             'Email',
             'Location',
             'Status',
-            'Global',
+            'Naccademy',
             'Package',
             'Subjects',
             'Training Mode',
@@ -292,8 +292,6 @@ export default function Contact() {
             'Experience',
             'Source/Referral',
             'Consent',
-            'Global',
-            'Global',
             'Created Date'
         ];
 
@@ -305,7 +303,7 @@ export default function Contact() {
             enquiry.email,
             enquiry.current_location,
             enquiry.candidateStatus,
-            enquiry.global ? 'True' : 'False',
+            enquiry.global ? 'No' : 'Yes',
             getPackageName(enquiry.packageId),
             getSubjectNames(enquiry.subjectIds),
             enquiry.trainingMode,
@@ -316,8 +314,6 @@ export default function Contact() {
             enquiry.experience,
             enquiry.referral,
             enquiry.consent ? 'Yes' : 'No',
-            enquiry.global ? 'True' : 'False',
-            enquiry.global ? 'True' : 'False',
             new Date(enquiry.createdAt).toLocaleDateString('en-US')
         ]);
 
@@ -482,21 +478,20 @@ export default function Contact() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse table-fixed">
+                    <table className="w-full min-w-[1600px] text-left border-collapse table-fixed">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Demo Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Global</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[17%] align-top">Contact</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Training Prefs</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Add Logs</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Profession</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Global</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Date</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Candidate</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Naccademy</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Package Info</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Training Prefs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Add Logs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
@@ -544,8 +539,8 @@ export default function Contact() {
                                             )}
                                         </td>
                                         <td className="px-3 py-4">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${enquiry.global ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {enquiry.global ? 'True' : 'False'}
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${enquiry.global ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                {enquiry.global ? 'No' : 'Yes'}
                                             </span>
                                         </td>
                                         <td className="px-3 py-4">
@@ -597,16 +592,7 @@ export default function Contact() {
                                                 <span className="font-semibold whitespace-nowrap">Experience:</span> {enquiry.experience || '-'}
                                             </div>
                                         </td>
-                                        <td className="px-3 py-4">
-                                            <div className="text-xs text-black">
-                                                {enquiry.global ? 'True' : 'False'}
-                                            </div>
-                                        </td>
-                                        <td className="px-3 py-4">
-                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${enquiry.global ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                                                {enquiry.global ? 'True' : 'False'}
-                                            </span>
-                                        </td>
+
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-black">
                                                 {new Date(enquiry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
