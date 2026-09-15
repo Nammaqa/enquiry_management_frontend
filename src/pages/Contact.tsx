@@ -281,7 +281,7 @@ export default function Contact() {
             'Email',
             'Location',
             'Status',
-            'Naccademy',
+            'Nacademy',
             'Package',
             'Subjects',
             'Training Mode',
