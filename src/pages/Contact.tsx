@@ -485,7 +485,7 @@ export default function Contact() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Candidate</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Status</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Demo Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Naccademy</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Nacademy</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Training Prefs</th>
