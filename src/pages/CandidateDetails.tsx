@@ -82,6 +82,7 @@ export default function CandidateDetails() {
         fees: false,
         payment: false,
         movement: false,
+        batches: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isEditingFees, setIsEditingFees] = useState(false);
@@ -108,6 +109,30 @@ export default function CandidateDetails() {
     const [posReceiptFile, setPosReceiptFile] = useState<File | null>(null);
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
     const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string; onClose?: () => void } | null>(null);
+
+    // Batch enrollments state
+    const [batchEnrollments, setBatchEnrollments] = useState<any[]>([]);
+    const [loadingBatches, setLoadingBatches] = useState(false);
+
+    useEffect(() => {
+        if (expandedSections.batches && id && batchEnrollments.length === 0) {
+            fetchBatchEnrollments();
+        }
+    }, [expandedSections.batches, id]);
+
+    const fetchBatchEnrollments = async () => {
+        setLoadingBatches(true);
+        try {
+            const response = await apiRequest(`/api/batches/student/${id}/enrollments`);
+            if (response.success) {
+                setBatchEnrollments(response.data || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch batch enrollments:', err);
+        } finally {
+            setLoadingBatches(false);
+        }
+    };
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -1771,7 +1796,78 @@ export default function CandidateDetails() {
                         )}
                     </section>
 
-                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, batches: !prev.batches }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Batch Details</h2>
+                                <p className="text-sm text-slate-500 mt-1">View batches enrolled by the candidate and attendance information.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.batches ? '-' : '+'}
+                            </span>
+                        </button>
+                        {expandedSections.batches && (
+                            <div className="px-6 pb-6 space-y-4 border-t border-slate-200">
+                                {loadingBatches ? (
+                                    <div className="text-center py-6 text-slate-500 text-sm">
+                                        Loading batch enrollments...
+                                    </div>
+                                ) : batchEnrollments.length === 0 ? (
+                                    <div className="text-center py-6 text-slate-500 text-sm">
+                                        No batch enrollments found.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 pt-4">
+                                        {batchEnrollments.map(batch => {
+                                            const count = batch.attendanceCount || 0;
+                                            return (
+                                                <div key={batch.batchId} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Batch Name</p>
+                                                            <p className="text-sm font-semibold text-slate-900">{batch.batchName}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Subject</p>
+                                                            <p className="text-sm font-medium text-slate-700">{batch.subjectName || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Instructor</p>
+                                                            <p className="text-sm font-medium text-slate-700">{batch.instructorName || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Duration</p>
+                                                            <p className="text-sm font-medium text-slate-700">
+                                                                {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : 'N/A'} to {batch.endDate ? new Date(batch.endDate).toLocaleDateString() : 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Attendance</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-2 flex-1 bg-slate-200 rounded-full overflow-hidden">
+                                                                    <div 
+                                                                        className="h-full bg-indigo-500 rounded-full" 
+                                                                        style={{ width: `${Math.min(100, count > 0 ? 10 : 0)}%` }} // Placeholder logic
+                                                                    />
+                                                                </div>
+                                                                <span className="text-sm font-semibold text-indigo-700 whitespace-nowrap">{count} classes attended</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
                         <button
                             type="button"
                             onClick={() => setExpandedSections(prev => ({ ...prev, logs: !prev.logs }))}

@@ -116,8 +116,12 @@ export default function UserRoles() {
     const saveUser = async () => {
         // Validation logic
         if (editingUser) {
-            if (!userForm.password) {
-                setError('Please provide a new password');
+            if (!userForm.phone) {
+                setError('Please provide a phone number');
+                return;
+            }
+            if (!/^[6-9]\d{9}$/.test(userForm.phone)) {
+                setError('Phone number must be a valid 10-digit mobile number');
                 return;
             }
         } else {
@@ -137,14 +141,27 @@ export default function UserRoles() {
 
         try {
             if (editingUser) {
-                // Change Password Logic
-                await apiRequest('/api/users/change-password', {
-                    method: 'POST',
-                    body: {
-                        id: editingUser.id,
-                        newPassword: userForm.password
-                    },
-                });
+                // If a new password is provided, change it
+                if (userForm.password) {
+                    await apiRequest('/api/users/change-password', {
+                        method: 'POST',
+                        body: {
+                            id: editingUser.id,
+                            newPassword: userForm.password
+                        },
+                    });
+                }
+                
+                // If phone number is changed, update user details
+                if (userForm.phone !== (editingUser.phone_number || '')) {
+                    await apiRequest(`/api/users/${editingUser.id}`, {
+                        method: 'PUT',
+                        body: {
+                            phone_number: userForm.phone
+                        }
+                    });
+                }
+                
             } else {
                 // Create User Logic
                 await apiRequest('/api/users', {
@@ -353,15 +370,14 @@ export default function UserRoles() {
                                     inputMode="numeric"
                                     value={userForm.phone}
                                     onChange={(e) => setUserForm({ ...userForm, phone: e.target.value.replace(/\D/g, '').slice(0, 10) })}
-                                    disabled={!!editingUser}
-                                    className={`w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 ${editingUser ? 'bg-slate-100 text-slate-500 cursor-not-allowed' : ''}`}
+                                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500"
                                     placeholder="Enter 10-digit phone number"
                                 />
                             </div>
 
                             <div>
                                 <label className="block text-sm font-medium text-slate-700 mb-1">
-                                    Password {editingUser ? <span className="text-rose-500">* (Enter new password)</span> : <span className="text-rose-500">*</span>}
+                                    Password {editingUser ? <span className="text-slate-500 text-xs font-normal ml-1">(Optional: enter to change)</span> : <span className="text-rose-500">*</span>}
                                 </label>
                                 <input
                                     type="password"

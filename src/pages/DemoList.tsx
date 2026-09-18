@@ -480,6 +480,8 @@ export default function DemoList() {
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[15%] align-top">Candidate</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Nacademy</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[13%] align-top">Package Info</th>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[11%] align-top">Training Prefs</th>
@@ -493,13 +495,13 @@ export default function DemoList() {
                         <tbody className="divide-y divide-slate-200">
                             {loading && enquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAccounts ? 9 : 8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 11 : 10} className="px-6 py-12 text-center text-slate-500">
                                         Loading demo list...
                                     </td>
                                 </tr>
                             ) : paginatedEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={isAccounts ? 9 : 8} className="px-6 py-12 text-center text-slate-500">
+                                    <td colSpan={isAccounts ? 11 : 10} className="px-6 py-12 text-center text-slate-500">
                                         No demo candidates found.
                                     </td>
                                 </tr>
@@ -532,6 +534,20 @@ export default function DemoList() {
                                                 {enquiry.candidateStatus}
                                             </span>
                                             <div className="text-xs text-slate-500 mt-1.5">Ref: {enquiry.referral || '-'}</div>
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            {enquiry.isSentBack ? (
+                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold bg-amber-100 text-amber-800">
+                                                    true
+                                                </span>
+                                            ) : (
+                                                <span className="text-xs text-slate-400">-</span>
+                                            )}
+                                        </td>
+                                        <td className="px-3 py-4">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${enquiry.global ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                {enquiry.global ? 'No' : 'Yes'}
+                                            </span>
                                         </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 flex items-start gap-1.5 break-all">
