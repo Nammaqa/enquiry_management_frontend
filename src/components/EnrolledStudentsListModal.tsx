@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { apiRequest } from '../utils/api';
 
 interface BatchInfo {
@@ -26,12 +26,29 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [selectedBatchIds, setSelectedBatchIds] = useState<number[]>([]);
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         if (isOpen) {
             fetchEnrolledStudents();
+            // Reset filters when modal opens
+            setSearchQuery('');
+            setSelectedBatchIds([]);
+            setIsDropdownOpen(false);
         }
     }, [isOpen]);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const fetchEnrolledStudents = async () => {
         setLoading(true);
@@ -53,16 +70,39 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
         }
     };
 
+    const allBatches = useMemo(() => {
+        const batchMap = new Map<number, BatchInfo>();
+        students.forEach(s => {
+            s.enrolledBatches.forEach(b => {
+                if (!batchMap.has(b.id)) {
+                    batchMap.set(b.id, b);
+                }
+            });
+        });
+        return Array.from(batchMap.values()).sort((a, b) => a.name.localeCompare(b.name));
+    }, [students]);
+
     const filteredStudents = useMemo(() => {
-        if (!searchQuery) return students;
-        const q = searchQuery.toLowerCase();
-        return students.filter(s => 
-            s.name.toLowerCase().includes(q) ||
-            s.email.toLowerCase().includes(q) ||
-            s.phone.includes(q) ||
-            s.enrolledBatches.some(b => b.name.toLowerCase().includes(q) || (b.code && b.code.toLowerCase().includes(q)))
-        );
-    }, [students, searchQuery]);
+        let result = students;
+
+        if (selectedBatchIds.length > 0) {
+            result = result.filter(s => 
+                s.enrolledBatches.some(b => selectedBatchIds.includes(b.id))
+            );
+        }
+
+        if (searchQuery) {
+            const q = searchQuery.toLowerCase();
+            result = result.filter(s => 
+                s.name.toLowerCase().includes(q) ||
+                s.email.toLowerCase().includes(q) ||
+                s.phone.includes(q) ||
+                s.enrolledBatches.some(b => b.name.toLowerCase().includes(q) || (b.code && b.code.toLowerCase().includes(q)))
+            );
+        }
+
+        return result;
+    }, [students, searchQuery, selectedBatchIds]);
 
     if (!isOpen) return null;
 
@@ -83,8 +123,8 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
                     </button>
                 </div>
 
-                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200">
-                    <div className="relative max-w-md">
+                <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex flex-wrap sm:flex-nowrap justify-between items-center gap-4">
+                    <div className="relative w-full max-w-md">
                         <input
                             type="text"
                             placeholder="Search by student, email, phone, or batch name/code..."
@@ -95,6 +135,66 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
                         <svg className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
+                    </div>
+                    
+                    <div className="relative" ref={dropdownRef}>
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className="w-full sm:w-auto px-4 py-2 text-sm border border-slate-300 rounded-md bg-white hover:bg-slate-50 focus:outline-none focus:ring-1 focus:ring-indigo-500 flex items-center justify-between gap-2 min-w-[160px]"
+                        >
+                            <span className="truncate">
+                                {selectedBatchIds.length > 0 
+                                    ? `${selectedBatchIds.length} batch${selectedBatchIds.length > 1 ? 'es' : ''} selected` 
+                                    : 'Filter by Batch'}
+                            </span>
+                            <svg className={`w-4 h-4 flex-shrink-0 transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </button>
+
+                        {isDropdownOpen && (
+                            <div className="absolute right-0 sm:right-auto sm:left-auto sm:right-0 mt-2 w-64 bg-white border border-slate-200 rounded-md shadow-lg z-20 max-h-60 flex flex-col">
+                                <div className="p-3 border-b border-slate-100 flex justify-between items-center bg-slate-50/80 rounded-t-md">
+                                    <span className="text-xs font-semibold text-slate-700">Select Batches</span>
+                                    {selectedBatchIds.length > 0 && (
+                                        <button 
+                                            onClick={() => setSelectedBatchIds([])}
+                                            className="text-xs font-medium text-indigo-600 hover:text-indigo-800"
+                                        >
+                                            Clear all
+                                        </button>
+                                    )}
+                                </div>
+                                <div className="p-2 overflow-y-auto flex-1">
+                                    {allBatches.length === 0 ? (
+                                        <div className="text-sm text-slate-500 p-2 text-center">No batches found</div>
+                                    ) : (
+                                        allBatches.map(batch => (
+                                            <label key={batch.id} className="flex items-start gap-3 p-2 hover:bg-slate-50 rounded-md cursor-pointer transition-colors">
+                                                <div className="flex items-center h-5">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={selectedBatchIds.includes(batch.id)}
+                                                        onChange={(e) => {
+                                                            if (e.target.checked) {
+                                                                setSelectedBatchIds([...selectedBatchIds, batch.id]);
+                                                            } else {
+                                                                setSelectedBatchIds(selectedBatchIds.filter(id => id !== batch.id));
+                                                            }
+                                                        }}
+                                                        className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                                                    />
+                                                </div>
+                                                <div className="flex flex-col min-w-0">
+                                                    <span className="text-sm text-slate-700 font-medium truncate">{batch.name}</span>
+                                                    {batch.code && <span className="text-[10px] text-slate-500 truncate uppercase tracking-wide">{batch.code}</span>}
+                                                </div>
+                                            </label>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -109,17 +209,17 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
                         </div>
                     ) : filteredStudents.length === 0 ? (
                         <div className="text-center text-slate-500 py-12 bg-white rounded-xl border border-slate-200">
-                            No enrolled students found.
+                            No enrolled students found matching the criteria.
                         </div>
                     ) : (
                         <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm">
                             <table className="w-full text-left border-collapse">
                                 <thead className="bg-slate-50 border-b border-slate-200 sticky top-0 z-10">
                                     <tr>
-                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Student Name</th>
-                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Email</th>
-                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Phone</th>
-                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Enrolled Batches</th>
+                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider">Student Name</th>
+                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider">Email</th>
+                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider">Phone</th>
+                                        <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase tracking-wider">Enrolled Batches</th>
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
