@@ -27,6 +27,7 @@ interface Batch {
     image?: string;
     createdAt?: string;
     updatedAt?: string;
+    enrolledCount?: number;
 }
 
 // Icons
@@ -75,6 +76,7 @@ export default function Batches() {
     const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
     const [enrollmentBatchId, setEnrollmentBatchId] = useState<number | null>(null);
     const [enrollmentBatchName, setEnrollmentBatchName] = useState<string>('');
+    const [enrollmentBatchStudentCount, setEnrollmentBatchStudentCount] = useState<number>(0);
 
     // Student List Modal state
     const [isStudentListModalOpen, setIsStudentListModalOpen] = useState(false);
@@ -554,6 +556,7 @@ export default function Batches() {
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Instructor</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Status</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Students</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Enrollment Count</th>
                                 {/* <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Image</th> */}
                                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Actions</th>
                             </tr>
@@ -561,13 +564,13 @@ export default function Batches() {
                         <tbody className="divide-y divide-slate-200">
                             {loading && batches.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         Loading batches...
                                     </td>
                                 </tr>
                             ) : filteredBatches.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         {batches.length === 0 ? 'No batches found. Click "Create Batch" to create one.' : 'No batches match your search.'}
                                     </td>
                                 </tr>
@@ -587,6 +590,7 @@ export default function Batches() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{batch.numberOfStudents || 0}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600 font-medium">{batch.enrolledCount || 0}</td>
                                         {/* image column removed from UI */}
                                         <td className="px-4 py-3 text-right">
                                             {batch.sessionQr && (
@@ -602,6 +606,7 @@ export default function Batches() {
                                                 onClick={() => {
                                                     setEnrollmentBatchId(batch.id);
                                                     setEnrollmentBatchName(batch.name);
+                                                    setEnrollmentBatchStudentCount(batch.enrolledCount || 0);
                                                     setIsEnrollmentModalOpen(true);
                                                 }}
                                                 title="Enrollments"
@@ -676,6 +681,7 @@ export default function Batches() {
                 onClose={() => setIsEnrollmentModalOpen(false)}
                 batchId={enrollmentBatchId}
                 batchName={enrollmentBatchName}
+                studentCount={enrollmentBatchStudentCount}
                 onSuccess={(msg) => {
                     setSuccessMessage(msg);
                     fetchBatches(); // Refresh batches to reflect new student count

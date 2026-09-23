@@ -17,11 +17,12 @@ interface EnrollmentModalProps {
     isOpen: boolean;
     onClose: () => void;
     batchId: number | null;
-    batchName?: string; // Add this prop
+    batchName?: string;
+    studentCount?: number;
     onSuccess?: (message: string) => void;
 }
 
-export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, onSuccess }: EnrollmentModalProps) {
+export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, studentCount, onSuccess }: EnrollmentModalProps) {
     const [students, setStudents] = useState<Student[]>([]);
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState(false);
@@ -154,14 +155,21 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, o
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">Select students to enroll in this batch</p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="text-slate-400 hover:text-slate-600 transition-colors"
-                    >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    <div className="flex items-center gap-4">
+                        {studentCount !== undefined && (
+                            <span className="text-sm font-medium text-indigo-700 bg-indigo-50 px-3 py-1 rounded-full border border-indigo-100">
+                                Total {studentCount} student{studentCount === 1 ? '' : 's'} enrolled
+                            </span>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="text-slate-400 hover:text-slate-600 transition-colors"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Toolbar */}
