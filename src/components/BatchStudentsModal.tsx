@@ -57,32 +57,6 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
         }
     };
 
-    const handleRemoveStudent = async (studentId: number) => {
-        if (!confirm('Are you sure you want to remove this student from the batch?')) return;
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            const response = await apiRequest(`/api/batches/students/remove`, {
-                method: 'DELETE',
-                body: { batchId, studentId }
-            });
-
-            if (response.success || response.message?.toLowerCase().includes('success')) {
-                // Remove the student locally
-                setStudents(students.filter(s => s.id !== studentId));
-                if (onUpdate) onUpdate();
-            } else {
-                setError(response.message || 'Failed to remove student.');
-            }
-        } catch (err) {
-            console.error('Error removing student:', err);
-            setError(err instanceof Error ? err.message : 'Failed to remove student.');
-        } finally {
-            setLoading(false);
-        }
-    };
 
     const toggleSelectAll = () => {
         if (selectedIds.size === students.length && students.length > 0) {
@@ -212,13 +186,12 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Email</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Phone</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Status</th>
-                                    <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase text-right">Actions</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {loading && students.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                                             <div className="flex items-center justify-center gap-2">
                                                 <svg className="animate-spin h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -230,7 +203,7 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                                     </tr>
                                 ) : students.length === 0 ? (
                                     <tr>
-                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
                                             No students enrolled in this batch.
                                         </td>
                                     </tr>
@@ -249,18 +222,6 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                                             <td className="px-6 py-3 text-sm text-slate-600">{student.email}</td>
                                             <td className="px-6 py-3 text-sm text-slate-600">{student.phone}</td>
                                             <td className="px-6 py-3 text-sm text-slate-600 capitalize">{(student.paymentStatus === 'fully paid' || student.paymentStatus === 'paid') ? 'paid' : (student.candidateStatus || '-')}</td>
-                                            <td className="px-6 py-3 text-sm text-right" onClick={e => e.stopPropagation()}>
-                                                <button
-                                                    onClick={() => handleRemoveStudent(student.id)}
-                                                    disabled={loading}
-                                                    className="inline-flex items-center justify-center gap-1 px-3 py-1.5 text-xs font-medium bg-rose-50 text-rose-600 rounded hover:bg-rose-100 hover:text-rose-700 transition-colors disabled:opacity-50"
-                                                >
-                                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
-                                                        <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
-                                                    </svg>
-                                                    Remove
-                                                </button>
-                                            </td>
                                         </tr>
                                     ))
                                 )}
