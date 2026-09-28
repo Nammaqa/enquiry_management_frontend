@@ -2099,7 +2099,7 @@ export default function CandidateDetails() {
                                                 </div>
                                                 {detailsForm.packageId && (
                                                     <div className="flex-1 min-w-[160px]">
-                                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)<span className="text-red-500 ml-1">*</span></label>
                                                         {(() => {
                                                             const pkgName = getPackageName(detailsForm.packageId);
                                                             const savedFee = enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
@@ -2256,7 +2256,7 @@ export default function CandidateDetails() {
                                                                     )}
                                                                 </div>
                                                                 <div>
-                                                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)<span className="text-red-500 ml-1">*</span></label>
                                                                     {(() => {
                                                                         const subjectName = subjects.find(s => s.id === subjectId)?.name;
                                                                         const previouslyAddedFee = subjectName && enquiry?.targetedFees && subjectName in enquiry.targetedFees ? enquiry.targetedFees[subjectName] : undefined;
@@ -2333,7 +2333,25 @@ export default function CandidateDetails() {
                                                             }
                                                         });
                                                     }}
-                                                    disabled={savingFees}
+                                                    disabled={savingFees || !(() => {
+    const pkgSubIds = detailsForm.packageId ? (() => {
+        const pkg = packages.find(p => p.id === detailsForm.packageId);
+        const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
+        return (pkgSubjects as { id: number }[]).map(s => s.id);
+    })() : [];
+    const extraIds = (detailsForm.subjectIds || []).filter(id => !pkgSubIds.includes(id));
+    const hasValidPackageFee = !detailsForm.packageId || 
+        (feesByPackage[detailsForm.packageId] !== undefined 
+            ? feesByPackage[detailsForm.packageId] !== '' 
+            : (enquiry?.targetedFees && getPackageName(detailsForm.packageId) in enquiry.targetedFees));
+    const hasValidSubjectFees = extraIds.every(subjectId => {
+        const subjectName = subjects.find(s => s.id === subjectId)?.name || '';
+        return feesBySubject[subjectId] !== undefined 
+            ? feesBySubject[subjectId] !== ''
+            : (enquiry?.targetedFees && subjectName in enquiry.targetedFees);
+    });
+    return hasValidPackageFee && hasValidSubjectFees;
+})()}
                                                     className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                                 >
                                                     {savingFees ? 'Saving...' : 'Save fees'}
