@@ -103,7 +103,8 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, s
 
             const response = await apiRequest('/api/batches/students/addstudent-tobatch', {
                 method: 'POST',
-                body: payload
+                body: payload,
+                timeout: 300000 // 5 minutes timeout for large batches
             });
 
             if (response.success) {
