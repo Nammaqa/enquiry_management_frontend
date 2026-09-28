@@ -693,6 +693,7 @@ export default function Batches() {
                 onClose={() => setIsStudentListModalOpen(false)}
                 batchId={studentListBatchId}
                 batchName={studentListBatchName}
+                onUpdate={() => fetchBatches()}
             />
 
             {/* Batch Modal */}

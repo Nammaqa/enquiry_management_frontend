@@ -245,11 +245,11 @@ export default function PaidList() {
             });
         }
 
-        // Sort by date (newest first)
+        // Sort alphabetically by name
         filtered = filtered.sort((a, b) => {
-            const dateA = new Date(b.createdAt).getTime();
-            const dateB = new Date(a.createdAt).getTime();
-            return dateA - dateB;
+            const nameA = a.name ? a.name.toLowerCase() : '';
+            const nameB = b.name ? b.name.toLowerCase() : '';
+            return nameA.localeCompare(nameB);
         });
 
         return filtered;

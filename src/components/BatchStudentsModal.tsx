@@ -7,6 +7,7 @@ interface Student {
     email: string;
     phone: string;
     candidateStatus?: string;
+    paymentStatus?: string;
 }
 
 interface BatchStudentsModalProps {
@@ -14,26 +15,36 @@ interface BatchStudentsModalProps {
     onClose: () => void;
     batchId: number | null;
     batchName?: string;
+    onUpdate?: () => void;
 }
 
-export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName }: BatchStudentsModalProps) {
+export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName, onUpdate }: BatchStudentsModalProps) {
     const [students, setStudents] = useState<Student[]>([]);
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (isOpen && batchId) {
             fetchBatchDetails();
+        } else {
+            setSelectedIds(new Set());
         }
     }, [isOpen, batchId]);
 
     const fetchBatchDetails = async () => {
         setLoading(true);
         setError(null);
+        setSelectedIds(new Set());
         try {
             const response = await apiRequest(`/api/batches/${batchId}/details`);
             if (response.success && response.data) {
-                setStudents(response.data.enrolledStudents || []);
+                const sortedStudents = (response.data.enrolledStudents || []).sort((a: any, b: any) => {
+                    const nameA = a.name ? a.name.toLowerCase() : '';
+                    const nameB = b.name ? b.name.toLowerCase() : '';
+                    return nameA.localeCompare(nameB);
+                });
+                setStudents(sortedStudents);
             } else {
                 setStudents([]);
                 console.warn('Unexpected batch details response:', response);
@@ -61,12 +72,72 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
             if (response.success || response.message?.toLowerCase().includes('success')) {
                 // Remove the student locally
                 setStudents(students.filter(s => s.id !== studentId));
+                if (onUpdate) onUpdate();
             } else {
                 setError(response.message || 'Failed to remove student.');
             }
         } catch (err) {
             console.error('Error removing student:', err);
             setError(err instanceof Error ? err.message : 'Failed to remove student.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const toggleSelectAll = () => {
+        if (selectedIds.size === students.length && students.length > 0) {
+            setSelectedIds(new Set());
+        } else {
+            setSelectedIds(new Set(students.map(s => s.id)));
+        }
+    };
+
+    const toggleSelect = (id: number) => {
+        const newSelected = new Set(selectedIds);
+        if (newSelected.has(id)) {
+            newSelected.delete(id);
+        } else {
+            newSelected.add(id);
+        }
+        setSelectedIds(newSelected);
+    };
+
+    const handleRemoveSelected = async () => {
+        if (selectedIds.size === 0) return;
+        if (!confirm(`Are you sure you want to remove ${selectedIds.size} student(s) from the batch?`)) return;
+
+        setLoading(true);
+        setError(null);
+
+        let successCount = 0;
+        const newStudents = [...students];
+
+        try {
+            await Promise.all(
+                Array.from(selectedIds).map(async (studentId) => {
+                    const response = await apiRequest(`/api/batches/students/remove`, {
+                        method: 'DELETE',
+                        body: { batchId, studentId }
+                    });
+                    if (response.success || response.message?.toLowerCase().includes('success')) {
+                        successCount++;
+                        const index = newStudents.findIndex(s => s.id === studentId);
+                        if (index !== -1) newStudents.splice(index, 1);
+                    }
+                })
+            );
+            
+            setStudents(newStudents);
+            setSelectedIds(new Set());
+            if (successCount > 0 && onUpdate) {
+                onUpdate();
+            }
+            if (successCount < selectedIds.size) {
+                setError(`Successfully removed ${successCount} out of ${selectedIds.size} students.`);
+            }
+        } catch (err) {
+            console.error('Error in bulk removal:', err);
+            setError('An error occurred during bulk removal. Some students may not have been removed.');
         } finally {
             setLoading(false);
         }
@@ -85,15 +156,29 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                         </h3>
                         <p className="text-xs text-slate-500 mt-0.5">Students enrolled in {batchName || 'Batch'}</p>
                     </div>
-                    <button
-                        onClick={onClose}
-                        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
-                        title="Close"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </button>
+                    <div className="flex items-center gap-3">
+                        {selectedIds.size > 0 && (
+                            <button
+                                onClick={handleRemoveSelected}
+                                disabled={loading}
+                                className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium bg-rose-600 text-white rounded-lg hover:bg-rose-700 transition-colors disabled:opacity-50"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                                </svg>
+                                Remove Selected ({selectedIds.size})
+                            </button>
+                        )}
+                        <button
+                            onClick={onClose}
+                            className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+                            title="Close"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
                 </div>
 
                 {/* Content */}
@@ -115,6 +200,14 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                         <table className="w-full text-left whitespace-nowrap">
                             <thead className="bg-slate-50 border-y border-slate-200 sticky top-0 z-10 shadow-sm">
                                 <tr>
+                                    <th className="px-6 py-3 w-10">
+                                        <input
+                                            type="checkbox"
+                                            checked={students.length > 0 && selectedIds.size === students.length}
+                                            onChange={toggleSelectAll}
+                                            className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                        />
+                                    </th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Name</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Email</th>
                                     <th className="px-6 py-3 text-xs font-semibold text-slate-700 uppercase">Phone</th>
@@ -125,7 +218,7 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                             <tbody className="divide-y divide-slate-100 bg-white">
                                 {loading && students.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
                                             <div className="flex items-center justify-center gap-2">
                                                 <svg className="animate-spin h-5 w-5 text-indigo-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                                                     <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
@@ -137,18 +230,26 @@ export default function BatchStudentsModal({ isOpen, onClose, batchId, batchName
                                     </tr>
                                 ) : students.length === 0 ? (
                                     <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-slate-500 text-sm">
+                                        <td colSpan={6} className="px-6 py-8 text-center text-slate-500 text-sm">
                                             No students enrolled in this batch.
                                         </td>
                                     </tr>
                                 ) : (
                                     students.map((student) => (
-                                        <tr key={student.id} className="hover:bg-slate-50 transition-colors">
+                                        <tr key={student.id} className="hover:bg-slate-50 transition-colors cursor-pointer" onClick={() => toggleSelect(student.id)}>
+                                            <td className="px-6 py-3" onClick={e => e.stopPropagation()}>
+                                                <input
+                                                    type="checkbox"
+                                                    checked={selectedIds.has(student.id)}
+                                                    onChange={() => toggleSelect(student.id)}
+                                                    className="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500 cursor-pointer"
+                                                />
+                                            </td>
                                             <td className="px-6 py-3 text-sm text-slate-800 font-medium">{student.name}</td>
                                             <td className="px-6 py-3 text-sm text-slate-600">{student.email}</td>
                                             <td className="px-6 py-3 text-sm text-slate-600">{student.phone}</td>
-                                            <td className="px-6 py-3 text-sm text-slate-600 capitalize">{student.candidateStatus || '-'}</td>
-                                            <td className="px-6 py-3 text-sm text-right">
+                                            <td className="px-6 py-3 text-sm text-slate-600 capitalize">{(student.paymentStatus === 'fully paid' || student.paymentStatus === 'paid') ? 'paid' : (student.candidateStatus || '-')}</td>
+                                            <td className="px-6 py-3 text-sm text-right" onClick={e => e.stopPropagation()}>
                                                 <button
                                                     onClick={() => handleRemoveStudent(student.id)}
                                                     disabled={loading}

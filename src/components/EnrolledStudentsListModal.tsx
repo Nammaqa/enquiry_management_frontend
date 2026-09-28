@@ -101,7 +101,11 @@ export default function EnrolledStudentsListModal({ isOpen, onClose }: EnrolledS
             );
         }
 
-        return result;
+        return result.sort((a, b) => {
+            const nameA = a.name ? a.name.toLowerCase() : '';
+            const nameB = b.name ? b.name.toLowerCase() : '';
+            return nameA.localeCompare(nameB);
+        });
     }, [students, searchQuery, selectedBatchIds]);
 
     if (!isOpen) return null;

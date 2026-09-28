@@ -11,6 +11,7 @@ interface Student {
     enrolledBatches?: { id: number; name: string }[];
     packageName?: string | null;
     subjectNames?: string[];
+    paymentStatus?: string;
 }
 
 interface EnrollmentModalProps {
@@ -141,6 +142,10 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, s
             student.phone.includes(nameSearch);
 
         return matchesName;
+    }).sort((a, b) => {
+        const nameA = a.name ? a.name.toLowerCase() : '';
+        const nameB = b.name ? b.name.toLowerCase() : '';
+        return nameA.localeCompare(nameB);
     });
 
     if (!isOpen) return null;
@@ -257,7 +262,7 @@ export default function EnrollmentModal({ isOpen, onClose, batchId, batchName, s
                                                 <td className="px-6 py-3 text-sm text-slate-600">{student.email}</td>
                                                 <td className="px-6 py-3 text-sm text-slate-600">{student.phone}</td>
                                                 <td className="px-6 py-3 text-sm text-slate-600 capitalize">
-                                                    {student.candidateStatus || '-'}
+                                                    {(student.paymentStatus === 'fully paid' || student.paymentStatus === 'paid') ? 'Paid' : (student.candidateStatus || '-')}
                                                 </td>
                                                 <td className="px-6 py-3 text-sm text-slate-600" title={student.enrolledBatches?.map(b => b.name.trim()).filter(Boolean).join(', ') || 'None'}>
                                                     {student.enrolledBatches && student.enrolledBatches.length > 0
