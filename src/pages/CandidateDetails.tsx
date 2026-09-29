@@ -437,7 +437,7 @@ export default function CandidateDetails() {
         const savedPackageCost = Number(billingData?.packageCost || 0);
         const isValidBillingLine = (name: string, fee: number) => {
             const normalizedName = String(name).trim();
-            return normalizedName !== '' && normalizedName !== '0' && Number.isFinite(fee);
+            return normalizedName !== '' && normalizedName !== '0' && Number.isFinite(fee) && fee > 0;
         };
 
         if (candidate.packageId) {
@@ -447,8 +447,10 @@ export default function CandidateDetails() {
                 ? packageBreakdownFee
                 : getSelectedPackageFee(candidate.packageId) || getPackageCost(candidate.packageId) || savedPackageCost;
 
-            items.push({ name: packageName, fee: packageFee });
-            usedNames.add(packageName);
+            if (packageFee > 0) {
+                items.push({ name: packageName, fee: packageFee });
+                usedNames.add(packageName);
+            }
         }
 
         const packageSubjectIds = getPackageSubjectIds(candidate.packageId ?? null);
@@ -459,8 +461,10 @@ export default function CandidateDetails() {
         individualSubjectIds.forEach(subjectId => {
             const subjectName = subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`;
             const subjectFee = Number(breakdown[subjectName] || 0) || getSubjectFee(subjectId);
-            items.push({ name: subjectName, fee: subjectFee });
-            usedNames.add(subjectName);
+            if (subjectFee > 0) {
+                items.push({ name: subjectName, fee: subjectFee });
+                usedNames.add(subjectName);
+            }
         });
 
         Object.entries(breakdown).forEach(([name, fee]) => {
@@ -2184,11 +2188,11 @@ export default function CandidateDetails() {
                                                 const pkgName = detailsForm.packageId
                                                     ? packages.find(p => p.id === detailsForm.packageId)?.name
                                                     : null;
-                                                const entriesToShow = detailsForm.packageId
+                                                const entriesToShow = (detailsForm.packageId
                                                     ? Object.entries(enquiry.targetedFees).filter(([name]) =>
                                                         pkgName ? name === pkgName : true
                                                     )
-                                                    : Object.entries(enquiry.targetedFees);
+                                                    : Object.entries(enquiry.targetedFees)).filter(([_, fee]) => Number(fee) > 0);
                                                 if (entriesToShow.length === 0) return null;
                                                 return (
                                                     <div className="rounded-3xl border border-slate-200 bg-white p-4 mb-4">
@@ -2342,13 +2346,13 @@ export default function CandidateDetails() {
     const extraIds = (detailsForm.subjectIds || []).filter(id => !pkgSubIds.includes(id));
     const hasValidPackageFee = !detailsForm.packageId || 
         (feesByPackage[detailsForm.packageId] !== undefined 
-            ? feesByPackage[detailsForm.packageId] !== '' 
-            : (enquiry?.targetedFees && getPackageName(detailsForm.packageId) in enquiry.targetedFees));
+            ? feesByPackage[detailsForm.packageId] !== '' && Number(feesByPackage[detailsForm.packageId]) > 0
+            : (enquiry?.targetedFees && getPackageName(detailsForm.packageId) in enquiry.targetedFees && Number(enquiry.targetedFees[getPackageName(detailsForm.packageId)]) > 0));
     const hasValidSubjectFees = extraIds.every(subjectId => {
         const subjectName = subjects.find(s => s.id === subjectId)?.name || '';
         return feesBySubject[subjectId] !== undefined 
-            ? feesBySubject[subjectId] !== ''
-            : (enquiry?.targetedFees && subjectName in enquiry.targetedFees);
+            ? feesBySubject[subjectId] !== '' && Number(feesBySubject[subjectId]) > 0
+            : (enquiry?.targetedFees && subjectName in enquiry.targetedFees && Number(enquiry.targetedFees[subjectName]) > 0);
     });
     return hasValidPackageFee && hasValidSubjectFees;
 })()}
