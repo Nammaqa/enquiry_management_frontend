@@ -65,6 +65,7 @@ export default function CandidateDetails() {
     };
 
     const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
+    const isPaidListOrigin = new URLSearchParams(location.search).get('from') === 'paid-list';
 
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
     const [loading, setLoading] = useState(!location.state?.enquiry);
@@ -1322,7 +1323,7 @@ export default function CandidateDetails() {
                         </div>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                        Status: <span className="font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : enquiry.candidateStatus}</span>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
@@ -2016,7 +2017,7 @@ export default function CandidateDetails() {
                                             <div className="grid gap-2">
                                                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
-                                                    <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry.candidateStatus || 'Not set'}</p>
+                                                    <p className="mt-2 text-sm font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : (enquiry.candidateStatus || 'Not set')}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -2717,7 +2718,7 @@ export default function CandidateDetails() {
 
                                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
-                                            <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry?.candidateStatus || 'Not set'}</p>
+                                            <p className="mt-2 text-sm font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : (enquiry?.candidateStatus || 'Not set')}</p>
                                         </div>
 
                                         <div className="flex justify-end">
