@@ -20,22 +20,12 @@ export default function Contact() {
 
     // Filter and Pagination State
     const [searchTerm, setSearchTerm] = useState('');
-    const [statusFilter, setStatusFilter] = useState<string | null>(null);
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [selectedDate, setSelectedDate] = useState<string>(''); // Date filter in YYYY-MM-DD format
 
-    const role = localStorage.getItem('userRole');
-    const isCounsellor = role === 'COUNSELLOR';
-    const allowedStatuses = isCounsellor ? ['enquiry stage'] : ['enquiry stage', 'qualified demo', 'class qualified'];
-
     useEffect(() => {
         fetchAllData();
-        // Restore statusFilter from sessionStorage
-        const savedStatusFilter = sessionStorage.getItem('contactPageStatusFilter');
-        if (savedStatusFilter) {
-            setStatusFilter(savedStatusFilter);
-        }
         // Restore selectedDate from sessionStorage
         const savedDate = sessionStorage.getItem('contactPageSelectedDate');
         if (savedDate) {
@@ -173,34 +163,13 @@ export default function Contact() {
 
     // Get unique statuses in specific order
     const displayedEnquiries = useMemo(() => {
-        if (!isCounsellor) return enquiries;
-        return enquiries.filter(enquiry => allowedStatuses.includes(enquiry.candidateStatus));
-    }, [enquiries, isCounsellor]);
-
-    const uniqueStatuses = useMemo(() => {
-        // Always include allowed statuses, even if they have no records
-        return allowedStatuses;
-    }, [allowedStatuses]);
-
-    // Set initial status filter to first status
-    useEffect(() => {
-        if (statusFilter === null && uniqueStatuses.length > 0) {
-            setStatusFilter(uniqueStatuses[0]);
-        }
-    }, [uniqueStatuses, statusFilter]);
-
-    useEffect(() => {
-        if (statusFilter && !uniqueStatuses.includes(statusFilter)) {
-            setStatusFilter(uniqueStatuses[0] || null);
-        }
-    }, [uniqueStatuses, statusFilter]);
-
-    // Save statusFilter to sessionStorage whenever it changes
-    useEffect(() => {
-        if (statusFilter) {
-            sessionStorage.setItem('contactPageStatusFilter', statusFilter);
-        }
-    }, [statusFilter]);
+        return enquiries.filter(enquiry => {
+            if (enquiry.candidateStatus === 'demo') return false;
+            if (enquiry.candidateStatus === 'class') return false;
+            if (enquiry.paymentStatus === 'fully paid') return false;
+            return true;
+        });
+    }, [enquiries]);
 
     // Save sortOrder to sessionStorage whenever it changes
     useEffect(() => {
@@ -225,11 +194,6 @@ export default function Contact() {
             );
         }
 
-        // Status filter
-        if (statusFilter) {
-            filtered = filtered.filter(enquiry => enquiry.candidateStatus === statusFilter);
-        }
-
         // Date filter
         if (selectedDate) {
             filtered = filtered.filter(enquiry => {
@@ -238,15 +202,15 @@ export default function Contact() {
             });
         }
 
-        // Sort by date (newest first)
+        // Sort alphabetically by name
         filtered = filtered.sort((a, b) => {
-            const dateA = new Date(b.createdAt).getTime();
-            const dateB = new Date(a.createdAt).getTime();
-            return dateA - dateB;
+            const nameA = a.name ? a.name.toLowerCase() : '';
+            const nameB = b.name ? b.name.toLowerCase() : '';
+            return nameA.localeCompare(nameB);
         });
 
         return filtered;
-    }, [displayedEnquiries, searchTerm, statusFilter, selectedDate]);
+    }, [displayedEnquiries, searchTerm, selectedDate]);
 
     // Pagination
     const totalPages = Math.max(1, Math.ceil(filteredEnquiries.length / itemsPerPage));
@@ -258,7 +222,7 @@ export default function Contact() {
     // Reset to page 1 when filters change
     useEffect(() => {
         setCurrentPage(1);
-    }, [searchTerm, statusFilter, selectedDate]);
+    }, [searchTerm, selectedDate]);
 
     // Reset to page 1 when rows per page changes
     const handleRowsPerPageChange = (newValue: number) => {
@@ -317,6 +281,7 @@ export default function Contact() {
             'Email',
             'Location',
             'Status',
+            'Nacademy',
             'Package',
             'Subjects',
             'Training Mode',
@@ -338,6 +303,7 @@ export default function Contact() {
             enquiry.email,
             enquiry.current_location,
             enquiry.candidateStatus,
+            enquiry.global ? 'No' : 'Yes',
             getPackageName(enquiry.packageId),
             getSubjectNames(enquiry.subjectIds),
             enquiry.trainingMode,
@@ -377,12 +343,13 @@ export default function Contact() {
             { wch: 12 }, // Experience
             { wch: 20 }, // Source/Referral
             { wch: 10 }, // Consent
+            { wch: 10 }, // Global
             { wch: 15 }  // Created Date
         ];
         worksheet['!cols'] = columnWidths;
 
         // Generate file name and download
-        const fileName = `${statusFilter || 'enquiry'}_list_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const fileName = `all_enquiries_list_${new Date().toISOString().split('T')[0]}.xlsx`;
         XLSX.writeFile(workbook, fileName);
     };
 
@@ -425,7 +392,7 @@ export default function Contact() {
                                 type="text"
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                placeholder={`Search ${statusFilter === 'enquiry stage' ? 'Enquiry List' : statusFilter === 'qualified demo' ? 'Qualified Demo' : statusFilter === 'class qualified' ? 'Class Qualified' : statusFilter} by name, phone, or email...`}
+                                placeholder={`Search by name, phone, or email...`}
                                 className="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent focus:bg-white transition-all"
                             />
                             {searchTerm && (
@@ -470,26 +437,11 @@ export default function Contact() {
             </div>
 
 
-            {/* Status Tabs */}
+            {/* Controls Bar */}
             <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                <div className="flex gap-0 border-b border-slate-200 overflow-x-auto justify-between items-center">
-                    <div className="flex gap-0 overflow-x-auto">
-                        {uniqueStatuses.map(status => (
-                            <button
-                                key={status}
-                                onClick={() => setStatusFilter(status)}
-                                className={`px-6 py-3.5 text-sm font-medium whitespace-nowrap transition-all border-b-2 ${statusFilter === status
-                                        ? 'border-indigo-600 text-indigo-600 bg-white'
-                                        : 'border-transparent text-slate-600 bg-slate-50 hover:text-slate-900 hover:bg-white'
-                                    }`}
-                            >
-                                {status === 'enquiry stage' ? 'Enquiry List' : status === 'qualified demo' ? 'Qualified Demo' : status === 'class qualified' ? 'Class Qualified' : status}
-                            </button>
-                        ))}
-                    </div>
-
+                <div className="flex gap-0 border-b border-slate-200 overflow-x-auto justify-end items-center">
                     {/* Rows Per Page Selector & Export Button */}
-                    <div className="px-6 py-3.5 flex items-center gap-4 border-l border-slate-200">
+                    <div className="px-6 py-3.5 flex items-center gap-4">
                         <div className="flex items-center gap-2">
                             <label htmlFor="rows-per-page" className="text-sm font-medium text-slate-700 whitespace-nowrap">
                                 Rows per page:
@@ -526,25 +478,26 @@ export default function Contact() {
                 </div>
 
                 <div className="overflow-x-auto">
-                    <table className="w-full text-left border-collapse table-fixed">
+                    <table className="w-full min-w-[1600px] text-left border-collapse table-fixed">
                         <thead className="bg-slate-50 border-b border-slate-200">
                             <tr>
                                 <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Enquiry ID</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Candidate</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Demo Status</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[17%] align-top">Contact</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[14%] align-top">Package Info</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Training Prefs</th>
-                                {statusFilter !== 'demo' && <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[10%] align-top">Add Logs</th>}
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Profession</th>
-                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Date</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Candidate</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Demo Status</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Nacademy</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[16%] align-top">Contact</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[12%] align-top">Package Info</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[9%] align-top">Training Prefs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[8%] align-top">Add Logs</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Profession</th>
+                                <th className="px-3 py-4 text-xs font-semibold text-black uppercase tracking-wider w-[6%] align-top">Date</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-slate-200">
                             {filteredEnquiries.length === 0 ? (
                                 <tr>
-                                    <td colSpan={9 + (statusFilter !== 'demo' ? 1 : 0)} className="px-6 py-12 text-center text-black text-sm">
+                                    <td colSpan={11} className="px-6 py-12 text-center text-black text-sm">
                                         No records
                                     </td>
                                 </tr>
@@ -586,6 +539,11 @@ export default function Contact() {
                                             )}
                                         </td>
                                         <td className="px-3 py-4">
+                                            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${enquiry.global ? 'bg-red-100 text-red-800' : 'bg-green-100 text-green-800'}`}>
+                                                {enquiry.global ? 'No' : 'Yes'}
+                                            </span>
+                                        </td>
+                                        <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 flex items-start gap-1.5 break-all">
                                                 <svg className="w-3 h-3 text-black mt-0.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                                 <span>{enquiry.email}</span>
@@ -608,23 +566,21 @@ export default function Contact() {
                                             <div className="text-xs text-black">{enquiry.trainingTime}</div>
                                             <div className="text-xs text-black mt-0.5">Start: {enquiry.startTime}</div>
                                         </td>
-                                        {statusFilter !== 'demo' && (
-                                            <td className="px-3 py-4">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        openLogModal(enquiry);
-                                                    }}
-                                                    className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
-                                                    title="Add call log"
-                                                >
-                                                    +
-                                                </button>
-                                                <div className="text-xs text-slate-500 mt-1">
-                                                    {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
-                                                </div>
-                                            </td>
-                                        )}
+                                        <td className="px-3 py-4">
+                                            <button
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    openLogModal(enquiry);
+                                                }}
+                                                className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-slate-300 bg-white text-slate-700 hover:border-indigo-500 hover:text-indigo-700 transition"
+                                                title="Add call log"
+                                            >
+                                                +
+                                            </button>
+                                            <div className="text-xs text-slate-500 mt-1">
+                                                {enquiry.callLogs === undefined ? 'Loading...' : `${enquiry.callLogs.length} log${enquiry.callLogs.length === 1 ? '' : 's'}`}
+                                            </div>
+                                        </td>
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-slate-900 wrap-break-word">
                                                 <span className="font-semibold whitespace-nowrap">Professional:</span> {keepLastWordTogether(enquiry.profession)}
@@ -636,6 +592,7 @@ export default function Contact() {
                                                 <span className="font-semibold whitespace-nowrap">Experience:</span> {enquiry.experience || '-'}
                                             </div>
                                         </td>
+
                                         <td className="px-3 py-4">
                                             <div className="text-xs text-black">
                                                 {new Date(enquiry.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}

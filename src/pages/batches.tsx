@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { apiRequest } from '../utils/api';
 import EnrollmentModal from '../components/EnrollmentModal';
+import BatchStudentsModal from '../components/BatchStudentsModal';
+import EnrolledStudentsListModal from '../components/EnrolledStudentsListModal';
 
 // Types
 interface Subject {
@@ -25,6 +27,7 @@ interface Batch {
     image?: string;
     createdAt?: string;
     updatedAt?: string;
+    enrolledCount?: number;
 }
 
 // Icons
@@ -47,21 +50,9 @@ const EditIcon = () => (
     </svg>
 );
 
-const DeleteIcon = () => (
-    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-    </svg>
-);
-
 const CloseIcon = () => (
     <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-    </svg>
-);
-
-const MoreVerticalIcon = () => (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
     </svg>
 );
 
@@ -81,13 +72,19 @@ export default function Batches() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBatch, setEditingBatch] = useState<Batch | null>(null);
 
-    // Role-based UI controls
-    const [isCounsellor, setIsCounsellor] = useState(false);
-
     // Enrollment Modal state
     const [isEnrollmentModalOpen, setIsEnrollmentModalOpen] = useState(false);
     const [enrollmentBatchId, setEnrollmentBatchId] = useState<number | null>(null);
     const [enrollmentBatchName, setEnrollmentBatchName] = useState<string>('');
+    const [enrollmentBatchStudentCount, setEnrollmentBatchStudentCount] = useState<number>(0);
+
+    // Student List Modal state
+    const [isStudentListModalOpen, setIsStudentListModalOpen] = useState(false);
+    const [studentListBatchId, setStudentListBatchId] = useState<number | null>(null);
+    const [studentListBatchName, setStudentListBatchName] = useState<string>('');
+
+    // Enrolled Students List Modal state
+    const [isEnrolledStudentsModalOpen, setIsEnrolledStudentsModalOpen] = useState(false);
 
     // QR Preview modal
     const [isQrPreviewOpen, setIsQrPreviewOpen] = useState(false);
@@ -130,8 +127,6 @@ export default function Batches() {
 
     // Fetch batches and subjects on mount
     useEffect(() => {
-        const role = localStorage.getItem('userRole');
-        setIsCounsellor(role === 'COUNSELLOR');
         fetchBatches();
         fetchSubjects();
         fetchInstructors();
@@ -387,28 +382,6 @@ export default function Batches() {
         }
     };
 
-    // Delete batch
-    const deleteBatch = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this batch?')) {
-            return;
-        }
-
-        setLoading(true);
-        setError(null);
-
-        try {
-            await apiRequest(`/api/batches/${id}`, {
-                method: 'DELETE',
-            });
-            await fetchBatches();
-            setSuccessMessage('Batch deleted successfully');
-        } catch (err) {
-            setError(err instanceof Error ? err.message : 'Failed to delete batch');
-            console.error('Error deleting batch:', err);
-        } finally {
-            setLoading(false);
-        }
-    };
 
     // Get subject name by ID
     const getSubjectName = (subjectId: number | undefined) => {
@@ -437,13 +410,22 @@ export default function Batches() {
             {/* Header */}
             <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-bold text-slate-800">Batches</h1>
-                <button
-                    onClick={() => openModal()}
-                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                >
-                    <PlusIcon />
-                    Create Batch
-                </button>
+                <div className="flex gap-3">
+                    <button
+                        onClick={() => setIsEnrolledStudentsModalOpen(true)}
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" /></svg>
+                        Enrolled List
+                    </button>
+                    <button
+                        onClick={() => openModal()}
+                        className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                    >
+                        <PlusIcon />
+                        Create Batch
+                    </button>
+                </div>
             </div>
 
             {/* Success Message Modal */}
@@ -574,6 +556,7 @@ export default function Batches() {
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Instructor</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Status</th>
                                 <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Students</th>
+                                <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Enrollment Count</th>
                                 {/* <th className="px-4 py-3 text-left text-xs font-semibold text-slate-700 uppercase">Image</th> */}
                                 <th className="px-4 py-3 text-right text-xs font-semibold text-slate-700 uppercase">Actions</th>
                             </tr>
@@ -581,13 +564,13 @@ export default function Batches() {
                         <tbody className="divide-y divide-slate-200">
                             {loading && batches.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         Loading batches...
                                     </td>
                                 </tr>
                             ) : filteredBatches.length === 0 ? (
                                 <tr>
-                                    <td colSpan={7} className="px-4 py-8 text-center text-slate-500 text-sm">
+                                    <td colSpan={8} className="px-4 py-8 text-center text-slate-500 text-sm">
                                         {batches.length === 0 ? 'No batches found. Click "Create Batch" to create one.' : 'No batches match your search.'}
                                     </td>
                                 </tr>
@@ -607,6 +590,7 @@ export default function Batches() {
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-sm text-slate-600">{batch.numberOfStudents || 0}</td>
+                                        <td className="px-4 py-3 text-sm text-slate-600 font-medium">{batch.enrolledCount || 0}</td>
                                         {/* image column removed from UI */}
                                         <td className="px-4 py-3 text-right">
                                             {batch.sessionQr && (
@@ -618,30 +602,34 @@ export default function Batches() {
                                                     <EyeIcon />
                                                 </button>
                                             )}
-                                            {!isCounsellor && (
-                                                <button
-                                                    onClick={() => {
-                                                        setEnrollmentBatchId(batch.id);
-                                                        setEnrollmentBatchName(batch.name);
-                                                        setIsEnrollmentModalOpen(true);
-                                                    }}
-                                                    title="Enrollments"
-                                                    className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600 px-2 py-1 rounded transition-colors"
-                                                >
-                                                    <MoreVerticalIcon />
-                                                </button>
-                                            )}
+                                            <button
+                                                onClick={() => {
+                                                    setEnrollmentBatchId(batch.id);
+                                                    setEnrollmentBatchName(batch.name);
+                                                    setEnrollmentBatchStudentCount(batch.enrolledCount || 0);
+                                                    setIsEnrollmentModalOpen(true);
+                                                }}
+                                                title="Enrollments"
+                                                className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600 px-3 py-1 rounded transition-colors text-sm font-medium border border-slate-200 hover:border-indigo-200"
+                                            >
+                                                Enroll
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setStudentListBatchId(batch.id);
+                                                    setStudentListBatchName(batch.name);
+                                                    setIsStudentListModalOpen(true);
+                                                }}
+                                                title="Student List"
+                                                className="inline-flex items-center gap-1 text-slate-500 hover:text-indigo-600 px-3 py-1 rounded transition-colors text-sm font-medium border border-slate-200 hover:border-indigo-200 ml-2"
+                                            >
+                                                Student List
+                                            </button>
                                             <button
                                                 onClick={() => openModal(batch)}
                                                 className="inline-flex items-center gap-1 text-indigo-600 hover:text-indigo-700 px-2 py-1 rounded transition-colors"
                                             >
                                                 <EditIcon />
-                                            </button>
-                                            <button
-                                                onClick={() => deleteBatch(batch.id)}
-                                                className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700 px-2 py-1 rounded transition-colors ml-1"
-                                            >
-                                                <DeleteIcon />
                                             </button>
                                         </td>
                                     </tr>
@@ -693,6 +681,19 @@ export default function Batches() {
                 onClose={() => setIsEnrollmentModalOpen(false)}
                 batchId={enrollmentBatchId}
                 batchName={enrollmentBatchName}
+                studentCount={enrollmentBatchStudentCount}
+                onSuccess={(msg) => {
+                    setSuccessMessage(msg);
+                    fetchBatches(); // Refresh batches to reflect new student count
+                }}
+            />
+
+            <BatchStudentsModal
+                isOpen={isStudentListModalOpen}
+                onClose={() => setIsStudentListModalOpen(false)}
+                batchId={studentListBatchId}
+                batchName={studentListBatchName}
+                onUpdate={() => fetchBatches()}
             />
 
             {/* Batch Modal */}
@@ -918,6 +919,11 @@ export default function Batches() {
                     </div>
                 </div>
             )}
+
+            <EnrolledStudentsListModal 
+                isOpen={isEnrolledStudentsModalOpen}
+                onClose={() => setIsEnrolledStudentsModalOpen(false)}
+            />
         </div>
     );
 }

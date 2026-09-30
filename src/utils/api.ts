@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL;
+const API_URL = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_URL || '');
 
 function showApiError(message: string) {
     try {
@@ -13,6 +13,7 @@ export interface ApiRequestOptions {
     body?: any;
     headers?: Record<string, string>;
     isFormData?: boolean;
+    timeout?: number;
 }
 
 export const apiRequest = async <T = any>(
@@ -30,7 +31,8 @@ export const apiRequest = async <T = any>(
     }
 
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+    const timeout = options.timeout || 30000; // 30 second default timeout
+    const timeoutId = setTimeout(() => controller.abort(), timeout);
 
     const config: RequestInit = {
         method: options.method || 'GET',

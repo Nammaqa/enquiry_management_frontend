@@ -49,9 +49,24 @@ export interface Enquiry {
     targetedFees?: Record<string, number>;
     demoStatus?: string; // New field requested
     isSentBack?: boolean;
+    global?: boolean; // New field for global status
     billing?: Billing;
     paymentStatus?: string; // New field for paid list
     callLogs?: CallLogEntry[];
+    enrolledBatches?: {
+        id: number;
+        name: string;
+        sessionStartDate: string;
+        sessionEndDate: string;
+        numberOfStudents: number;
+        status: string;
+        subject?: { name: string };
+        instructor?: { name: string };
+    }[];
+    attendances?: {
+        batchId: number;
+        attendanceCount: number;
+    }[];
     createdAt: string;
     updatedAt: string;
 }

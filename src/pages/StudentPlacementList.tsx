@@ -64,7 +64,11 @@ export default function StudentPlacementList() {
         app.enquiry.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.jobPost.jobTitle.toLowerCase().includes(searchTerm.toLowerCase()) ||
         app.jobPost.companyName.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    ).sort((a, b) => {
+        const nameA = a.enquiry.name ? a.enquiry.name.toLowerCase() : '';
+        const nameB = b.enquiry.name ? b.enquiry.name.toLowerCase() : '';
+        return nameA.localeCompare(nameB);
+    });
 
     if (loading) {
         return (

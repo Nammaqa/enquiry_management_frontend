@@ -65,6 +65,7 @@ export default function CandidateDetails() {
     };
 
     const isClassListOrigin = new URLSearchParams(location.search).get('from') === 'class-list';
+    const isPaidListOrigin = new URLSearchParams(location.search).get('from') === 'paid-list';
 
     const [enquiry, setEnquiry] = useState<Enquiry | null>(location.state?.enquiry || null);
     const [loading, setLoading] = useState(!location.state?.enquiry);
@@ -82,6 +83,7 @@ export default function CandidateDetails() {
         fees: false,
         payment: false,
         movement: false,
+        batches: false,
     });
     const [isEditingDetails, setIsEditingDetails] = useState(false);
     const [isEditingFees, setIsEditingFees] = useState(false);
@@ -108,6 +110,30 @@ export default function CandidateDetails() {
     const [posReceiptFile, setPosReceiptFile] = useState<File | null>(null);
     const [paymentHistoryRefreshTrigger, setPaymentHistoryRefreshTrigger] = useState(0);
     const [modalMessage, setModalMessage] = useState<{ type: 'success' | 'error'; message: string; onClose?: () => void } | null>(null);
+
+    // Batch enrollments state
+    const [batchEnrollments, setBatchEnrollments] = useState<any[]>([]);
+    const [loadingBatches, setLoadingBatches] = useState(false);
+
+    useEffect(() => {
+        if (expandedSections.batches && id && batchEnrollments.length === 0) {
+            fetchBatchEnrollments();
+        }
+    }, [expandedSections.batches, id]);
+
+    const fetchBatchEnrollments = async () => {
+        setLoadingBatches(true);
+        try {
+            const response = await apiRequest(`/api/batches/student/${id}/enrollments`);
+            if (response.success) {
+                setBatchEnrollments(response.data || []);
+            }
+        } catch (err) {
+            console.error('Failed to fetch batch enrollments:', err);
+        } finally {
+            setLoadingBatches(false);
+        }
+    };
 
     const role = localStorage.getItem('userRole');
     const isCounsellor = role === 'COUNSELLOR';
@@ -412,7 +438,7 @@ export default function CandidateDetails() {
         const savedPackageCost = Number(billingData?.packageCost || 0);
         const isValidBillingLine = (name: string, fee: number) => {
             const normalizedName = String(name).trim();
-            return normalizedName !== '' && normalizedName !== '0' && Number.isFinite(fee);
+            return normalizedName !== '' && normalizedName !== '0' && Number.isFinite(fee) && fee > 0;
         };
 
         if (candidate.packageId) {
@@ -422,8 +448,10 @@ export default function CandidateDetails() {
                 ? packageBreakdownFee
                 : getSelectedPackageFee(candidate.packageId) || getPackageCost(candidate.packageId) || savedPackageCost;
 
-            items.push({ name: packageName, fee: packageFee });
-            usedNames.add(packageName);
+            if (packageFee > 0) {
+                items.push({ name: packageName, fee: packageFee });
+                usedNames.add(packageName);
+            }
         }
 
         const packageSubjectIds = getPackageSubjectIds(candidate.packageId ?? null);
@@ -434,8 +462,10 @@ export default function CandidateDetails() {
         individualSubjectIds.forEach(subjectId => {
             const subjectName = subjects.find(subject => subject.id === subjectId)?.name || `Subject ${subjectId}`;
             const subjectFee = Number(breakdown[subjectName] || 0) || getSubjectFee(subjectId);
-            items.push({ name: subjectName, fee: subjectFee });
-            usedNames.add(subjectName);
+            if (subjectFee > 0) {
+                items.push({ name: subjectName, fee: subjectFee });
+                usedNames.add(subjectName);
+            }
         });
 
         Object.entries(breakdown).forEach(([name, fee]) => {
@@ -1293,7 +1323,7 @@ export default function CandidateDetails() {
                         </div>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
-                        Status: <span className="font-semibold text-slate-900">{enquiry.candidateStatus}</span>
+                        Status: <span className="font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : enquiry.candidateStatus}</span>
                     </div>
                     <div className="rounded-3xl bg-slate-100 px-4 py-2 text-sm text-slate-800">
                         Role: <span className="font-semibold text-slate-900">{role || 'USER'}</span>
@@ -1771,7 +1801,78 @@ export default function CandidateDetails() {
                         )}
                     </section>
 
-                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden">
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
+                        <button
+                            type="button"
+                            onClick={() => setExpandedSections(prev => ({ ...prev, batches: !prev.batches }))}
+                            className="w-full flex items-center justify-between px-6 py-5 text-left"
+                        >
+                            <div>
+                                <h2 className="text-lg font-semibold text-slate-900">Batch Details</h2>
+                                <p className="text-sm text-slate-500 mt-1">View batches enrolled by the candidate and attendance information.</p>
+                            </div>
+                            <span className="text-2xl font-bold text-slate-400">
+                                {expandedSections.batches ? '-' : '+'}
+                            </span>
+                        </button>
+                        {expandedSections.batches && (
+                            <div className="px-6 pb-6 space-y-4 border-t border-slate-200">
+                                {loadingBatches ? (
+                                    <div className="text-center py-6 text-slate-500 text-sm">
+                                        Loading batch enrollments...
+                                    </div>
+                                ) : batchEnrollments.length === 0 ? (
+                                    <div className="text-center py-6 text-slate-500 text-sm">
+                                        No batch enrollments found.
+                                    </div>
+                                ) : (
+                                    <div className="space-y-4 pt-4">
+                                        {batchEnrollments.map(batch => {
+                                            const count = batch.attendanceCount || 0;
+                                            return (
+                                                <div key={batch.batchId} className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
+                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Batch Name</p>
+                                                            <p className="text-sm font-semibold text-slate-900">{batch.batchName}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Subject</p>
+                                                            <p className="text-sm font-medium text-slate-700">{batch.subjectName || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Instructor</p>
+                                                            <p className="text-sm font-medium text-slate-700">{batch.instructorName || '-'}</p>
+                                                        </div>
+                                                        <div>
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Duration</p>
+                                                            <p className="text-sm font-medium text-slate-700">
+                                                                {batch.startDate ? new Date(batch.startDate).toLocaleDateString() : 'N/A'} to {batch.endDate ? new Date(batch.endDate).toLocaleDateString() : 'N/A'}
+                                                            </p>
+                                                        </div>
+                                                        <div className="md:col-span-2">
+                                                            <p className="text-xs uppercase tracking-[0.16em] text-slate-500 mb-1">Attendance</p>
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="h-2 flex-1 bg-slate-200 rounded-full overflow-hidden">
+                                                                    <div 
+                                                                        className="h-full bg-indigo-500 rounded-full" 
+                                                                        style={{ width: `${Math.min(100, count > 0 ? 10 : 0)}%` }} // Placeholder logic
+                                                                    />
+                                                                </div>
+                                                                <span className="text-sm font-semibold text-indigo-700 whitespace-nowrap">{count} classes attended</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                            </div>
+                        )}
+                    </section>
+
+                    <section className="bg-white border border-slate-200 rounded-3xl shadow-sm overflow-hidden mb-6">
                         <button
                             type="button"
                             onClick={() => setExpandedSections(prev => ({ ...prev, logs: !prev.logs }))}
@@ -1916,7 +2017,7 @@ export default function CandidateDetails() {
                                             <div className="grid gap-2">
                                                 <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                                     <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
-                                                    <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry.candidateStatus || 'Not set'}</p>
+                                                    <p className="mt-2 text-sm font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : (enquiry.candidateStatus || 'Not set')}</p>
                                                 </div>
                                             </div>
                                         </div>
@@ -2003,7 +2104,7 @@ export default function CandidateDetails() {
                                                 </div>
                                                 {detailsForm.packageId && (
                                                     <div className="flex-1 min-w-[160px]">
-                                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)<span className="text-red-500 ml-1">*</span></label>
                                                         {(() => {
                                                             const pkgName = getPackageName(detailsForm.packageId);
                                                             const savedFee = enquiry?.targetedFees && pkgName in enquiry.targetedFees ? enquiry.targetedFees[pkgName] : undefined;
@@ -2088,11 +2189,11 @@ export default function CandidateDetails() {
                                                 const pkgName = detailsForm.packageId
                                                     ? packages.find(p => p.id === detailsForm.packageId)?.name
                                                     : null;
-                                                const entriesToShow = detailsForm.packageId
+                                                const entriesToShow = (detailsForm.packageId
                                                     ? Object.entries(enquiry.targetedFees).filter(([name]) =>
                                                         pkgName ? name === pkgName : true
                                                     )
-                                                    : Object.entries(enquiry.targetedFees);
+                                                    : Object.entries(enquiry.targetedFees)).filter(([_, fee]) => Number(fee) > 0);
                                                 if (entriesToShow.length === 0) return null;
                                                 return (
                                                     <div className="rounded-3xl border border-slate-200 bg-white p-4 mb-4">
@@ -2160,7 +2261,7 @@ export default function CandidateDetails() {
                                                                     )}
                                                                 </div>
                                                                 <div>
-                                                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)</label>
+                                                                    <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Fee (₹)<span className="text-red-500 ml-1">*</span></label>
                                                                     {(() => {
                                                                         const subjectName = subjects.find(s => s.id === subjectId)?.name;
                                                                         const previouslyAddedFee = subjectName && enquiry?.targetedFees && subjectName in enquiry.targetedFees ? enquiry.targetedFees[subjectName] : undefined;
@@ -2237,7 +2338,25 @@ export default function CandidateDetails() {
                                                             }
                                                         });
                                                     }}
-                                                    disabled={savingFees}
+                                                    disabled={savingFees || !(() => {
+    const pkgSubIds = detailsForm.packageId ? (() => {
+        const pkg = packages.find(p => p.id === detailsForm.packageId);
+        const pkgSubjects = (pkg as any)?.subjects ?? (pkg as any)?.Subjects ?? [];
+        return (pkgSubjects as { id: number }[]).map(s => s.id);
+    })() : [];
+    const extraIds = (detailsForm.subjectIds || []).filter(id => !pkgSubIds.includes(id));
+    const hasValidPackageFee = !detailsForm.packageId || 
+        (feesByPackage[detailsForm.packageId] !== undefined 
+            ? feesByPackage[detailsForm.packageId] !== '' && Number(feesByPackage[detailsForm.packageId]) > 0
+            : (enquiry?.targetedFees && getPackageName(detailsForm.packageId) in enquiry.targetedFees && Number(enquiry.targetedFees[getPackageName(detailsForm.packageId)]) > 0));
+    const hasValidSubjectFees = extraIds.every(subjectId => {
+        const subjectName = subjects.find(s => s.id === subjectId)?.name || '';
+        return feesBySubject[subjectId] !== undefined 
+            ? feesBySubject[subjectId] !== '' && Number(feesBySubject[subjectId]) > 0
+            : (enquiry?.targetedFees && subjectName in enquiry.targetedFees && Number(enquiry.targetedFees[subjectName]) > 0);
+    });
+    return hasValidPackageFee && hasValidSubjectFees;
+})()}
                                                     className="inline-flex items-center justify-center rounded-3xl bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
                                                 >
                                                     {savingFees ? 'Saving...' : 'Save fees'}
@@ -2599,7 +2718,7 @@ export default function CandidateDetails() {
 
                                         <div className="rounded-3xl border border-slate-200 bg-slate-50 p-4">
                                             <p className="text-xs uppercase tracking-[0.16em] text-slate-500">Current status</p>
-                                            <p className="mt-2 text-sm font-semibold text-slate-900">{enquiry?.candidateStatus || 'Not set'}</p>
+                                            <p className="mt-2 text-sm font-semibold text-slate-900">{isPaidListOrigin ? 'paid' : (enquiry?.candidateStatus || 'Not set')}</p>
                                         </div>
 
                                         <div className="flex justify-end">
